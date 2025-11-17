@@ -1,0 +1,55 @@
+# Build results
+**/bin/
+**/obj/
+**/PubTmp/
+**/out/
+**/publish/
+
+# Visual Studio cache/options
+.vs/
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+
+# Rider/JetBrains
+.idea/
+*.iml
+
+# Logs
+**/logs/
+*.log
+
+# OS generated
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+
+# NuGet
+**/packages/
+*.nupkg
+*.snupkg
+
+# DotNet tools
+/.config/dotnet-tools.json
+
+# Secrets
+appsettings.*.local.json
+secrets.json
+
+# Publish profiles (user-specific)
+**/*.pubxml.user
+
+# Misc
+*.obj
+*.exe
+*.dll
+*.pdb
+*.cache
+*.pidb
+*.svclog
+*.tar.gz
+*.zip
+
+

@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zaaer Integration API - DevExtreme</title>
+    
+    <!-- DevExtreme CSS -->
+    <link rel="stylesheet" href="https://cdn3.devexpress.com/jslib/23.2.3/css/dx.light.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- DevExtreme JS -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn3.devexpress.com/jslib/23.2.3/js/dx.all.js"></script>
+    
+    <style>
+        :root {
+            --vs-blue: #007ACC;
+            --vs-dark-blue: #005A9E;
+            --vs-light-blue: #E3F2FD;
+            --vs-gray: #F5F5F5;
+            --vs-dark-gray: #333333;
+            --vs-light-gray: #E0E0E0;
+            --vs-success: #28A745;
+            --vs-warning: #FFC107;
+            --vs-danger: #DC3545;
+            --vs-info: #17A2B8;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--vs-gray);
+            color: var(--vs-dark-gray);
+        }
+
+        .header-container {
+            background: linear-gradient(135deg, #007ACC 0%, #005A9E 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .header-container h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .header-container .partner-note {
+            font-size: 0.85rem;
+            margin-top: 10px;
+            opacity: 0.9;
+            font-style: italic;
+        }
+
+        .header-container .new-field {
+            color: #90EE90;
+            font-weight: 700;
+        }
+
+        .hotel-selector-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border: 2px solid var(--vs-blue);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .main-container {
+            padding: 20px;
+            margin-left: 420px; /* sidebar width (400) + spacing */
+            transition: margin-left 0.3s ease;
+            max-width: calc(100% - 420px);
+        }
+
+        .main-container.sidebar-closed {
+            margin-left: 0;
+            max-width: 100%;
+        }
+
+        .section-card {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+
+        .section-card.active {
+            display: block;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--vs-blue);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .endpoint-card {
+            background: #fafafa;
+            border: 1px solid var(--vs-light-gray);
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .endpoint-header {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .endpoint-header h5 {
+            margin: 0;
+            font-size: 16px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .endpoint-header .text-muted {
+            color: #666;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .method-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .method-post {
+            background-color: #28A745;
+            color: white;
+        }
+
+        .method-put {
+            background-color: #FFC107;
+            color: #333;
+        }
+
+        .method-get {
+            background-color: #17A2B8;
+            color: white;
+        }
+
+        .method-delete {
+            background-color: #DC3545;
+            color: white;
+        }
+
+        .response-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            display: none;
+        }
+
+        .response-json {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin-top: 10px;
+        }
+
+        .badge-new {
+            font-size: 10px;
+            font-weight: 600;
+            color: #1a202c;
+            background: #ffe08a;
+            border-radius: 10px;
+            padding: 1px 6px;
+            margin-left: 6px;
+            vertical-align: middle;
+            display: inline-block;
+        }
+
+        .badge-new i {
+            margin-right: 3px;
+        }
+
+        /* Sidebar Styles */
+        #sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 400px;
+            height: 100vh;
+            background-color: var(--vs-blue);
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .sidebar-header h4 {
+            margin: 0;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            left: 20px;
+            top: 20px;
+            z-index: 1001;
+            background-color: var(--vs-blue);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar Toggle Button -->
+    <div id="sidebarToggle"></div>
+
+    <!-- Sidebar -->
+    <div id="sidebar"></div>
+
+    <!-- Hotel Selector -->
+    <div class="hotel-selector-container">
+        <i class="fas fa-hotel" style="color: var(--vs-blue);"></i>
+        <span>الفندق:</span>
+        <div id="hotelSelector"></div>
+    </div>
+
+    <!-- Header -->
+    <div class="header-container">
+        <h1>
+            <i class="dx-icon-code"></i>
+            Zaaer Integration API Tester - DevExtreme
+        </h1>
+        <p class="partner-note">
+            <span class="new-field">✓ NEW:</span> Added <span class="new-field">zaaer_id</span> field to all tables • 
+            <span style="text-decoration: line-through; opacity: 0.7;">externalRefNo</span> field removed from all tables
+        </p>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container" id="mainContent">
+        <!-- All Sections will be dynamically loaded here -->
+        <div id="sections-container"></div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div style="color: white; font-size: 18px;">
+            <i class="dx-icon-loadindicator"></i> Loading...
+        </div>
+    </div>
+
+    <script>
+        // API Base URL
+        const API_BASE_URL = window.location.origin;
+
+        // Variables
+        let currentHotelCode = '';
+        let availableHotels = [];
+        let currentSection = 'customers';
+
+        // Initialize Page
+        $(document).ready(function() {
+            console.log('🚀 Page loaded - Starting initialization...');
+            
+            initializeSidebar();
+            initializeHotelSelector();
+            initializeSidebarToggle();
+            
+            // Load hotels and show default section
+            setTimeout(function() {
+                loadAvailableHotels();
+            }, 100);
+        });
+
+        // Initialize Sidebar using DevExtreme Menu
+        function initializeSidebar() {
+            const menuItems = [
+                { id: 'customers', text: 'Customers', icon: 'user', section: 'customers' },
+                { id: 'reservations', text: 'Reservations', icon: 'event', section: 'reservations' },
+                { id: 'receipts', text: 'Receipts', icon: 'doc', section: 'receipts' },
+                { id: 'invoices', text: 'Invoices', icon: 'file', section: 'invoices' },
+                { id: 'refunds', text: 'Refunds', icon: 'undo', section: 'refunds' },
+                { id: 'credit-notes', text: 'Credit Notes', icon: 'money', section: 'credit-notes' },
+                { id: 'room-types', text: 'Room Types', icon: 'home', section: 'room-types' },
+                { id: 'base-rates', text: 'Base Rates', icon: 'dollar', section: 'base-rates' },
+                { id: 'seasonal-rates', text: 'Seasonal Rates', icon: 'calendar', section: 'seasonal-rates', badge: 'New' },
+                { id: 'rate-types', text: 'Rate Types', icon: 'tags', section: 'rate-types', badge: 'New' },
+                { id: 'banks', text: 'Banks', icon: 'bank', section: 'banks' },
+                { id: 'expenses', text: 'Expenses', icon: 'money', section: 'expenses', badge: 'New' },
+                { id: 'building-floors', text: 'Building + Floors', icon: 'building', section: 'building-floors' },
+                { id: 'users', text: 'Users', icon: 'user', section: 'users' },
+                { id: 'roles', text: 'Roles', icon: 'group', section: 'roles' },
+                { id: 'apartments', text: 'Apartments', icon: 'home', section: 'apartments' },
+                { id: 'hotel-settings', text: 'Hotel Settings', icon: 'preferences', section: 'hotel-settings' },
+                { id: 'zatca', text: 'ZATCA Details', icon: 'file', section: 'zatca', badge: 'New' },
+                { id: 'reservation-tools', text: 'Reservation Tools', icon: 'search', section: 'reservation-tools' },
+                { id: 'reservation-switch', text: 'Reservation Unit Switch', icon: 'export', section: 'reservation-switch', badge: 'New' },
+                { id: 'integration-responses', text: 'Integration Responses', icon: 'folder', section: 'integration-responses', badge: 'New' },
+                { id: 'activity-logs', text: 'Activity Logs', icon: 'list', section: 'activity-logs', badge: 'New' },
+                { id: 'shomoos', text: 'Shomoos Details', icon: 'key', section: 'shomoos', badge: 'New' },
+                { id: 'ntmp', text: 'NTMP Details', icon: 'check', section: 'ntmp', badge: 'New' }
+            ];
+
+            // Create sidebar HTML with menu
+            const sidebarHtml = `
+                <div class="sidebar-header">
+                    <h4><i class="dx-icon-code"></i> zaaer API</h4>
+                </div>
+                <div id="sidebarMenu"></div>
+            `;
+            
+            $('#sidebar').html(sidebarHtml);
+
+            // Initialize DevExtreme Menu
+            $('#sidebarMenu').dxMenu({
+                items: menuItems,
+                displayExpr: 'text',
+                onItemClick: function(e) {
+                    const section = e.itemData.section;
+                    showSection(section, true);
+                },
+                cssClass: 'sidebar-menu',
+                itemTemplate: function(itemData, index, element) {
+                    const badge = itemData.badge ? `<span class="badge-new"><i class="fas fa-star"></i>${itemData.badge}</span>` : '';
+                    return `<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <i class="dx-icon-${itemData.icon}"></i>
+                            <span>${itemData.text}</span>
+                        </div>
+                        ${badge}
+                    </div>`;
+                }
+            });
+
+            // Load all sections from index.html structure
+            loadAllSections();
+        }
+
+        // Initialize Sidebar Toggle
+        function initializeSidebarToggle() {
+            $('#sidebarToggle').dxButton({
+                icon: 'menu',
+                text: '',
+                type: 'default',
+                stylingMode: 'outlined',
+                onClick: function() {
+                    toggleSidebar();
+                }
+            });
+        }
+
+        // Toggle Sidebar
+        function toggleSidebar() {
+            const sidebar = $('#sidebar');
+            const mainContent = $('#mainContent');
+            
+            if (sidebar.css('transform') === 'none' || sidebar.css('transform') === 'matrix(1, 0, 0, 1, 0, 0)') {
+                sidebar.css('transform', 'translateX(-100%)');
+                mainContent.removeClass('sidebar-closed');
+            } else {
+                sidebar.css('transform', 'translateX(0)');
+                mainContent.addClass('sidebar-closed');
+            }
+        }
+
+        // Initialize Hotel Selector using DevExtreme SelectBox
+        function initializeHotelSelector() {
+            $('#hotelSelector').dxSelectBox({
+                items: [],
+                displayExpr: 'displayName',
+                valueExpr: 'code',
+                placeholder: 'Select Hotel...',
+                width: 250,
+                onValueChanged: function(e) {
+                    changeHotel(e.value);
+                }
+            });
+        }
+
+        // Load available hotels from Master DB (same as index.html)
+        async function loadAvailableHotels() {
+            try {
+                console.log('🏨 Loading available hotels from Master DB...');
+                
+                const response = await fetch(`${API_BASE_URL}/api/Tenant/hotels`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch hotels');
+                }
+                
+                availableHotels = await response.json();
+                console.log('✅ Loaded hotels:', availableHotels);
+                
+                // Populate select box
+                const items = availableHotels.map(hotel => ({
+                    code: hotel.code,
+                    name: hotel.name,
+                    displayName: `${hotel.name} (${hotel.code})`
+                }));
+                
+                const selectBox = $('#hotelSelector').dxSelectBox('instance');
+                selectBox.option('items', items);
+                
+                // Load saved hotel from localStorage
+                const savedHotel = localStorage.getItem('selectedHotelCode');
+                if (savedHotel && availableHotels.some(h => h.code === savedHotel)) {
+                    selectBox.option('value', savedHotel);
+                    currentHotelCode = savedHotel;
+                    console.log('✅ Loaded saved hotel:', savedHotel);
+                    
+                    const hotel = availableHotels.find(h => h.code === savedHotel);
+                    if (hotel) {
+                        updateHotelHeader(hotel.name);
+                        DevExpress.ui.notify(`Hotel loaded: ${hotel.name}`, 'success', 3000);
+                    }
+                } else if (availableHotels.length > 0) {
+                    // Select first hotel by default
+                    const firstHotel = availableHotels[0];
+                    selectBox.option('value', firstHotel.code);
+                    currentHotelCode = firstHotel.code;
+                    localStorage.setItem('selectedHotelCode', currentHotelCode);
+                    updateHotelHeader(firstHotel.name);
+                    console.log('✅ Selected default hotel:', firstHotel.code);
+                }
+                
+            } catch (error) {
+                console.error('❌ Error loading hotels:', error);
+                DevExpress.ui.notify('⚠️ Failed to load hotels list', 'error', 3000);
+            }
+        }
+
+        // Change hotel handler (same as index.html)
+        function changeHotel(selectedCode) {
+            if (!selectedCode) {
+                currentHotelCode = '';
+                localStorage.removeItem('selectedHotelCode');
+                DevExpress.ui.notify('⚠️ No hotel selected', 'warning', 3000);
+                return;
+            }
+            
+            currentHotelCode = selectedCode;
+            localStorage.setItem('selectedHotelCode', selectedCode);
+            
+            const hotel = availableHotels.find(h => h.code === selectedCode);
+            if (hotel) {
+                console.log('🏨 Hotel changed to:', hotel.name, '(' + hotel.code + ')');
+                updateHotelHeader(hotel.name);
+                DevExpress.ui.notify(`✅ Switched to hotel: ${hotel.name}`, 'success', 3000);
+            }
+        }
+
+        // Get current hotel code (for API calls) - same as index.html
+        function getCurrentHotelCode() {
+            if (!currentHotelCode) {
+                DevExpress.ui.notify('⚠️ Please select a hotel first', 'warning', 3000);
+                return null;
+            }
+            return currentHotelCode;
+        }
+
+        // Helper function to add X-Hotel-Code header to fetch options - same as index.html
+        function getApiHeaders(additionalHeaders = {}) {
+            const hotelCode = getCurrentHotelCode();
+            
+            if (!hotelCode) {
+                throw new Error('No hotel selected');
+            }
+            
+            return {
+                'Content-Type': 'application/json',
+                'X-Hotel-Code': hotelCode,
+                ...additionalHeaders
+            };
+        }
+
+        // Update Hotel Header
+        function updateHotelHeader(hotelName) {
+            $('.header-container h1 .hotel-name').remove();
+            $('.header-container h1').append(`<span class="hotel-name" style="font-size: 16px; margin-left: 10px;"> - ${hotelName}</span>`);
+        }
+
+        // Show Section (same logic as index.html)
+        function showSection(sectionName, doNotify = true) {
+            console.log('🔍 showSection called with:', sectionName);
+            
+            try {
+                // Hide all sections
+                $('.section-card').removeClass('active').hide();
+                
+                // Show selected section
+                const selectedSectionId = `#${sectionName}-section`;
+                const selectedSection = $(selectedSectionId);
+                
+                if (selectedSection.length) {
+                    selectedSection.addClass('active').show();
+                    currentSection = sectionName;
+                    
+                    // Update menu selection
+                    const menu = $('#sidebarMenu').dxMenu('instance');
+                    menu.option('selectedItemKeys', [sectionName]);
+                    
+                    if (doNotify) {
+                        DevExpress.ui.notify(`✅ Showing ${sectionName} section`, 'success', 2000);
+                    }
+                    
+                    console.log('✅ showSection completed successfully');
+                } else {
+                    console.warn('⚠️ Section not found:', selectedSectionId);
+                }
+                
+            } catch (error) {
+                console.error('❌ Error in showSection:', error);
+            }
+        }
+
+        // Load All Sections - This will load all sections from index.html structure
+        function loadAllSections() {
+            // This function will dynamically create all sections
+            // For now, we'll create a placeholder that loads from index.html structure
+            // In a real implementation, you would copy all sections from index.html
+            // and convert them to use DevExtreme components
+            
+            console.log('📋 Loading all sections...');
+            
+            // Show customers section by default
+            showSection('customers', false);
+        }
+
+        // Show/Hide Loading
+        function showLoading() {
+            $('#loadingOverlay').addClass('show');
+        }
+
+        function hideLoading() {
+            $('#loadingOverlay').removeClass('show');
+        }
+
+        // Format JSON (same as index.html)
+        function formatJson(textAreaId) {
+            const textArea = $(`#${textAreaId}`).dxTextArea('instance');
+            if (textArea) {
+                try {
+                    const json = JSON.parse(textArea.option('value'));
+                    textArea.option('value', JSON.stringify(json, null, 2));
+                    DevExpress.ui.notify('JSON formatted', 'success', 2000);
+                } catch (e) {
+                    DevExpress.ui.notify('Invalid JSON format', 'error', 3000);
+                }
+            }
+        }
+
+        // ===== Customer Functions (same as index.html) =====
+        async function createZaaerCustomer() {
+            const textArea = $('#createCustomerJson').dxTextArea('instance');
+            const jsonText = textArea.option('value');
+            
+            if (!jsonText.trim()) {
+                DevExpress.ui.notify('Please enter JSON data', 'warning', 3000);
+                return;
+            }
+            
+            try {
+                const requestBody = JSON.parse(jsonText);
+                showLoading();
+                
+                const response = await fetch(`${API_BASE_URL}/api/zaaer/Customer`, {
+                    method: 'POST',
+                    headers: getApiHeaders(),
+                    body: JSON.stringify(requestBody)
+                });
+
+                const responseData = await response.text();
+                const responseSection = $('#createResponse');
+                const responseJson = $('#createResponseJson');
+                
+                responseSection.show();
+                
+                if (response.ok) {
+                    responseJson.text(responseData);
+                    responseJson.css('color', '#e2e8f0');
+                    DevExpress.ui.notify('✅ Customer created successfully!', 'success', 3000);
+                } else {
+                    responseJson.text(responseData);
+                    responseJson.css('color', '#f56565');
+                    DevExpress.ui.notify('❌ Error creating customer', 'error', 3000);
+                }
+            } catch (error) {
+                DevExpress.ui.notify(`❌ Error: ${error.message}`, 'error', 3000);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function updateZaaerCustomer() {
+            const customerId = $('#updateCustomerId').dxNumberBox('instance').option('value');
+            const textArea = $('#updateCustomerJson').dxTextArea('instance');
+            const jsonText = textArea.option('value');
+            
+            if (!customerId) {
+                DevExpress.ui.notify('Please enter Customer ID', 'warning', 3000);
+                return;
+            }
+            
+            try {
+                const requestBody = JSON.parse(jsonText);
+                showLoading();
+                
+                const response = await fetch(`${API_BASE_URL}/api/zaaer/Customer/${customerId}`, {
+                    method: 'PUT',
+                    headers: getApiHeaders(),
+                    body: JSON.stringify(requestBody)
+                });
+
+                const responseData = await response.text();
+                const responseSection = $('#updateResponse');
+                const responseJson = $('#updateResponseJson');
+                
+                responseSection.show();
+                
+                if (response.ok) {
+                    responseJson.text(responseData);
+                    responseJson.css('color', '#e2e8f0');
+                    DevExpress.ui.notify('✅ Customer updated successfully!', 'success', 3000);
+                } else {
+                    responseJson.text(responseData);
+                    responseJson.css('color', '#f56565');
+                    DevExpress.ui.notify('❌ Error updating customer', 'error', 3000);
+                }
+            } catch (error) {
+                DevExpress.ui.notify(`❌ Error: ${error.message}`, 'error', 3000);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function getAllZaaerCustomers() {
+            const hotelId = $('#getHotelId').dxNumberBox('instance').option('value');
+            
+            if (!hotelId) {
+                DevExpress.ui.notify('Please enter Hotel ID', 'warning', 3000);
+                return;
+            }
+            
+            showLoading();
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/zaaer/Customer/hotel/${hotelId}`, {
+                    headers: getApiHeaders()
+                });
+                
+                const responseData = await response.text();
+                const responseSection = $('#getAllResponse');
+                const responseJson = $('#getAllResponseJson');
+                
+                responseSection.show();
+                
+                if (response.ok) {
+                    responseJson.text(responseData);
+                    responseJson.css('color', '#e2e8f0');
+                    DevExpress.ui.notify('✅ Customers loaded successfully!', 'success', 3000);
+                } else {
+                    responseJson.text(responseData);
+                    responseJson.css('color', '#f56565');
+                    DevExpress.ui.notify('❌ Error loading customers', 'error', 3000);
+                }
+            } catch (error) {
+                DevExpress.ui.notify(`❌ Error: ${error.message}`, 'error', 3000);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // This is a placeholder - you need to copy all sections from index.html
+        // and convert them to use DevExtreme components
+        // The structure below shows the pattern for one section (Customers)
+        // You would need to replicate this for all sections
+        
+        function loadAllSectionsHTML() {
+            const sectionsHTML = `
+                <!-- Customers Section -->
+                <div class="section-card" id="customers-section">
+                    <div class="section-title">
+                        <i class="dx-icon-user"></i>
+                        Zaaer Customer Management
+                    </div>
+
+                    <!-- Create Customer -->
+                    <div class="endpoint-card">
+                        <div class="endpoint-header">
+                            <h5>
+                                <span class="method-badge method-post">POST</span>
+                                /api/zaaer/Customer
+                            </h5>
+                            <p class="text-muted">Create a new customer</p>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Request Body (JSON):</label>
+                            <div id="createCustomerJson"></div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; margin-top: 15px;">
+                            <div id="createCustomerBtn"></div>
+                            <div id="formatCreateCustomerBtn"></div>
+                        </div>
+                        
+                        <div class="response-section" id="createResponse" style="display: none;">
+                            <strong>Response:</strong>
+                            <div class="response-json" id="createResponseJson"></div>
+                        </div>
+                    </div>
+
+                    <!-- Update Customer -->
+                    <div class="endpoint-card">
+                        <div class="endpoint-header">
+                            <h5>
+                                <span class="method-badge method-put">PUT</span>
+                                /api/zaaer/Customer/{id}
+                            </h5>
+                            <p class="text-muted">Update customer by ID</p>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Customer ID:</label>
+                            <div id="updateCustomerId"></div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Request Body (JSON):</label>
+                            <div id="updateCustomerJson"></div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; margin-top: 15px;">
+                            <div id="updateCustomerBtn"></div>
+                            <div id="formatUpdateCustomerBtn"></div>
+                        </div>
+                        
+                        <div class="response-section" id="updateResponse" style="display: none;">
+                            <strong>Response:</strong>
+                            <div class="response-json" id="updateResponseJson"></div>
+                        </div>
+                    </div>
+
+                    <!-- Get All Customers -->
+                    <div class="endpoint-card">
+                        <div class="endpoint-header">
+                            <h5>
+                                <span class="method-badge method-get">GET</span>
+                                /api/zaaer/Customer/hotel/{hotelId}
+                            </h5>
+                            <p class="text-muted">Get all customers by hotel</p>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Hotel ID:</label>
+                            <div id="getHotelId"></div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; margin-top: 15px;">
+                            <div id="getAllCustomersBtn"></div>
+                            <div id="formatGetAllCustomersBtn"></div>
+                        </div>
+                        
+                        <div class="response-section" id="getAllResponse" style="display: none;">
+                            <strong>Response:</strong>
+                            <div class="response-json" id="getAllResponseJson"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add more sections here following the same pattern -->
+            `;
+            
+            $('#sections-container').html(sectionsHTML);
+            
+            // Initialize DevExtreme components for all sections
+            initializeAllDevExtremeComponents();
+        }
+
+        // Initialize all DevExtreme components
+        function initializeAllDevExtremeComponents() {
+            // Create Customer JSON Editor
+            $('#createCustomerJson').dxTextArea({
+                value: JSON.stringify({
+                    zaaerId: null,
+                    customerNo: "CUST001",
+                    hotelId: 1,
+                    firstName: "John",
+                    lastName: "Doe",
+                    email: "john.doe@example.com",
+                    phone: "+966501234567",
+                    nationality: "SA",
+                    idType: "National ID",
+                    idNumber: "1234567890",
+                    isActive: true
+                }, null, 2),
+                height: 200,
+                placeholder: 'Enter JSON here...',
+                stylingMode: 'filled'
+            });
+
+            // Update Customer JSON Editor
+            $('#updateCustomerJson').dxTextArea({
+                value: JSON.stringify({
+                    zaaerId: null,
+                    firstName: "John Updated",
+                    lastName: "Doe Updated",
+                    email: "john.updated@example.com"
+                }, null, 2),
+                height: 200,
+                placeholder: 'Enter JSON here...',
+                stylingMode: 'filled'
+            });
+
+            // Number Boxes
+            $('#updateCustomerId').dxNumberBox({
+                value: null,
+                placeholder: 'Enter Customer ID',
+                showSpinButtons: true,
+                stylingMode: 'filled'
+            });
+
+            $('#getHotelId').dxNumberBox({
+                value: 1,
+                placeholder: 'Enter Hotel ID',
+                showSpinButtons: true,
+                stylingMode: 'filled'
+            });
+
+            // Buttons
+            $('#createCustomerBtn').dxButton({
+                text: 'Create Customer',
+                type: 'success',
+                icon: 'plus',
+                onClick: createZaaerCustomer
+            });
+
+            $('#formatCreateCustomerBtn').dxButton({
+                text: 'Format JSON',
+                type: 'default',
+                icon: 'code',
+                onClick: function() {
+                    formatJson('createCustomerJson');
+                }
+            });
+
+            $('#updateCustomerBtn').dxButton({
+                text: 'Update Customer',
+                type: 'warning',
+                icon: 'edit',
+                onClick: updateZaaerCustomer
+            });
+
+            $('#formatUpdateCustomerBtn').dxButton({
+                text: 'Format JSON',
+                type: 'default',
+                icon: 'code',
+                onClick: function() {
+                    formatJson('updateCustomerJson');
+                }
+            });
+
+            $('#getAllCustomersBtn').dxButton({
+                text: 'Get All Customers',
+                type: 'default',
+                icon: 'list',
+                onClick: getAllZaaerCustomers
+            });
+
+            $('#formatGetAllCustomersBtn').dxButton({
+                text: 'Format JSON',
+                type: 'default',
+                icon: 'code',
+                onClick: function() {
+                    const el = $('#getAllResponseJson');
+                    if (el.text()) {
+                        try {
+                            el.text(JSON.stringify(JSON.parse(el.text()), null, 2));
+                            DevExpress.ui.notify('JSON formatted', 'success', 2000);
+                        } catch (e) {
+                            DevExpress.ui.notify('Invalid JSON', 'error', 3000);
+                        }
+                    }
+                }
+            });
+        }
+
+        // Call loadAllSectionsHTML when page is ready
+        $(document).ready(function() {
+            loadAllSectionsHTML();
+            showSection('customers', false);
+        });
+    </script>
+</body>
+</html>

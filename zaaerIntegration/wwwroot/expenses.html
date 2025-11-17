@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة المصروفات - Expenses Management</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
+    <!-- jQuery Calendars (Keith Wood) - Using jsDelivr CDN -->
+    <script src="https://cdn.jsdelivr.net/gh/kbwood/calendars@2.1.0/dist/js/jquery.calendars.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/kbwood/calendars@2.1.0/dist/js/jquery.calendars.plus.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/kbwood/calendars@2.1.0/dist/js/jquery.calendars.picker.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/kbwood/calendars@2.1.0/dist/js/jquery.calendars.ummalqura.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/kbwood/calendars@2.1.0/dist/css/jquery.calendars.picker.min.css" />
+    
+    <!-- Local Calendar CSS -->
+    <link rel="stylesheet" href="css/ummalqura.calendars.picker.css" />
+    
+    <!-- Local Calendar Convert JS -->
+    <script src="js/calendar-convert.js"></script>
+    
+    <style>
+        :root {
+            --primary-blue: #007ACC;
+            --dark-blue: #005A9E;
+            --light-blue: #E3F2FD;
+            --success-green: #28A745;
+            --warning-orange: #FF9800;
+            --danger-red: #DC3545;
+            --gray-bg: #F5F5F5;
+            --dark-gray: #333333;
+            --light-gray: #E0E0E0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 10px;
+            direction: rtl;
+        }
+
+        /* Header - Smaller */
+        .page-header {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 122, 204, 0.3);
+            margin-bottom: 15px;
+            animation: slideDown 0.6s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .page-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .page-header p {
+            opacity: 0.9;
+            font-size: 12px;
+            margin: 0;
+        }
+
+        /* Hotel Selector - Smaller */
+        .hotel-selector {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            border: 2px solid var(--primary-blue);
+            min-width: 200px;
+        }
+
+        .hotel-selector label {
+            display: block;
+            font-weight: 600;
+            color: var(--dark-gray);
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+
+        /* Main Container */
+        .main-container {
+            max-width: 900px;
+            margin: 0 auto;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Form Card - Smaller and Compact */
+        .form-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--primary-blue);
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--light-blue);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Form Groups - Closer Together */
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: var(--dark-gray);
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+
+        .form-group.required label::after {
+            content: ' *';
+            color: var(--danger-red);
+        }
+
+        /* Inputs - Smaller */
+        .form-control, .form-select {
+            font-size: 13px;
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid var(--light-gray);
+            transition: all 0.2s ease;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 0.2rem rgba(0, 122, 204, 0.25);
+            outline: none;
+        }
+
+        /* Date Picker Container - Compact */
+        .date-picker-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .date-picker-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .date-picker-group label {
+            font-size: 12px;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: var(--dark-gray);
+        }
+
+        /* Expense Rooms Section - Compact */
+        .expense-rooms-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid var(--light-gray);
+        }
+
+        .expense-rooms-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .expense-rooms-header h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--dark-gray);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+        }
+
+        .add-room-btn {
+            background: linear-gradient(135deg, var(--success-green) 0%, #218838 100%);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .add-room-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+        }
+
+        .expense-rooms-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 6px;
+            overflow: hidden;
+            font-size: 12px;
+        }
+
+        .expense-rooms-table thead {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%);
+            color: white;
+        }
+
+        .expense-rooms-table th {
+            padding: 8px;
+            text-align: right;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .expense-rooms-table td {
+            padding: 8px;
+            border-bottom: 1px solid var(--light-gray);
+        }
+
+        .expense-rooms-table tbody tr {
+            transition: background-color 0.2s ease;
+            animation: slideInRow 0.3s ease-out;
+        }
+
+        @keyframes slideInRow {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .expense-rooms-table tbody tr:hover {
+            background-color: var(--light-blue);
+        }
+
+        .remove-room-btn {
+            background: var(--danger-red);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .remove-room-btn:hover {
+            background: #C82333;
+        }
+
+        /* Images Upload Section */
+        .images-upload-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid var(--light-gray);
+        }
+
+        .images-upload-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .images-upload-header h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--dark-gray);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--light-gray);
+            border-radius: 6px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--gray-bg);
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary-blue);
+            background: var(--light-blue);
+        }
+
+        .upload-area.dragover {
+            border-color: var(--success-green);
+            background: rgba(40, 167, 69, 0.1);
+        }
+
+        .upload-icon {
+            font-size: 32px;
+            color: var(--primary-blue);
+            margin-bottom: 10px;
+        }
+
+        .upload-text {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+        }
+
+        .upload-hint {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        #imageFiles {
+            display: none;
+        }
+
+        .images-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .image-preview-item {
+            position: relative;
+            border: 1px solid var(--light-gray);
+            border-radius: 6px;
+            overflow: hidden;
+            aspect-ratio: 1;
+        }
+
+        .image-preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .image-preview-item .remove-image {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background: rgba(220, 53, 69, 0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .image-preview-item .remove-image:hover {
+            background: var(--danger-red);
+            transform: scale(1.1);
+        }
+
+        /* Action Buttons - Compact */
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 2px solid var(--light-gray);
+            justify-content: flex-end;
+        }
+
+        .btn-primary, .btn-secondary {
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(0, 122, 204, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 122, 204, 0.4);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--primary-blue);
+            border: 2px solid var(--primary-blue);
+        }
+
+        .btn-secondary:hover {
+            background: var(--light-blue);
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Empty State */
+        .empty-rooms-message, .empty-images-message {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            background: var(--gray-bg);
+            border-radius: 6px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hotel-selector {
+                position: relative;
+                top: 0;
+                left: 0;
+                margin-bottom: 15px;
+            }
+
+            .date-picker-container {
+                grid-template-columns: 1fr;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .images-preview {
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- Hotel Selector -->
+    <div class="hotel-selector">
+        <label for="hotelSelector">اختر الفندق:</label>
+        <select id="hotelSelector" class="form-select form-select-sm">
+            <option value="">اختر الفندق...</option>
+        </select>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1>
+                <i class="fas fa-file-invoice-dollar"></i>
+                إدارة المصروفات
+            </h1>
+            <p>إضافة وتعديل وإدارة مصروفات الفندق</p>
+        </div>
+
+        <!-- Expense Form -->
+        <div class="form-card">
+            <div class="section-title">
+                <i class="fas fa-plus-circle"></i>
+                إضافة مصروف جديد
+            </div>
+
+            <form id="expenseForm">
+                <!-- Date Time -->
+                <div class="form-group required">
+                    <label>تاريخ ووقت المصروف:</label>
+                    <div class="date-picker-container">
+                        <div class="date-picker-group">
+                            <label>التاريخ الهجري:</label>
+                            <input type="text" id="expenseDateHijri" class="form-control" placeholder="اختر التاريخ الهجري" />
+                        </div>
+                        <div class="date-picker-group">
+                            <label>التاريخ الميلادي:</label>
+                            <input type="text" id="expenseDateGregorian" class="form-control" placeholder="اختر التاريخ الميلادي" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Expense Category -->
+                <div class="form-group">
+                    <label>فئة المصروف:</label>
+                    <select id="expenseCategorySelect" class="form-select">
+                        <option value="">اختر فئة المصروف...</option>
+                    </select>
+                </div>
+
+                <!-- Comment -->
+                <div class="form-group">
+                    <label>الملاحظات:</label>
+                    <textarea id="expenseComment" class="form-control" rows="3" placeholder="أدخل الملاحظات..."></textarea>
+                </div>
+
+                <!-- Tax Rate and Tax Amount Row -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>نسبة الضريبة (%):</label>
+                            <input type="number" id="taxRate" class="form-control" placeholder="0.00" min="0" max="100" step="0.01" />
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>مبلغ الضريبة:</label>
+                            <input type="number" id="taxAmount" class="form-control" placeholder="0.00" min="0" step="0.01" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total Amount -->
+                <div class="form-group required">
+                    <label>المبلغ الإجمالي:</label>
+                    <input type="number" id="totalAmount" class="form-control" placeholder="0.00" min="0" step="0.01" required />
+                </div>
+
+                <!-- Images Upload Section -->
+                <div class="images-upload-section">
+                    <div class="images-upload-header">
+                        <h3>
+                            <i class="fas fa-images"></i>
+                            صور المصروف
+                        </h3>
+                    </div>
+                    <div class="upload-area" id="uploadArea" onclick="document.getElementById('imageFiles').click()">
+                        <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                        <div class="upload-text">اضغط لاختيار الصور أو اسحبها هنا</div>
+                        <div class="upload-hint">يمكنك رفع صور متعددة (JPG, PNG, GIF)</div>
+                    </div>
+                    <input type="file" id="imageFiles" multiple accept="image/*" />
+                    <div class="images-preview" id="imagesPreview"></div>
+                    <div id="emptyImagesMessage" class="empty-images-message" style="display: none; margin-top: 10px;">
+                        لا توجد صور مرفوعة
+                    </div>
+                </div>
+
+                <!-- Expense Rooms Section (like الهوية) -->
+                <div class="expense-rooms-section">
+                    <div class="expense-rooms-header">
+                        <h3>
+                            <i class="fas fa-door-open"></i>
+                            الغرف المرتبطة بالمصروف
+                        </h3>
+                        <button type="button" class="add-room-btn" onclick="addExpenseRoomRow()">
+                            <i class="fas fa-plus"></i>
+                            إضافة غرفة
+                        </button>
+                    </div>
+
+                    <table class="expense-rooms-table" id="expenseRoomsTable" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>الغرفة</th>
+                                <th>الغرض من المصروف</th>
+                                <th>إزالة</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expenseRoomsBody">
+                            <!-- Rows will be added dynamically -->
+                        </tbody>
+                    </table>
+
+                    <div id="emptyRoomsMessage" class="empty-rooms-message">
+                        <i class="fas fa-info-circle" style="font-size: 20px; margin-bottom: 5px; display: block;"></i>
+                        لا توجد غرف مضافة. اضغط على "إضافة غرفة" لإضافة غرفة جديدة.
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button type="button" class="btn-secondary" onclick="resetForm()">
+                        <i class="fas fa-redo"></i>
+                        إعادة تعيين
+                    </button>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-save"></i>
+                        حفظ المصروف
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const API_BASE_URL = window.location.origin;
+        let availableHotels = [];
+        let currentHotelCode = null;
+        let apartments = [];
+        let expenseCategories = [];
+        let expenseRoomRowCounter = 0;
+        let selectedImages = [];
+
+        // Wait for jQuery calendars to load
+        function waitForCalendars(callback, maxAttempts = 50) {
+            console.log('⏳ [waitForCalendars] Waiting for jQuery calendars to load...');
+            let attempts = 0;
+            const checkCalendars = setInterval(function() {
+                attempts++;
+                
+                // Detailed checks
+                const jqueryLoaded = typeof $ !== 'undefined' || typeof jQuery !== 'undefined';
+                const calendarsLoaded = typeof $.calendars !== 'undefined';
+                const instanceLoaded = typeof $.calendars !== 'undefined' && typeof $.calendars.instance !== 'undefined';
+                const pickerLoaded = typeof $.fn !== 'undefined' && typeof $.fn.calendarsPicker !== 'undefined';
+                
+                if (attempts % 10 === 0) {
+                    console.log(`⏳ [waitForCalendars] Attempt ${attempts}/${maxAttempts}: jQuery=${jqueryLoaded}, Calendars=${calendarsLoaded}, Instance=${instanceLoaded}, Picker=${pickerLoaded}`);
+                }
+                
+                if (instanceLoaded && pickerLoaded) {
+                    clearInterval(checkCalendars);
+                    console.log(`✅ [waitForCalendars] jQuery calendars loaded successfully after ${attempts} attempts`);
+                    callback();
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(checkCalendars);
+                    console.error(`❌ [waitForCalendars] Failed to load after ${maxAttempts} attempts`);
+                    console.error(`❌ [waitForCalendars] Final status: jQuery=${jqueryLoaded}, Calendars=${calendarsLoaded}, Instance=${instanceLoaded}, Picker=${pickerLoaded}`);
+                    showNotification('⚠️ تعذر تحميل التقويم، يرجى إعادة تحميل الصفحة', 'warning');
+                }
+            }, 100);
+        }
+
+        // Initialize on page load
+        $(document).ready(function() {
+            console.log('🚀 Expenses page loaded - Starting initialization...');
+            
+            initializeHotelSelector();
+            initializeImagesUpload();
+            
+            // Wait for calendars to load, then initialize form controls
+            waitForCalendars(function() {
+                initializeFormControls();
+            });
+            
+            loadHotels();
+        });
+
+        // Initialize Hotel Selector
+        function initializeHotelSelector() {
+            $('#hotelSelector').on('change', function() {
+                const selectedCode = $(this).val();
+                if (selectedCode) {
+                    currentHotelCode = selectedCode;
+                    localStorage.setItem('selectedHotelCode', selectedCode);
+                    loadApartments();
+                    loadExpenseCategories();
+                    showNotification('✅ تم اختيار الفندق بنجاح', 'success');
+                }
+            });
+        }
+
+        // Load Hotels
+        async function loadHotels() {
+            try {
+                showLoading();
+                const response = await fetch(`${API_BASE_URL}/api/tenant/hotels`);
+                if (response.ok) {
+                    availableHotels = await response.json();
+                    const hotelSelect = $('#hotelSelector');
+                    hotelSelect.empty().append('<option value="">اختر الفندق...</option>');
+                    
+                    availableHotels.forEach(hotel => {
+                        hotelSelect.append(`<option value="${hotel.code}">${hotel.name}</option>`);
+                    });
+                    
+                    // Restore previous selection
+                    const savedCode = localStorage.getItem('selectedHotelCode');
+                    if (savedCode) {
+                        hotelSelect.val(savedCode);
+                        currentHotelCode = savedCode;
+                        loadApartments();
+                        loadExpenseCategories();
+                    }
+                } else {
+                    showNotification('❌ خطأ في تحميل الفنادق', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading hotels:', error);
+                showNotification('❌ خطأ في الاتصال بالخادم', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Load Apartments
+        async function loadApartments() {
+            if (!currentHotelCode) {
+                console.warn('⚠️ [loadApartments] No hotel code selected, skipping...');
+                return;
+            }
+
+            console.log(`📋 [loadApartments] Starting to load apartments for hotel: ${currentHotelCode}`);
+            const startTime = performance.now();
+
+            try {
+                showLoading();
+                
+                // Use ApartmentController endpoint which uses X-Hotel-Code
+                // Route: api/[controller] = api/Apartment (singular)
+                const url = `${API_BASE_URL}/api/Apartment?pageNumber=1&pageSize=1000`;
+                console.log(`📤 [loadApartments] Requesting: ${url}`);
+                console.log(`📤 [loadApartments] Headers: X-Hotel-Code = ${currentHotelCode}`);
+
+                const response = await fetch(url, {
+                    headers: {
+                        'X-Hotel-Code': currentHotelCode
+                    }
+                });
+
+                const endTime = performance.now();
+                const duration = (endTime - startTime).toFixed(2);
+
+                console.log(`📥 [loadApartments] Response received: Status=${response.status}, Duration=${duration}ms`);
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('📦 [loadApartments] Response data structure:', Object.keys(data));
+                    console.log('📦 [loadApartments] Full response:', data);
+
+                    // Handle paginated response
+                    if (data.Apartments && Array.isArray(data.Apartments)) {
+                        apartments = data.Apartments;
+                        console.log(`✅ [loadApartments] Successfully loaded ${apartments.length} apartments`);
+                        console.log(`✅ [loadApartments] Total count: ${data.TotalCount || 'N/A'}`);
+                        
+                        // Update apartment dropdowns in existing rows
+                        $('#expenseRoomsBody tr').each(function() {
+                            const rowId = $(this).data('row-id');
+                            const currentApartmentId = $(`.apartment-select[data-row-id="${rowId}"]`).val();
+                            const apartmentSelect = $(`.apartment-select[data-row-id="${rowId}"]`);
+                            apartmentSelect.empty().append('<option value="">اختر الغرفة...</option>');
+                            apartments.forEach(apt => {
+                                apartmentSelect.append(`<option value="${apt.apartmentId}">${apt.apartmentCode} - ${apt.apartmentName}</option>`);
+                            });
+                            apartmentSelect.val(currentApartmentId); // Restore selection
+                        });
+                    } else if (Array.isArray(data)) {
+                        apartments = data;
+                        console.log(`✅ [loadApartments] Successfully loaded ${apartments.length} apartments (direct array)`);
+                    } else {
+                        apartments = [];
+                        console.error('❌ [loadApartments] Unexpected response format:', data);
+                        console.error('❌ [loadApartments] Expected "Apartments" array or direct array, got:', typeof data);
+                        showNotification('⚠️ تنسيق استجابة غير متوقع للغرف', 'warning');
+                    }
+                } else {
+                    const errorText = await response.text();
+                    console.error(`❌ [loadApartments] HTTP Error ${response.status}:`, errorText);
+                    console.error(`❌ [loadApartments] Response headers:`, [...response.headers.entries()]);
+                    showNotification(`❌ خطأ في تحميل الغرف (${response.status}): ${errorText.substring(0, 50)}`, 'error');
+                    apartments = [];
+                }
+            } catch (error) {
+                const endTime = performance.now();
+                const duration = (endTime - startTime).toFixed(2);
+                console.error(`❌ [loadApartments] Exception after ${duration}ms:`, error);
+                console.error(`❌ [loadApartments] Error name: ${error.name}, message: ${error.message}`);
+                console.error(`❌ [loadApartments] Stack trace:`, error.stack);
+                showNotification(`❌ خطأ في تحميل الغرف: ${error.message}`, 'error');
+                apartments = [];
+            } finally {
+                hideLoading();
+                console.log(`🏁 [loadApartments] Function completed`);
+            }
+        }
+
+        // Load Expense Categories
+        async function loadExpenseCategories() {
+            if (!currentHotelCode) {
+                console.warn('⚠️ [loadExpenseCategories] No hotel code selected, skipping...');
+                return;
+            }
+
+            console.log(`📋 [loadExpenseCategories] Starting to load expense categories for hotel: ${currentHotelCode}`);
+            const startTime = performance.now();
+
+            try {
+                showLoading();
+                
+                // ExpenseController route: api/[controller] = api/Expense (singular)
+                const url = `${API_BASE_URL}/api/Expense/categories`;
+                console.log(`📤 [loadExpenseCategories] Requesting: ${url}`);
+                console.log(`📤 [loadExpenseCategories] Headers: X-Hotel-Code = ${currentHotelCode}`);
+
+                const response = await fetch(url, {
+                    headers: {
+                        'X-Hotel-Code': currentHotelCode
+                    }
+                });
+
+                const endTime = performance.now();
+                const duration = (endTime - startTime).toFixed(2);
+
+                console.log(`📥 [loadExpenseCategories] Response received: Status=${response.status}, Duration=${duration}ms`);
+
+                if (response.ok) {
+                    expenseCategories = await response.json();
+                    console.log(`📦 [loadExpenseCategories] Response data:`, expenseCategories);
+                    console.log(`✅ [loadExpenseCategories] Successfully loaded ${expenseCategories.length} expense categories`);
+
+                    const categorySelect = $('#expenseCategorySelect');
+                    categorySelect.empty().append('<option value="">اختر فئة المصروف...</option>');
+                    
+                    if (Array.isArray(expenseCategories)) {
+                        expenseCategories.forEach(category => {
+                            console.log(`  ➕ Adding category: ${category.expenseCategoryId} - ${category.categoryName}`);
+                            categorySelect.append(`<option value="${category.expenseCategoryId}">${category.categoryName}</option>`);
+                        });
+                        console.log(`✅ [loadExpenseCategories] Populated dropdown with ${expenseCategories.length} categories`);
+                    } else {
+                        console.error('❌ [loadExpenseCategories] Response is not an array:', typeof expenseCategories);
+                        expenseCategories = [];
+                    }
+                } else {
+                    const errorText = await response.text();
+                    console.error(`❌ [loadExpenseCategories] HTTP Error ${response.status}:`, errorText);
+                    console.error(`❌ [loadExpenseCategories] Response headers:`, [...response.headers.entries()]);
+                    
+                    expenseCategories = [];
+                    let errorMessage = errorText.substring(0, 50);
+                    try {
+                        const errorData = JSON.parse(errorText || '{}');
+                        errorMessage = errorData.error || errorData.message || errorMessage;
+                    } catch (parseError) {
+                        // Use plain text if JSON parsing fails
+                    }
+                    showNotification(`❌ خطأ في تحميل فئات المصروفات (${response.status}): ${errorMessage}`, 'error');
+                }
+            } catch (error) {
+                const endTime = performance.now();
+                const duration = (endTime - startTime).toFixed(2);
+                console.error(`❌ [loadExpenseCategories] Exception after ${duration}ms:`, error);
+                console.error(`❌ [loadExpenseCategories] Error name: ${error.name}, message: ${error.message}`);
+                console.error(`❌ [loadExpenseCategories] Stack trace:`, error.stack);
+                
+                expenseCategories = [];
+                showNotification(`❌ خطأ في تحميل فئات المصروفات: ${error.message}`, 'error');
+            } finally {
+                hideLoading();
+                console.log(`🏁 [loadExpenseCategories] Function completed`);
+            }
+        }
+
+        // Initialize Form Controls (Calendars using calendar-convert.js)
+        function initializeFormControls() {
+            console.log('📅 [initializeFormControls] Starting calendar initialization...');
+            
+            try {
+                // Check if jQuery is loaded
+                if (typeof $ === 'undefined' || typeof jQuery === 'undefined') {
+                    console.error('❌ [initializeFormControls] jQuery is not loaded');
+                    showNotification('❌ تعذر تحميل jQuery', 'error');
+                    return;
+                }
+                console.log('✅ [initializeFormControls] jQuery loaded');
+
+                // Check if calendars plugin is loaded
+                if (typeof $.calendars === 'undefined') {
+                    console.error('❌ [initializeFormControls] $.calendars is undefined');
+                    console.error('❌ [initializeFormControls] Available jQuery plugins:', Object.keys($.fn));
+                    showNotification('❌ تعذر تحميل مكتبة التقويم (calendars)', 'error');
+                    return;
+                }
+                console.log('✅ [initializeFormControls] $.calendars loaded');
+
+                // Check if calendars instance method exists
+                if (typeof $.calendars.instance === 'undefined') {
+                    console.error('❌ [initializeFormControls] $.calendars.instance is undefined');
+                    showNotification('❌ تعذر تحميل مكتبة التقويم (instance)', 'error');
+                    return;
+                }
+                console.log('✅ [initializeFormControls] $.calendars.instance loaded');
+
+                // Check if calendarsPicker plugin is loaded
+                if (typeof $.fn.calendarsPicker === 'undefined') {
+                    console.error('❌ [initializeFormControls] calendarsPicker plugin is not loaded');
+                    console.error('❌ [initializeFormControls] Available picker plugins:', Object.keys($.fn).filter(k => k.toLowerCase().includes('picker')));
+                    showNotification('❌ تعذر تحميل أداة التقويم (calendarsPicker)', 'error');
+                    return;
+                }
+                console.log('✅ [initializeFormControls] calendarsPicker plugin loaded');
+
+                // Check if calendar-convert.js functions are available
+                if (typeof convertDtFromHijriToGer === 'undefined' || typeof convertDtFromGerToHijri === 'undefined') {
+                    console.error('❌ [initializeFormControls] calendar-convert.js functions not found');
+                    console.error('❌ [initializeFormControls] convertDtFromHijriToGer:', typeof convertDtFromHijriToGer);
+                    console.error('❌ [initializeFormControls] convertDtFromGerToHijri:', typeof convertDtFromGerToHijri);
+                    showNotification('❌ تعذر تحميل وظائف تحويل التاريخ', 'error');
+                    return;
+                }
+                console.log('✅ [initializeFormControls] calendar-convert.js functions loaded');
+
+                console.log('📅 [initializeFormControls] Initializing Hijri and Gregorian calendars...');
+
+                // Initialize Hijri Calendar (Ummalqura)
+                try {
+                    const hijriCalendar = $.calendars.instance('ummalqura');
+                    console.log('✅ [initializeFormControls] Ummalqura calendar instance created');
+                    
+                    $('#expenseDateHijri').calendarsPicker({
+                        calendar: hijriCalendar,
+                        dateFormat: 'yyyy/mm/dd',
+                        showOnFocus: true,
+                        onSelect: function(date) {
+                            console.log('📅 [Hijri Calendar] Date selected:', date);
+                            // Use calendar-convert.js function to convert and set Gregorian date
+                            convertDtFromHijriToGer([date], 'expenseDateGregorian');
+                        }
+                    });
+                    console.log('✅ [initializeFormControls] Hijri calendar initialized');
+                } catch (hijriError) {
+                    console.error('❌ [initializeFormControls] Error initializing Hijri calendar:', hijriError);
+                    throw hijriError;
+                }
+
+                // Initialize Gregorian Calendar
+                try {
+                    const gregorianCalendar = $.calendars.instance();
+                    console.log('✅ [initializeFormControls] Gregorian calendar instance created');
+                    
+                    $('#expenseDateGregorian').calendarsPicker({
+                        calendar: gregorianCalendar,
+                        dateFormat: 'yyyy-mm-dd',
+                        showOnFocus: true,
+                        onSelect: function(date) {
+                            console.log('📅 [Gregorian Calendar] Date selected:', date);
+                            // Use calendar-convert.js function to convert and set Hijri date
+                            convertDtFromGerToHijri([date], 'expenseDateHijri');
+                        }
+                    });
+                    console.log('✅ [initializeFormControls] Gregorian calendar initialized');
+                } catch (gregError) {
+                    console.error('❌ [initializeFormControls] Error initializing Gregorian calendar:', gregError);
+                    throw gregError;
+                }
+
+                console.log('✅ [initializeFormControls] All calendars initialized successfully');
+            } catch (error) {
+                console.error('❌ [initializeFormControls] Exception:', error);
+                console.error(`❌ [initializeFormControls] Error name: ${error.name}, message: ${error.message}`);
+                console.error('❌ [initializeFormControls] Stack trace:', error.stack);
+                showNotification('❌ خطأ في تهيئة التقويم: ' + error.message, 'error');
+            }
+        }
+
+        // Initialize Images Upload
+        function initializeImagesUpload() {
+            const uploadArea = $('#uploadArea');
+            const imageFiles = $('#imageFiles');
+
+            // Click to select files
+            uploadArea.on('click', function() {
+                imageFiles.click();
+            });
+
+            // File selection
+            imageFiles.on('change', function(e) {
+                handleFiles(e.target.files);
+            });
+
+            // Drag and drop
+            uploadArea.on('dragover', function(e) {
+                e.preventDefault();
+                $(this).addClass('dragover');
+            });
+
+            uploadArea.on('dragleave', function(e) {
+                e.preventDefault();
+                $(this).removeClass('dragover');
+            });
+
+            uploadArea.on('drop', function(e) {
+                e.preventDefault();
+                $(this).removeClass('dragover');
+                handleFiles(e.originalEvent.dataTransfer.files);
+            });
+        }
+
+        // Handle selected files
+        function handleFiles(files) {
+            Array.from(files).forEach(file => {
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        selectedImages.push({
+                            file: file,
+                            dataUrl: e.target.result,
+                            id: Date.now() + Math.random()
+                        });
+                        updateImagesPreview();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        // Update images preview
+        function updateImagesPreview() {
+            const preview = $('#imagesPreview');
+            preview.empty();
+
+            if (selectedImages.length === 0) {
+                $('#emptyImagesMessage').show();
+            } else {
+                $('#emptyImagesMessage').hide();
+                selectedImages.forEach((image, index) => {
+                    const item = $(`
+                        <div class="image-preview-item">
+                            <img src="${image.dataUrl}" alt="Preview ${index + 1}" />
+                            <button type="button" class="remove-image" onclick="removeImage(${image.id})" title="إزالة">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    `);
+                    preview.append(item);
+                });
+            }
+        }
+
+        // Remove image
+        function removeImage(id) {
+            selectedImages = selectedImages.filter(img => img.id !== id);
+            updateImagesPreview();
+        }
+
+        // Add Expense Room Row
+        function addExpenseRoomRow() {
+            expenseRoomRowCounter++;
+            const rowId = `roomRow_${expenseRoomRowCounter}`;
+
+            const apartmentOptions = apartments.map(apt => 
+                `<option value="${apt.apartmentId}">${apt.apartmentCode || ''} - ${apt.apartmentName || ''}</option>`
+            ).join('');
+
+            const row = `
+                <tr id="${rowId}" data-row-id="${expenseRoomRowCounter}">
+                    <td>
+                        <select class="form-select form-select-sm apartment-select" data-row-id="${expenseRoomRowCounter}">
+                            <option value="">اختر الغرفة...</option>
+                            ${apartmentOptions}
+                        </select>
+                    </td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm purpose-input" data-row-id="${expenseRoomRowCounter}" placeholder="أدخل الغرض من المصروف..." />
+                    </td>
+                    <td>
+                        <button type="button" class="remove-room-btn" onclick="removeExpenseRoomRow('${rowId}')">
+                            <i class="fas fa-trash"></i>
+                            إزالة
+                        </button>
+                    </td>
+                </tr>
+            `;
+
+            $('#expenseRoomsBody').append(row);
+            $('#expenseRoomsTable').show();
+            $('#emptyRoomsMessage').hide();
+
+            // Animate row entry
+            $(`#${rowId}`).css({ opacity: 0, transform: 'translateX(20px)' })
+                .animate({ opacity: 1, transform: 'translateX(0)' }, 300);
+        }
+
+        // Remove Expense Room Row
+        function removeExpenseRoomRow(rowId) {
+            const $row = $(`#${rowId}`);
+            $row.animate({ opacity: 0, transform: 'translateX(-20px)' }, 300, function() {
+                $row.remove();
+                
+                if ($('#expenseRoomsBody tr').length === 0) {
+                    $('#expenseRoomsTable').hide();
+                    $('#emptyRoomsMessage').show();
+                }
+            });
+        }
+
+        // Form Submit Handler
+        $('#expenseForm').on('submit', async function(e) {
+            e.preventDefault();
+
+            if (!currentHotelCode) {
+                showNotification('⚠️ يرجى اختيار الفندق أولاً', 'warning');
+                return;
+            }
+
+            try {
+                showLoading();
+
+                const gregorianDate = $('#expenseDateGregorian').val();
+                if (!gregorianDate) {
+                    showNotification('⚠️ يرجى اختيار التاريخ', 'warning');
+                    hideLoading();
+                    return;
+                }
+
+                const dateTime = new Date(gregorianDate);
+                const categoryId = $('#expenseCategorySelect').val() || null;
+                const comment = $('#expenseComment').val() || null;
+                const taxRate = $('#taxRate').val() ? parseFloat($('#taxRate').val()) : null;
+                const taxAmount = $('#taxAmount').val() ? parseFloat($('#taxAmount').val()) : null;
+                const totalAmount = parseFloat($('#totalAmount').val());
+
+                if (!totalAmount || totalAmount <= 0) {
+                    showNotification('⚠️ يرجى إدخال المبلغ الإجمالي', 'warning');
+                    hideLoading();
+                    return;
+                }
+
+                // Collect expense rooms
+                const expenseRooms = [];
+                $('#expenseRoomsBody tr').each(function() {
+                    const rowId = $(this).data('row-id');
+                    const apartmentId = $(`.apartment-select[data-row-id="${rowId}"]`).val();
+                    
+                    if (apartmentId) {
+                        const purpose = $(`.purpose-input[data-row-id="${rowId}"]`).val();
+                        expenseRooms.push({
+                            apartmentId: parseInt(apartmentId),
+                            purpose: purpose || null
+                        });
+                    }
+                });
+
+                // Build JSON payload (images will be handled separately)
+                const payload = {
+                    dateTime: dateTime.toISOString(),
+                    comment: comment || null,
+                    expenseCategoryId: categoryId ? parseInt(categoryId) : null,
+                    taxRate: taxRate || null,
+                    taxAmount: taxAmount || null,
+                    totalAmount: totalAmount,
+                    expenseRooms: expenseRooms.length > 0 ? expenseRooms : null
+                };
+
+                console.log('📤 Sending expense data:', payload);
+
+                // Send request with JSON (images will be uploaded separately later)
+                // ExpenseController route: api/[controller] = api/Expense (singular)
+                const response = await fetch(`${API_BASE_URL}/api/Expense`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Hotel-Code': currentHotelCode
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    const responseData = await response.json();
+                    const expenseId = responseData.expenseId;
+                    
+                    // Upload images if any
+                    if (selectedImages.length > 0 && expenseId) {
+                        await uploadExpenseImages(expenseId);
+                    }
+                    
+                    showNotification('✅ تم حفظ المصروف بنجاح!', 'success');
+                    resetForm();
+                } else {
+                    const responseData = await response.json().catch(() => ({ message: 'فشل حفظ المصروف' }));
+                    showNotification(`❌ خطأ: ${responseData.message || 'فشل حفظ المصروف'}`, 'error');
+                }
+
+            } catch (error) {
+                console.error('Error submitting expense:', error);
+                showNotification(`❌ خطأ: ${error.message}`, 'error');
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Reset Form
+        function resetForm() {
+            // Reset date pickers
+            try {
+                $('#expenseDateHijri').val('');
+                $('#expenseDateGregorian').val('');
+                if (typeof $.calendars !== 'undefined' && typeof $.calendars.instance !== 'undefined') {
+                    if (typeof $('#expenseDateHijri').calendarsPicker === 'function') {
+                        $('#expenseDateHijri').calendarsPicker('setDate', null);
+                        $('#expenseDateGregorian').calendarsPicker('setDate', null);
+                    }
+                }
+            } catch (error) {
+                console.warn('⚠️ Warning resetting calendar dates:', error);
+            }
+
+            $('#expenseCategorySelect').val('');
+            $('#expenseComment').val('');
+            $('#taxRate').val('');
+            $('#taxAmount').val('');
+            $('#totalAmount').val('');
+
+            // Clear expense rooms
+            $('#expenseRoomsBody').empty();
+            $('#expenseRoomsTable').hide();
+            $('#emptyRoomsMessage').show();
+            expenseRoomRowCounter = 0;
+
+            // Clear images
+            selectedImages = [];
+            updateImagesPreview();
+            $('#imageFiles').val('');
+        }
+
+        // Loading Functions
+        function showLoading() {
+            $('#loadingOverlay').addClass('show');
+        }
+
+        function hideLoading() {
+            $('#loadingOverlay').removeClass('show');
+        }
+
+        // Upload Expense Images
+        async function uploadExpenseImages(expenseId) {
+            if (selectedImages.length === 0 || !expenseId) return;
+
+            try {
+                const formData = new FormData();
+                // Append images with proper name format for IFormFileCollection
+                selectedImages.forEach((image) => {
+                    formData.append('images', image.file);
+                });
+
+                const response = await fetch(`${API_BASE_URL}/api/Expense/${expenseId}/images`, {
+                    method: 'POST',
+                    headers: {
+                        'X-Hotel-Code': currentHotelCode
+                        // Don't set Content-Type - browser will set it with boundary for FormData
+                    },
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ Images uploaded successfully:', result);
+                } else {
+                    const errorText = await response.text();
+                    console.warn('⚠️ Failed to upload images:', response.status, errorText);
+                }
+            } catch (error) {
+                console.error('Error uploading images:', error);
+            }
+        }
+
+        // Notification function
+        function showNotification(message, type = 'info') {
+            // Simple alert for now - can be replaced with better notification system
+            const bgColor = type === 'success' ? '#28A745' : type === 'error' ? '#DC3545' : type === 'warning' ? '#FF9800' : '#007ACC';
+            const notification = $(`
+                <div style="position: fixed; top: 20px; right: 20px; background: ${bgColor}; color: white; padding: 12px 20px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000; animation: slideInRight 0.3s ease-out;">
+                    ${message}
+                </div>
+            `);
+            $('body').append(notification);
+            setTimeout(() => {
+                notification.fadeOut(300, function() {
+                    $(this).remove();
+                });
+            }, 3000);
+        }
+
+        // Initialize empty state
+        $(document).ready(function() {
+            $('#expenseRoomsTable').hide();
+            $('#emptyRoomsMessage').show();
+            $('#emptyImagesMessage').show();
+        });
+    </script>
+</body>
+</html>

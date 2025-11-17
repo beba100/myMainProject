@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en" dir="rtl">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Partner Request Queue Monitor</title>
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+	<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600&display=swap" rel="stylesheet" />
+    <style>
+        /* Visual Studio-like light theme */
+        body { background:#d2d5d8; color:#222; font-family:'Cairo', sans-serif; font-size: 0.97rem; }
+        .header { display:flex; align-items:center; justify-content:space-between; padding:16px; background:#f3f3f3; border-bottom:1px solid #e1e1e1; }
+        .section-card { background:#ffffff; border:1px solid #e1e1e1; border-radius:8px; padding:16px; margin:16px; box-shadow:0 1px 2px rgba(0,0,0,0.04); }
+        .table thead th { color:#2b579a; border-bottom:2px solid #e1e1e1; text-align:center; }
+        .table tbody tr { border-bottom:1px solid #efefef; }
+        .table tbody td { text-align:center; }
+        .badge-status { font-size: 0.85rem; }
+        .badge-Queued { background:#9ca3af; }
+        .badge-Processing { background:#f59e0b; }
+        .badge-Succeeded { background:#10b981; }
+        .badge-Failed { background:#ef4444; }
+        .loading { position: fixed; inset: 0; display:none; align-items:center; justify-content:center; background: rgba(0,0,0,0.15); z-index: 9999; }
+        /* Show row actions on hover (Gmail style) */
+        .row-actions { opacity:0; transition:opacity .15s ease-in-out; }
+        tr:hover .row-actions { opacity:1; }
+
+        .summary-card { border:none; border-radius:12px; background:#ffffff; box-shadow:0 4px 12px rgba(15,23,42,0.08); transition:transform .15s ease, box-shadow .15s ease; }
+        .summary-card:hover { transform:translateY(-3px); box-shadow:0 8px 18px rgba(15,23,42,0.12); }
+        .summary-card .summary-title { font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:#6b7280; }
+        .summary-card .summary-count { font-size:1.6rem; font-weight:600; margin-top:4px; color:#111827; font-variant-numeric:tabular-nums; direction:ltr; }
+        .summary-card.queued-card { 
+            border-top: 3px solid #9ca3af;
+            border-right: 3px solid #9ca3af;
+            border-bottom: 3px solid #9ca3af;
+            border-left: 3px solid #9ca3af;
+        }
+        .summary-card.processing-card { 
+            border-top: 3px solid #f59e0b;
+            border-right: 3px solid #f59e0b;
+            border-bottom: 3px solid #f59e0b;
+            border-left: 3px solid #f59e0b;
+        }
+        .summary-card.succeeded-card { 
+            border-top: 3px solid #10b981;
+            border-right: 3px solid #10b981;
+            border-bottom: 3px solid #10b981;
+            border-left: 3px solid #10b981;
+        }
+        .summary-card.failed-card { 
+            border-top: 3px solid #ef4444;
+            border-right: 3px solid #ef4444;
+            border-bottom: 3px solid #ef4444;
+            border-left: 3px solid #ef4444;
+        }
+
+        .pagination-wrapper { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; }
+        .pagination-wrapper .pagination { margin-bottom:0; }
+        .pagination-wrapper .page-link { color:#2563eb; font-weight:500; border-radius:6px; border:1px solid #bfdbfe; }
+        .pagination-wrapper .page-item.active .page-link { background:#2563eb; border-color:#2563eb; color:#ffffff; }
+        .pagination-wrapper .page-item.disabled .page-link { color:#9ca3af; border-color:#e5e7eb; }
+        .pagination-wrapper .page-link:focus { box-shadow:none; }
+
+        /* Details modal styling */
+        .modal-content.queue-modal { border-radius:12px; border:1px solid #1e293b; background:#111827; color:#e2e8f0; box-shadow:0 20px 45px rgba(15,23,42,0.35); }
+        .queue-modal .modal-header { border-bottom:1px solid rgba(148,163,184,0.2); }
+        .queue-modal .modal-body { background:#0f172a; }
+        .json-viewer { background:#0f172a; border:1px solid rgba(148,163,184,0.2); border-radius:8px; padding:12px; max-height:340px; overflow:auto; font-family:"JetBrains Mono", "Fira Code", monospace; font-size:0.85rem; color:#e2e8f0; white-space:pre; }
+        .json-viewer-title { display:flex; align-items:center; justify-content:space-between; font-size:0.75rem; text-transform:uppercase; letter-spacing:.1em; color:#94a3b8; margin-bottom:6px; }
+        .json-viewer-actions button { font-size:0.7rem; }
+    </style>
+</head>
+<body>
+	<div class="container-fluid">
+		<div class="header">
+			<h3 class="m-0"><i class="fas fa-clipboard-list"></i> Zaaer Request Queue</h3>
+			<div class="d-flex align-items-center gap-2">
+				<i class="fas fa-hotel"></i>
+				<select id="hotelSelector" class="form-select form-select-sm" style="min-width:260px" onchange="changeHotel()">
+					<option value="">تحميل الفنادق...</option>
+				</select>
+			</div>
+		</div>
+
+		<div class="section-card">
+            <div class="row g-3 mb-3" id="summaryRow">
+                <div class="col-6 col-md-3">
+                    <div class="card summary-card queued-card" data-summary="Queued">
+                        <div class="card-body py-2 text-center">
+                            <div class="summary-title">Queued</div>
+                            <div class="summary-count" id="summaryQueued">0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card summary-card processing-card" data-summary="Processing">
+                        <div class="card-body py-2 text-center">
+                            <div class="summary-title">Processing</div>
+                            <div class="summary-count" id="summaryProcessing">0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card summary-card succeeded-card" data-summary="Succeeded">
+                        <div class="card-body py-2 text-center">
+                            <div class="summary-title">Succeeded</div>
+                            <div class="summary-count" id="summarySucceeded">0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card summary-card failed-card" data-summary="Failed">
+                        <div class="card-body py-2 text-center">
+                            <div class="summary-title">Failed</div>
+                            <div class="summary-count" id="summaryFailed">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex justify-content-between mb-3 flex-wrap gap-2">
+                <div class="d-flex gap-2">
+                    <select id="statusFilter" class="form-select form-select-sm" style="width:160px" onchange="handleStatusFilterChange()">
+                        <option value="">All</option>
+                        <option>Queued</option>
+                        <option>Processing</option>
+                        <option>Succeeded</option>
+                        <option>Failed</option>
+                    </select>
+                    <input id="searchText" class="form-control form-control-sm" placeholder="Search request_ref / operation" onkeyup="handleSearchKey(event)" />
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-success" onclick="runBatch(false)"><i class="fas fa-play"></i> Run Batch</button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="runBatch(true)" title="Process all tenants"><i class="fas fa-globe"></i></button>
+                    <button class="btn btn-sm btn-primary" onclick="loadQueue()"><i class="fas fa-rotate"></i> Refresh</button>
+                </div>
+            </div>
+            <div class="pagination-wrapper mb-3" id="paginationWrapper">
+                <div id="paginationInfo" class="text-muted small"></div>
+                <nav id="paginationNav" class="d-none" aria-label="Queue pagination">
+                    <ul class="pagination pagination-sm mb-0" id="pagination"></ul>
+                </nav>
+            </div>
+			<div class="table-responsive">
+                <table class="table table-hover align-middle">
+					<thead>
+						<tr>
+							<th>ID</th>
+							<th>Request Ref</th>
+							<th>Operation Key</th>
+							<th>Operation</th>
+							<th>Target</th>
+							<th>Status</th>
+							<th>Attempts</th>
+							<th>Created</th>
+							<th>Actions</th>
+						</tr>
+					</thead>
+					<tbody id="queueBody"></tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+
+	<div id="loading" class="loading">
+		<div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div>
+	</div>
+
+	<!-- Details Modal -->
+	<div class="modal fade" id="detailsModal" tabindex="-1">
+		<div class="modal-dialog modal-lg modal-dialog-scrollable">
+			<div class="modal-content queue-modal">
+				<div class="modal-header">
+					<h5 class="modal-title"><i class="fas fa-info-circle me-2"></i>Request Details</h5>
+					<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+				</div>
+				<div class="modal-body">
+					<div class="json-viewer-title">
+						<span>Payload</span>
+						<div class="json-viewer-actions">
+							<button id="copyPayloadBtn" class="btn btn-sm btn-outline-light" type="button" onclick="copyJson('detailsJson')">Copy</button>
+						</div>
+					</div>
+					<pre id="detailsJson" class="json-viewer mb-3"></pre>
+					<div class="json-viewer-title">
+						<span>Logs</span>
+						<div class="json-viewer-actions">
+							<button id="copyLogsBtn" class="btn btn-sm btn-outline-light" type="button" onclick="copyJson('detailsLogs')">Copy</button>
+						</div>
+					</div>
+					<pre id="detailsLogs" class="json-viewer"></pre>
+				</div>
+				<div class="modal-footer border-top-0">
+					<button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+	<script>
+		const API_BASE_URL = window.location.origin;
+		const pageSize = 20;
+		const summaryStatuses = ['Queued', 'Processing', 'Succeeded', 'Failed'];
+		const summaryRefs = {};
+		let availableHotels = [];
+		let currentHotelCode = '';
+		let currentPage = 1;
+		let totalItems = 0;
+		let summaryRequestToken = 0;
+
+		document.addEventListener('DOMContentLoaded', () => {
+			initializeSummaryRefs();
+			loadHotels().then(() => {
+				if (currentHotelCode) {
+					loadQueue();
+				}
+			});
+		});
+
+		function initializeSummaryRefs() {
+			summaryStatuses.forEach(status => {
+				summaryRefs[status] = document.querySelector(`.summary-card[data-summary="${status}"] .summary-count`);
+				if (summaryRefs[status]) {
+					summaryRefs[status].textContent = '0';
+				}
+			});
+			summaryRefs.paginationInfo = document.getElementById('paginationInfo');
+			summaryRefs.paginationNav = document.getElementById('paginationNav');
+			summaryRefs.paginationList = document.getElementById('pagination');
+		}
+
+		async function loadHotels() {
+			const sel = document.getElementById('hotelSelector');
+			try {
+				const res = await fetch(`${API_BASE_URL}/api/Tenant/hotels`);
+				availableHotels = await res.json();
+				sel.innerHTML = '<option value="">اختر الفندق...</option>';
+				availableHotels.forEach(h => {
+					const opt = document.createElement('option');
+					opt.value = h.code;
+					opt.textContent = `${h.name} (${h.code})`;
+					sel.appendChild(opt);
+				});
+				const saved = localStorage.getItem('selectedHotelCode');
+				if (saved && availableHotels.some(h => h.code === saved)) {
+					sel.value = saved;
+					currentHotelCode = saved;
+				} else if (availableHotels.length) {
+					sel.value = availableHotels[0].code;
+					currentHotelCode = availableHotels[0].code;
+					localStorage.setItem('selectedHotelCode', currentHotelCode);
+				}
+				currentPage = 1;
+			} catch (error) {
+				console.error('[Queue] Failed to load hotels:', error);
+				sel.innerHTML = '<option value="">فشل تحميل الفنادق</option>';
+			}
+		}
+
+		function changeHotel() {
+			const sel = document.getElementById('hotelSelector');
+			currentHotelCode = sel.value;
+			if (currentHotelCode) {
+				localStorage.setItem('selectedHotelCode', currentHotelCode);
+				currentPage = 1;
+				loadQueue();
+			}
+		}
+
+		function handleStatusFilterChange() {
+			currentPage = 1;
+			loadQueue();
+		}
+
+		function handleSearchKey(event) {
+			if (event.key === 'Enter') {
+				currentPage = 1;
+				loadQueue();
+			}
+		}
+
+		function getHeaders() {
+			if (!currentHotelCode) {
+				console.warn('[Queue] getHeaders called with no hotel selected');
+				throw new Error('اختر فندقاً');
+			}
+			return { 'Content-Type': 'application/json', 'X-Hotel-Code': currentHotelCode };
+		}
+
+		function showLoading() { document.getElementById('loading').style.display = 'flex'; }
+		function hideLoading() { document.getElementById('loading').style.display = 'none'; }
+		function pad(n) { return String(n).padStart(2, '0'); }
+		function formatDateNeutral(value) {
+			const d = new Date(value);
+			if (isNaN(d)) return value || '';
+			return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+		}
+		function formatNumber(value) {
+			const num = Number(value || 0);
+			return Number.isFinite(num) ? num.toLocaleString('en-US') : '0';
+		}
+
+		function formatJson(value) {
+            if (!value) return '';
+            if (typeof value === 'string') {
+                try { return JSON.stringify(JSON.parse(value), null, 2); } catch { return value; }
+            }
+            try { return JSON.stringify(value, null, 2); } catch { return String(value); }
+        }
+
+        function copyJson(elementId) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            navigator.clipboard.writeText(el.textContent || '').then(() => {
+                console.log('[Queue] Copied', elementId, 'to clipboard');
+            }).catch(err => console.warn('[Queue] Copy failed', err));
+        }
+
+		async function loadQueue() {
+			try {
+				showLoading();
+				const statusValue = document.getElementById('statusFilter').value;
+				const searchValue = document.getElementById('searchText').value.trim();
+				const params = new URLSearchParams();
+				params.set('skip', Math.max(0, (currentPage - 1) * pageSize).toString());
+				params.set('take', pageSize.toString());
+				if (statusValue) params.set('status', statusValue);
+				if (searchValue) params.set('search', searchValue);
+				const url = `${API_BASE_URL}/api/partner-requests?${params.toString()}`;
+				console.log('[Queue] Loading queue items from:', url);
+				const res = await fetch(url, { headers: getHeaders() });
+				if (!res.ok) {
+					const errorText = await res.text();
+					console.error('[Queue] Failed to load queue items:', res.status, errorText);
+					alert('Error loading queue: ' + res.status + ' - ' + errorText);
+					return;
+				}
+				const data = await res.json();
+				totalItems = data.total ?? 0;
+				const totalPages = totalItems > 0 ? Math.ceil(totalItems / pageSize) : 1;
+				if (totalItems > 0 && currentPage > totalPages) {
+					currentPage = totalPages;
+					hideLoading();
+					return loadQueue();
+				}
+				renderTable(data.items || []);
+				renderPagination(totalItems);
+				loadSummary(searchValue);
+			} catch (e) {
+				console.error('[Queue] Exception loading queue:', e);
+				alert('Error loading queue: ' + e.message);
+			} finally {
+				hideLoading();
+			}
+		}
+
+		function renderTable(items) {
+			const body = document.getElementById('queueBody');
+			body.innerHTML = '';
+			if (!items.length) {
+				const emptyRow = document.createElement('tr');
+				emptyRow.innerHTML = '<td colspan="9" class="text-center text-muted py-4">No queue items found</td>';
+				body.appendChild(emptyRow);
+				return;
+			}
+			items.forEach(q => {
+				const tr = document.createElement('tr');
+				const canProcess = (q.status || '').toLowerCase() !== 'succeeded';
+				const actions = `
+					<div class="row-actions d-flex gap-2 justify-content-center">
+						${canProcess ? `<button class="btn btn-sm btn-success" title="Process now" onclick="processNow(${q.queueId})"><i class="fas fa-play"></i></button>` : ''}
+						<button class="btn btn-sm btn-info" title="Details" onclick="viewDetails(${q.queueId})"><i class="fas fa-eye"></i></button>
+						<button class="btn btn-sm btn-danger" title="Delete" onclick="deleteItem(${q.queueId})"><i class="fas fa-trash"></i></button>
+					</div>`;
+				tr.innerHTML = `
+					<td>${q.queueId}</td>
+					<td><code>${q.requestRef}</code></td>
+					<td>${q.operationKey || ''}</td>
+					<td>${q.operation}</td>
+					<td>${q.targetId ?? ''}</td>
+					<td><span class="badge badge-status badge-${q.status}">${q.status}</span></td>
+					<td>${q.attempts}</td>
+					<td>${formatDateNeutral(q.createdAt)}</td>
+					<td>${actions}</td>`;
+				body.appendChild(tr);
+			});
+		}
+
+		function renderPagination(total) {
+			const infoEl = summaryRefs.paginationInfo;
+			const navEl = summaryRefs.paginationNav;
+			const listEl = summaryRefs.paginationList;
+			if (!infoEl || !navEl || !listEl) return;
+
+			if (total === 0) {
+				infoEl.textContent = 'لا توجد عناصر في الطابور.';
+				listEl.innerHTML = '';
+				navEl.classList.add('d-none');
+				return;
+			}
+
+			const totalPages = Math.max(1, Math.ceil(total / pageSize));
+			const start = (currentPage - 1) * pageSize + 1;
+			const end = Math.min(currentPage * pageSize, total);
+			infoEl.textContent = `Showing ${formatNumber(start)}-${formatNumber(end)} of ${formatNumber(total)}`;
+
+			listEl.innerHTML = '';
+			navEl.classList.toggle('d-none', totalPages <= 1);
+			if (totalPages <= 1) return;
+
+			const addPageButton = (label, page, disabled = false, active = false) => {
+				const li = document.createElement('li');
+				li.className = 'page-item';
+				if (disabled) li.classList.add('disabled');
+				if (active) li.classList.add('active');
+				const btn = document.createElement('button');
+				btn.type = 'button';
+				btn.className = 'page-link';
+				btn.textContent = label;
+				btn.onclick = () => {
+					if (!disabled && currentPage !== page) {
+						currentPage = page;
+						loadQueue();
+					}
+				};
+				li.appendChild(btn);
+				listEl.appendChild(li);
+			};
+
+			addPageButton('«', Math.max(1, currentPage - 1), currentPage === 1);
+
+			const windowSize = 5;
+			let startPage = Math.max(1, currentPage - 2);
+			let endPage = Math.min(totalPages, startPage + windowSize - 1);
+			if (endPage - startPage + 1 < windowSize) {
+				startPage = Math.max(1, endPage - windowSize + 1);
+			}
+			for (let page = startPage; page <= endPage; page++) {
+				addPageButton(String(page), page, false, page === currentPage);
+			}
+
+			addPageButton('»', Math.min(totalPages, currentPage + 1), currentPage === totalPages);
+		}
+
+		async function loadSummary(searchText) {
+			if (!currentHotelCode) return;
+			const token = ++summaryRequestToken;
+			try {
+				const counts = await Promise.all(summaryStatuses.map(status => fetchCount(status, searchText)));
+				if (token !== summaryRequestToken) return;
+				const summary = {};
+				summaryStatuses.forEach((status, index) => {
+					summary[status] = counts[index];
+				});
+				updateSummaryCards(summary);
+			} catch (error) {
+				if (token === summaryRequestToken) {
+					console.warn('[Queue] Failed to load summary counts', error);
+					updateSummaryCards({});
+				}
+			}
+		}
+
+		async function fetchCount(status, searchText) {
+			try {
+				const params = new URLSearchParams({ skip: '0', take: '1' });
+				if (status) params.set('status', status);
+				if (searchText) params.set('search', searchText);
+				const res = await fetch(`${API_BASE_URL}/api/partner-requests?${params.toString()}`, { headers: getHeaders() });
+				if (!res.ok) throw new Error(res.statusText);
+				const data = await res.json();
+				return data.total ?? 0;
+			} catch (error) {
+				console.warn(`[Queue] Failed to fetch count for ${status || 'all'}:`, error);
+				return 0;
+			}
+		}
+
+		function updateSummaryCards(summary) {
+			summaryStatuses.forEach(status => {
+				const target = summaryRefs[status];
+				if (target) {
+					target.textContent = formatNumber(summary[status] ?? 0);
+				}
+			});
+		}
+
+		async function processNow(id) {
+			try {
+				showLoading();
+				console.log('[Queue] Processing queue item:', id);
+				const res = await fetch(`${API_BASE_URL}/api/partner-requests/${id}/process`, { method: 'POST', headers: getHeaders() });
+				if (!res.ok) {
+					const t = await res.text();
+					console.error('[Queue] Process failed for item', id, ':', res.status, t);
+					alert('Process failed: ' + t);
+				} else {
+					console.log('[Queue] Successfully processed item', id);
+				}
+				await loadQueue();
+			} catch (e) {
+				console.error('[Queue] Exception processing item', id, ':', e);
+				alert('Error processing item: ' + e.message);
+			} finally {
+				hideLoading();
+			}
+		}
+
+		async function deleteItem(id) {
+			if (!confirm('Delete this queued item?')) return;
+			try {
+				showLoading();
+				console.log('[Queue] Deleting queue item:', id);
+				const res = await fetch(`${API_BASE_URL}/api/partner-requests/${id}`, { method: 'DELETE', headers: getHeaders() });
+				if (res.status === 204) {
+					console.log('[Queue] Successfully deleted item', id);
+					await loadQueue();
+				} else {
+					const t = await res.text();
+					console.error('[Queue] Delete failed for item', id, ':', res.status, t);
+					alert('Delete failed: ' + res.status);
+				}
+			} catch (e) {
+				console.error('[Queue] Exception deleting item', id, ':', e);
+				alert('Error deleting item: ' + e.message);
+			} finally {
+				hideLoading();
+			}
+		}
+
+		async function viewDetails(id) {
+			try {
+				showLoading();
+				console.log('[Queue] Loading details for item:', id);
+				const res = await fetch(`${API_BASE_URL}/api/partner-requests/${id}`, { headers: getHeaders() });
+				if (!res.ok) {
+					const t = await res.text();
+					console.error('[Queue] Failed to load details for item', id, ':', res.status, t);
+					alert('Error loading details: ' + res.status);
+					return;
+				}
+				const data = await res.json();
+				const item = data.item ?? {};
+				let prettyItem = item;
+				if (item && typeof item.payloadJson === 'string' && item.payloadJson.trim().length) {
+					try {
+						const parsed = JSON.parse(item.payloadJson);
+						prettyItem = { ...item, payload: parsed };
+					} catch (parseErr) {
+						console.warn('[Queue] Failed to parse payloadJson for details view', parseErr);
+					}
+				}
+				document.getElementById('detailsJson').textContent = formatJson(prettyItem);
+				document.getElementById('detailsLogs').textContent = formatJson(data.logs);
+				new bootstrap.Modal(document.getElementById('detailsModal')).show();
+				console.log('[Queue] Details loaded for item', id);
+			} catch (e) {
+				console.error('[Queue] Exception loading details for item', id, ':', e);
+				alert('Error loading details: ' + e.message);
+			} finally {
+				hideLoading();
+			}
+		}
+
+		async function runBatch(allTenants) {
+			try {
+				const headers = getHeaders();
+				showLoading();
+				console.log('[Queue] Running batch processor, allTenants=', allTenants);
+				const res = await fetch(`${API_BASE_URL}/api/partner-requests/run-batch?allTenants=${allTenants}`, { method: 'POST', headers });
+				if (!res.ok) {
+					const t = await res.text();
+					console.error('[Queue] Batch run failed:', res.status, t);
+					alert('Batch run failed: ' + res.status + ' - ' + t);
+					return;
+				}
+				const result = await res.json();
+				console.log('[Queue] Batch run result:', result);
+				if (result.failed > 0) {
+					console.warn('[Queue] Batch completed with failures', result);
+				}
+				alert(`Pulled: ${result.pulled}\nSucceeded: ${result.succeeded}\nFailed: ${result.failed}`);
+				await loadQueue();
+			} catch (e) {
+				console.error('[Queue] Exception running batch:', e);
+				alert('Error running batch: ' + e.message);
+			} finally {
+				hideLoading();
+			}
+		}
+
+		function copyJson(elementId) {
+			const element = document.getElementById(elementId);
+			if (element) {
+				const text = element.textContent;
+				navigator.clipboard.writeText(text).then(() => {
+					const btn = document.getElementById(`copy${elementId}Btn`);
+					if (btn) {
+						btn.textContent = 'Copied!';
+						setTimeout(() => {
+							btn.textContent = 'Copy';
+						}, 2000);
+					}
+				}).catch(err => {
+					console.error('Failed to copy JSON:', err);
+					alert('Failed to copy JSON to clipboard.');
+				});
+			}
+		}
+	</script>
+</body>
+</html>
+
+

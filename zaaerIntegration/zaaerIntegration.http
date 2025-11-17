@@ -1,0 +1,6 @@
+@zaaerIntegration_HostAddress = http://localhost:5128
+
+GET {{zaaerIntegration_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

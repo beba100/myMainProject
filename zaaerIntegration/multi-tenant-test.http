@@ -1,0 +1,93 @@
+### 🏨 Multi-Tenant API Testing
+### اختبار API متعدد الفنادق
+
+@baseUrl = https://localhost:7062
+@hotelCode = Dammam1
+
+### ========================================
+### 1️⃣ Test Dammam1 Hotel - Get All Customers
+### اختبار فندق الدمام 1 - جلب جميع العملاء
+GET {{baseUrl}}/api/Customer
+X-Hotel-Code: Dammam1
+
+### ========================================
+### 2️⃣ Test Dammam1 Hotel - Get All Reservations
+### اختبار فندق الدمام 1 - جلب جميع الحجوزات
+GET {{baseUrl}}/api/Reservation
+X-Hotel-Code: Dammam1
+
+### ========================================
+### 3️⃣ Test Dammam1 Hotel - Get All Apartments
+### اختبار فندق الدمام 1 - جلب جميع الشقق
+GET {{baseUrl}}/api/Apartment
+X-Hotel-Code: Dammam1
+
+### ========================================
+### 4️⃣ Test WITHOUT Hotel Code (Should Return 401)
+### اختبار بدون كود الفندق (يجب أن يرجع 401)
+GET {{baseUrl}}/api/Customer
+
+### ========================================
+### 5️⃣ Test with INVALID Hotel Code (Should Return 404)
+### اختبار بكود فندق غير صحيح (يجب أن يرجع 404)
+GET {{baseUrl}}/api/Customer
+X-Hotel-Code: InvalidHotel
+
+### ========================================
+### 6️⃣ Test Zaaer API - Get Customers
+### اختبار Zaaer API - جلب العملاء
+GET {{baseUrl}}/api/Zaaer/Customer
+X-Hotel-Code: Dammam1
+
+### ========================================
+### 7️⃣ Test Health Endpoint (No Hotel Code Required)
+### اختبار Health (لا يحتاج كود فندق)
+GET {{baseUrl}}/api/Health
+
+### ========================================
+### 8️⃣ Test Create Customer - Dammam1
+### اختبار إضافة عميل - الدمام 1
+POST {{baseUrl}}/api/Customer
+X-Hotel-Code: Dammam1
+Content-Type: application/json
+
+{
+  "name": "أحمد محمد",
+  "phoneNumber": "0501234567",
+  "email": "ahmed@example.com",
+  "nationalId": "1234567890",
+  "nId": 1,
+  "gtypeId": 1,
+  "guestCategoryId": 1,
+  "hotelId": 1
+}
+
+### ========================================
+### 9️⃣ Test Create Customer - Dammam2 (إذا كان متوفر)
+### اختبار إضافة عميل - الدمام 2
+POST {{baseUrl}}/api/Customer
+X-Hotel-Code: Dammam2
+Content-Type: application/json
+
+{
+  "name": "خالد علي",
+  "phoneNumber": "0509876543",
+  "email": "khaled@example.com",
+  "nationalId": "9876543210",
+  "nId": 1,
+  "gtypeId": 1,
+  "guestCategoryId": 1,
+  "hotelId": 1
+}
+
+### ========================================
+### 🔟 Test Get Room Types
+### اختبار جلب أنواع الغرف
+GET {{baseUrl}}/api/RoomType
+X-Hotel-Code: Dammam1
+
+### ========================================
+### Documentation:
+### للمزيد من المعلومات، راجع ملف MULTI_TENANT_GUIDE.md
+### For more information, see MULTI_TENANT_GUIDE.md
+
