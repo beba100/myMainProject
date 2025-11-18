@@ -669,32 +669,36 @@ namespace zaaerIntegration.Services.PartnerQueueing.Handlers
 		}
 	}
 
-	public sealed class ZaaerRoleCreateHandler : IQueuedOperationHandler
-	{
-		public string Key => "Zaaer.Role.Create";
-		public async Task HandleAsync(PartnerQueue item, ApplicationDbContext db, IServiceProvider sp, CancellationToken ct)
-		{
-			var mapper = sp.GetRequiredService<IMapper>();
-			var dto = JsonSerializer.Deserialize<ZaaerCreateRoleDto>(item.PayloadJson ?? "{}", JsonConfig.Options)!;
-			var entity = mapper.Map<Role>(dto);
-			await db.Set<Role>().AddAsync(entity, ct);
-			await db.SaveChangesAsync(ct);
-		}
-	}
+	// ZaaerRoleCreateHandler and ZaaerRoleUpdateHandler disabled
+	// Role model is now in Master DB only, not in Tenant DB (ApplicationDbContext)
+	// Use MasterUserService and Master DB for role management instead
+	
+	// public sealed class ZaaerRoleCreateHandler : IQueuedOperationHandler
+	// {
+	// 	public string Key => "Zaaer.Role.Create";
+	// 	public async Task HandleAsync(PartnerQueue item, ApplicationDbContext db, IServiceProvider sp, CancellationToken ct)
+	// 	{
+	// 		var mapper = sp.GetRequiredService<IMapper>();
+	// 		var dto = JsonSerializer.Deserialize<ZaaerCreateRoleDto>(item.PayloadJson ?? "{}", JsonConfig.Options)!;
+	// 		var entity = mapper.Map<Role>(dto);
+	// 		await db.Set<Role>().AddAsync(entity, ct);
+	// 		await db.SaveChangesAsync(ct);
+	// 	}
+	// }
 
-	public sealed class ZaaerRoleUpdateHandler : IQueuedOperationHandler
-	{
-		public string Key => "Zaaer.Role.Update";
-		public async Task HandleAsync(PartnerQueue item, ApplicationDbContext db, IServiceProvider sp, CancellationToken ct)
-		{
-			var mapper = sp.GetRequiredService<IMapper>();
-			var dto = JsonSerializer.Deserialize<ZaaerUpdateRoleDto>(item.PayloadJson ?? "{}", JsonConfig.Options)!;
-			var existing = await db.Set<Role>().FirstOrDefaultAsync(r => r.RoleId == dto.RoleId, ct);
-			if (existing == null) return;
-			mapper.Map(dto, existing);
-			await db.SaveChangesAsync(ct);
-		}
-	}
+	// public sealed class ZaaerRoleUpdateHandler : IQueuedOperationHandler
+	// {
+	// 	public string Key => "Zaaer.Role.Update";
+	// 	public async Task HandleAsync(PartnerQueue item, ApplicationDbContext db, IServiceProvider sp, CancellationToken ct)
+	// 	{
+	// 		var mapper = sp.GetRequiredService<IMapper>();
+	// 		var dto = JsonSerializer.Deserialize<ZaaerUpdateRoleDto>(item.PayloadJson ?? "{}", JsonConfig.Options)!;
+	// 		var existing = await db.Set<Role>().FirstOrDefaultAsync(r => r.RoleId == dto.RoleId, ct);
+	// 		if (existing == null) return;
+	// 		mapper.Map(dto, existing);
+	// 		await db.SaveChangesAsync(ct);
+	// 	}
+	// }
 
 	public sealed class ZaaerBankCreateHandler : IQueuedOperationHandler
 	{
@@ -792,10 +796,23 @@ namespace zaaerIntegration.Services.PartnerQueueing.Handlers
 			{
 				foreach (var roomDto in dto.ExpenseRooms)
 				{
-					// Verify apartment exists in the same hotel
-					var apartment = await db.Apartments
-						.AsNoTracking()
-						.FirstOrDefaultAsync(a => a.ApartmentId == roomDto.ApartmentId && a.HotelId == hotelSettings.HotelId, ct);
+					// ✅ البحث عن Apartment باستخدام ApartmentId أو ZaaerId
+					Apartment? apartment = null;
+					
+					if (roomDto.ApartmentId.HasValue)
+					{
+						// البحث باستخدام ApartmentId
+						apartment = await db.Apartments
+							.AsNoTracking()
+							.FirstOrDefaultAsync(a => a.ApartmentId == roomDto.ApartmentId.Value && a.HotelId == hotelSettings.HotelId, ct);
+					}
+					else if (roomDto.ZaaerId.HasValue)
+					{
+						// ✅ البحث باستخدام ZaaerId (من الـ frontend)
+						apartment = await db.Apartments
+							.AsNoTracking()
+							.FirstOrDefaultAsync(a => a.ZaaerId == roomDto.ZaaerId.Value && a.HotelId == hotelSettings.HotelId, ct);
+					}
 
 					if (apartment == null)
 					{
@@ -806,8 +823,9 @@ namespace zaaerIntegration.Services.PartnerQueueing.Handlers
 					var expenseRoom = new ExpenseRoomModel
 					{
 						ExpenseId = expense.ExpenseId,
-						ApartmentId = roomDto.ApartmentId,
+						ApartmentId = apartment.ApartmentId, // ✅ استخدام ApartmentId من الـ apartment الموجود
 						Purpose = roomDto.Purpose,
+						Amount = roomDto.Amount, // ✅ إضافة Amount
 						CreatedAt = DateTime.Now
 					};
 
@@ -906,21 +924,35 @@ namespace zaaerIntegration.Services.PartnerQueueing.Handlers
 
 			var dto = JsonSerializer.Deserialize<zaaerIntegration.DTOs.Expense.CreateExpenseRoomDto>(item.PayloadJson ?? "{}", JsonConfig.Options)!;
 			
-			// Verify apartment exists in the same hotel
-			var apartment = await db.Apartments
-				.AsNoTracking()
-				.FirstOrDefaultAsync(a => a.ApartmentId == dto.ApartmentId && a.HotelId == hotelSettings.HotelId, ct);
+			// ✅ البحث عن Apartment باستخدام ApartmentId أو ZaaerId
+			Apartment? apartment = null;
+			
+			if (dto.ApartmentId.HasValue)
+			{
+				// البحث باستخدام ApartmentId
+				apartment = await db.Apartments
+					.AsNoTracking()
+					.FirstOrDefaultAsync(a => a.ApartmentId == dto.ApartmentId.Value && a.HotelId == hotelSettings.HotelId, ct);
+			}
+			else if (dto.ZaaerId.HasValue)
+			{
+				// ✅ البحث باستخدام ZaaerId (من الـ frontend)
+				apartment = await db.Apartments
+					.AsNoTracking()
+					.FirstOrDefaultAsync(a => a.ZaaerId == dto.ZaaerId.Value && a.HotelId == hotelSettings.HotelId, ct);
+			}
 
 			if (apartment == null)
 			{
-				throw new InvalidOperationException($"Apartment with id {dto.ApartmentId} not found");
+				throw new InvalidOperationException($"Apartment not found: ApartmentId={dto.ApartmentId}, ZaaerId={dto.ZaaerId}, HotelId={hotelSettings.HotelId}");
 			}
 
 			var expenseRoom = new ExpenseRoomModel
 			{
 				ExpenseId = expenseId,
-				ApartmentId = dto.ApartmentId,
+				ApartmentId = apartment.ApartmentId, // ✅ استخدام ApartmentId من الـ apartment الموجود
 				Purpose = dto.Purpose,
+				Amount = dto.Amount, // ✅ إضافة Amount
 				CreatedAt = DateTime.Now
 			};
 

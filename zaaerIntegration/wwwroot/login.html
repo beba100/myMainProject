@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            direction: rtl;
+            overflow: hidden;
+        }
+
+        /* Left Section - Login Form (2/3 width) */
+        .login-form-section {
+            width: 66.666%;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            position: relative;
+        }
+
+        .login-form-container {
+            width: 100%;
+            max-width: 450px;
+        }
+
+        .login-title {
+            color: #1a1a2e;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 14px 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            background: #f0f4f8;
+            transition: all 0.3s;
+            outline: none;
+            color: #333;
+        }
+
+        .form-group input:focus {
+            background: #e8f0fe;
+            box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
+        }
+
+        .password-input-wrapper {
+            position: relative;
+        }
+
+        .password-toggle {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #666;
+            font-size: 18px;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .password-toggle:hover {
+            color: #007ACC;
+        }
+
+        .form-options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            margin-top: 10px;
+        }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .remember-me input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #00D4AA;
+        }
+
+        .remember-me label {
+            color: #666;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 0;
+        }
+
+        .forgot-password-link {
+            color: #00D4AA;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .forgot-password-link:hover {
+            color: #00A8E8;
+            text-decoration: underline;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #00D4AA 0%, #00A8E8 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0, 212, 170, 0.3);
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 212, 170, 0.4);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .btn-login:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Right Section - Branding (1/3 width) */
+        .branding-section {
+            width: 33.333%;
+            background: linear-gradient(180deg, #e8f5e9 0%, #ffffff 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            position: relative;
+        }
+
+        .logo-container {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .logo-arabic {
+            font-size: 48px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 10px;
+        }
+
+        .logo-english {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a1a2e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #1a1a2e;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .logo-icon::before {
+            content: '✓';
+            color: #00D4AA;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .logo-icon::after {
+            content: '📍';
+            position: absolute;
+            bottom: -8px;
+            right: -8px;
+            font-size: 16px;
+        }
+
+        .illustration-container {
+            position: relative;
+            width: 100%;
+            max-width: 300px;
+            height: 400px;
+        }
+
+        .illustration-character {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 300px;
+            background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+            border-radius: 100px 100px 20px 20px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .illustration-character::before {
+            content: '👨';
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 60px;
+        }
+
+        .illustration-lock {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #00D4AA 0%, #00A8E8 100%);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            box-shadow: 0 10px 30px rgba(0, 212, 170, 0.3);
+            z-index: 3;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .illustration-lock::before {
+            content: '🔒';
+        }
+
+        /* Alert Messages */
+        .alert {
+            padding: 12px 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .alert-error {
+            background: #fee;
+            color: #c33;
+            border: 1px solid #fcc;
+        }
+
+        .alert-success {
+            background: #efe;
+            color: #3c3;
+            border: 1px solid #cfc;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #00D4AA;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Forgot Password Modal */
+        .forgot-password-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .forgot-password-modal.active {
+            display: flex;
+        }
+
+        .forgot-password-content {
+            background: white;
+            border-radius: 20px;
+            padding: 35px;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.4s ease-out;
+            position: relative;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .forgot-password-content h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .forgot-password-content .close-btn {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: none;
+            border: none;
+            font-size: 28px;
+            color: #666;
+            cursor: pointer;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+
+        .forgot-password-content .close-btn:hover {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .btn-submit-forgot {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #00D4AA 0%, #00A8E8 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 15px;
+        }
+
+        .btn-submit-forgot:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 212, 170, 0.3);
+        }
+
+        .user-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .user-info h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .user-info p {
+            color: #666;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+
+        .btn-logout {
+            width: 100%;
+            padding: 10px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .btn-logout:hover {
+            background: #c82333;
+        }
+
+        /* Responsive */
+        @media (max-width: 968px) {
+            body {
+                flex-direction: column;
+            }
+
+            .login-form-section,
+            .branding-section {
+                width: 100%;
+            }
+
+            .branding-section {
+                min-height: 300px;
+            }
+
+            .illustration-container {
+                max-width: 200px;
+                height: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Left Section - Login Form -->
+    <div class="login-form-section">
+        <div class="login-form-container">
+            <h1 class="login-title">الدخول إلى حسابك</h1>
+
+            <div id="alert" class="alert"></div>
+
+            <div id="loginForm">
+                <form id="loginFormElement" onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label for="username">اسم المستخدم</label>
+                        <input type="text" id="username" name="username" required autocomplete="username" placeholder="أدخل اسم المستخدم">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">كلمة المرور</label>
+                        <div class="password-input-wrapper">
+                            <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="أدخل كلمة المرور" style="padding-left: 50px;">
+                            <button type="button" class="password-toggle" onclick="togglePasswordVisibility()" title="إظهار/إخفاء كلمة المرور">
+                                <span id="passwordToggleIcon">👁️</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-options">
+                        <div class="remember-me">
+                            <input type="checkbox" id="rememberMe" name="rememberMe">
+                            <label for="rememberMe">تذكرني</label>
+                        </div>
+                        <a href="#" class="forgot-password-link" onclick="openForgotPassword(); return false;">
+                            نسيت كلمة السر؟
+                        </a>
+                    </div>
+
+                    <button type="submit" class="btn-login" id="loginBtn">
+                        دخول
+                    </button>
+                </form>
+
+                <div class="loading" id="loading">
+                    <div class="loading-spinner"></div>
+                    <p style="margin-top: 10px; color: #666;">جاري تسجيل الدخول...</p>
+                </div>
+            </div>
+
+            <div id="userInfo" class="user-info">
+                <h3>✅ تم تسجيل الدخول بنجاح</h3>
+                <p><strong>المستخدم:</strong> <span id="displayUsername"></span></p>
+                <p><strong>الفندق:</strong> <span id="displayTenant"></span></p>
+                <p><strong>الأدوار:</strong> <span id="displayRoles"></span></p>
+                <button class="btn-logout" onclick="handleLogout()">تسجيل الخروج</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Section - Branding -->
+    <div class="branding-section">
+        <div class="logo-container">
+            <div class="logo-arabic">العييري</div>
+            <div class="logo-english">
+                <span>ALEAIRY GROUP</span>
+                <div class="logo-icon"></div>
+            </div>
+        </div>
+        <div class="illustration-container">
+            <div class="illustration-lock"></div>
+            <div class="illustration-character"></div>
+        </div>
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <div id="forgotPasswordModal" class="forgot-password-modal">
+        <div class="forgot-password-content">
+            <button class="close-btn" onclick="closeForgotPassword()">&times;</button>
+            <h2>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00D4AA" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                استعادة كلمة المرور
+            </h2>
+            <p style="color: #666; margin-bottom: 20px; line-height: 1.6;">
+                أدخل اسم المستخدم أو البريد الإلكتروني وسنرسل لك رابطاً لإعادة تعيين كلمة المرور.
+            </p>
+            <form id="forgotPasswordForm" onsubmit="handleForgotPassword(event)">
+                <div class="form-group">
+                    <label for="forgotUsername">اسم المستخدم أو البريد الإلكتروني</label>
+                    <input type="text" id="forgotUsername" name="username" required placeholder="أدخل اسم المستخدم أو البريد الإلكتروني">
+                </div>
+                <button type="submit" class="btn-submit-forgot" id="forgotPasswordBtn">إرسال رابط الاستعادة</button>
+            </form>
+            <div id="forgotPasswordAlert" class="alert" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = window.location.origin;
+
+        // Toggle password visibility
+        function togglePasswordVisibility() {
+            const passwordInput = document.getElementById('password');
+            const toggleIcon = document.getElementById('passwordToggleIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.textContent = '🙈';
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.textContent = '👁️';
+            }
+        }
+
+        // التحقق من وجود Token عند تحميل الصفحة
+        window.addEventListener('DOMContentLoaded', () => {
+            // ✅ تحديث اسم الفندق من localStorage المحفوظ
+            updateHotelName();
+            
+            // ✅ تحميل Remember Me من localStorage
+            const rememberMe = localStorage.getItem('rememberMe') === 'true';
+            if (rememberMe) {
+                document.getElementById('rememberMe').checked = true;
+                const savedUsername = localStorage.getItem('savedUsername');
+                if (savedUsername) {
+                    document.getElementById('username').value = savedUsername;
+                }
+            }
+            
+            const token = localStorage.getItem('authToken');
+            if (token) {
+                validateToken(token);
+            }
+        });
+
+        // ✅ تحديث اسم الفندق في header - يحفظ اسم الفندق بعد تسجيل الدخول
+        function updateHotelName() {
+            // ✅ أولاً: محاولة الحصول من localStorage المحفوظ (lastHotelName)
+            const lastHotelName = localStorage.getItem('lastHotelName');
+            
+            if (lastHotelName) {
+                // ✅ إذا كان هناك اسم فندق محفوظ، نعرضه
+                // يمكن إضافة عنصر لعرضه إذا أردت
+                console.log('✅ Last hotel name:', lastHotelName);
+            }
+            
+            // ✅ ثانياً: محاولة الحصول من userInfo الحالي
+            const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+            
+            if (userInfo.tenantName) {
+                // ✅ حفظ اسم الفندق في localStorage للاستخدام المستقبلي
+                localStorage.setItem('lastHotelName', userInfo.tenantName);
+            } else if (userInfo.tenantCode) {
+                localStorage.setItem('lastHotelName', userInfo.tenantCode);
+            }
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const rememberMe = document.getElementById('rememberMe').checked;
+            const loginBtn = document.getElementById('loginBtn');
+            const loading = document.getElementById('loading');
+            const alert = document.getElementById('alert');
+
+            // إخفاء التنبيهات السابقة
+            alert.style.display = 'none';
+            loginBtn.disabled = true;
+            loading.style.display = 'block';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'فشل تسجيل الدخول');
+                }
+
+                // حفظ Token في localStorage
+                localStorage.setItem('authToken', data.token);
+                const userInfo = {
+                    userId: data.userId,
+                    username: data.username,
+                    tenantId: data.tenantId,
+                    tenantCode: data.tenantCode,
+                    tenantName: data.tenantName,
+                    roles: data.roles
+                };
+                localStorage.setItem('userInfo', JSON.stringify(userInfo));
+                
+                // ✅ حفظ اسم الفندق في localStorage للعرض عند العودة
+                if (data.tenantName) {
+                    localStorage.setItem('lastHotelName', data.tenantName);
+                } else if (data.tenantCode) {
+                    localStorage.setItem('lastHotelName', data.tenantCode);
+                }
+                
+                // ✅ حفظ Remember Me
+                if (rememberMe) {
+                    localStorage.setItem('rememberMe', 'true');
+                    localStorage.setItem('savedUsername', username);
+                } else {
+                    localStorage.removeItem('rememberMe');
+                    localStorage.removeItem('savedUsername');
+                }
+                
+                // ✅ تحديث اسم الفندق
+                updateHotelName();
+                
+                // ✅ Set session flag and timestamp for expenses.html session management
+                localStorage.setItem('sessionStartTime', Date.now().toString());
+                localStorage.setItem('sessionValid', 'true');
+                sessionStorage.setItem('fromLogin', 'true');
+
+                // ✅ فتح صفحة expenses.html
+                showAlert('تم تسجيل الدخول بنجاح! جاري التوجيه...', 'success');
+                
+                setTimeout(() => {
+                    window.location.href = 'expenses.html';
+                }, 1000);
+
+            } catch (error) {
+                showAlert(error.message || 'حدث خطأ أثناء تسجيل الدخول', 'error');
+            } finally {
+                loginBtn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        async function validateToken(token) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/auth/validate`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                    
+                    // ✅ حفظ اسم الفندق
+                    if (userInfo.tenantName) {
+                        localStorage.setItem('lastHotelName', userInfo.tenantName);
+                    }
+                    
+                    // ✅ تحديث اسم الفندق
+                    updateHotelName();
+                    
+                    showUserInfo({
+                        username: data.username,
+                        tenantName: userInfo.tenantName || 'غير محدد',
+                        roles: data.roles || []
+                    });
+                } else {
+                    // Token غير صالح
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('userInfo');
+                }
+            } catch (error) {
+                console.error('Error validating token:', error);
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('userInfo');
+            }
+        }
+
+        function showUserInfo(data) {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('userInfo').style.display = 'block';
+            document.getElementById('displayUsername').textContent = data.username;
+            document.getElementById('displayTenant').textContent = data.tenantName || data.tenantCode || 'غير محدد';
+            document.getElementById('displayRoles').textContent = Array.isArray(data.roles) ? data.roles.join(', ') : data.roles || 'لا توجد أدوار';
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userInfo');
+            localStorage.removeItem('sessionStartTime');
+            localStorage.removeItem('sessionValid');
+            // ✅ لا نحذف lastHotelName - نبقيه للعرض عند العودة
+            sessionStorage.clear();
+            
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('userInfo').style.display = 'none';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            showAlert('تم تسجيل الخروج بنجاح', 'success');
+        }
+
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = `alert alert-${type}`;
+            alert.style.display = 'block';
+
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 5000);
+        }
+
+        // إضافة Token تلقائياً لجميع الطلبات
+        if (typeof window.addAuthTokenToRequest === 'undefined') {
+            window.addAuthTokenToRequest = function() {
+                const token = localStorage.getItem('authToken');
+                if (token) {
+                    return {
+                        'Authorization': `Bearer ${token}`
+                    };
+                }
+                return {};
+            };
+        }
+
+        // Forgot Password Functions
+        function openForgotPassword() {
+            document.getElementById('forgotPasswordModal').classList.add('active');
+            document.getElementById('forgotUsername').focus();
+        }
+
+        function closeForgotPassword() {
+            document.getElementById('forgotPasswordModal').classList.remove('active');
+            document.getElementById('forgotPasswordForm').reset();
+            document.getElementById('forgotPasswordAlert').style.display = 'none';
+        }
+
+        async function handleForgotPassword(event) {
+            event.preventDefault();
+            
+            const username = document.getElementById('forgotUsername').value;
+            const btn = document.getElementById('forgotPasswordBtn');
+            const alert = document.getElementById('forgotPasswordAlert');
+            
+            btn.disabled = true;
+            btn.textContent = 'جاري الإرسال...';
+            alert.style.display = 'none';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showForgotPasswordAlert('تم إرسال رابط استعادة كلمة المرور إلى بريدك الإلكتروني', 'success');
+                    setTimeout(() => {
+                        closeForgotPassword();
+                    }, 3000);
+                } else {
+                    const data = await response.json();
+                    showForgotPasswordAlert(data.error || 'حدث خطأ. يرجى المحاولة مرة أخرى', 'error');
+                }
+            } catch (error) {
+                showForgotPasswordAlert('عذراً، هذه الميزة قيد التطوير. يرجى التواصل مع المسؤول لإعادة تعيين كلمة المرور.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'إرسال رابط الاستعادة';
+            }
+        }
+
+        function showForgotPasswordAlert(message, type) {
+            const alert = document.getElementById('forgotPasswordAlert');
+            alert.textContent = message;
+            alert.className = `alert alert-${type}`;
+            alert.style.display = 'block';
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('forgotPasswordModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeForgotPassword();
+            }
+        });
+    </script>
+</body>
+</html>

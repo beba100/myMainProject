@@ -11,6 +11,7 @@ namespace zaaerIntegration.DTOs.Expense
         public string? ApartmentCode { get; set; }
         public string? ApartmentName { get; set; }
         public string? Purpose { get; set; }
+        public decimal? Amount { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 }

@@ -52,10 +52,7 @@ namespace zaaerIntegration.Repositories.Implementations
         public IGenericRepository<Penalty> Penalties { get; private set; }
         public IGenericRepository<Refund> Refunds { get; private set; }
         public IGenericRepository<CreditNote> CreditNotes { get; private set; }
-        public IGenericRepository<User> Users { get; private set; }
-        public IGenericRepository<Role> Roles { get; private set; }
-        public IGenericRepository<Permission> Permissions { get; private set; }
-        public IGenericRepository<RolePermission> RolePermissions { get; private set; }
+        // User, Role, Permission, RolePermission removed - now in Master DB only
         public IGenericRepository<HotelSettings> HotelSettings { get; private set; }
         
         // New tables (Rate Types, Seasonal Rates, etc.)
@@ -122,10 +119,7 @@ namespace zaaerIntegration.Repositories.Implementations
             Penalties = new GenericRepository<Penalty>(_context);
             Refunds = new GenericRepository<Refund>(_context);
             CreditNotes = new GenericRepository<CreditNote>(_context);
-            Users = new GenericRepository<User>(_context);
-            Roles = new GenericRepository<Role>(_context);
-            Permissions = new GenericRepository<Permission>(_context);
-            RolePermissions = new GenericRepository<RolePermission>(_context);
+            // User, Role, Permission, RolePermission removed - now in Master DB only
             HotelSettings = new GenericRepository<HotelSettings>(_context);
             
             // New tables (Rate Types, Seasonal Rates, etc.)

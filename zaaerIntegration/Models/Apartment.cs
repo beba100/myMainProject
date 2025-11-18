@@ -59,13 +59,13 @@ namespace FinanceLedgerAPI.Models
 		public HotelSettings HotelSettings { get; set; } = null!;
 
         [ForeignKey("BuildingId")]
-		public Building Building { get; set; } = null!;
+		public Building? Building { get; set; }
 
 		[ForeignKey("FloorId")]
-		public Floor Floor { get; set; } = null!;
+		public Floor? Floor { get; set; }
 
 		[ForeignKey("RoomTypeId")]
-		public RoomType RoomType { get; set; } = null!;
+		public RoomType? RoomType { get; set; }
 
 		public ICollection<ReservationUnit> ReservationUnits { get; set; } = new List<ReservationUnit>();
 	}

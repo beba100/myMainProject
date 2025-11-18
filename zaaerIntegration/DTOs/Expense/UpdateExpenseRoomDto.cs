@@ -14,6 +14,12 @@ namespace zaaerIntegration.DTOs.Expense
         /// </summary>
         [MaxLength(500)]
         public string? Purpose { get; set; }
+
+        /// <summary>
+        /// Amount - المبلغ المرتبط بهذه الغرفة
+        /// </summary>
+        [Range(0, double.MaxValue)]
+        public decimal? Amount { get; set; }
     }
 }
 

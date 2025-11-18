@@ -14,6 +14,12 @@ namespace zaaerIntegration.DTOs.Response
         public string? ApartmentName { get; set; }
         public string Status { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Zaaer System ID (معرف Zaaer)
+        /// External ID from Zaaer integration system
+        /// </summary>
+        public int? ZaaerId { get; set; }
+
         // Related entity names for display
         public string? HotelName { get; set; }
         public string? BuildingName { get; set; }

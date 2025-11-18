@@ -41,21 +41,36 @@ namespace zaaerIntegration.Controllers
         {
             try
             {
-                _logger.LogInformation("📋 [GetAllApartments] Request received: PageNumber={PageNumber}, PageSize={PageSize}, SearchTerm={SearchTerm}", 
-                    pageNumber, pageSize, searchTerm ?? "null");
+                // ✅ Log request details including headers
+                var hotelCode = Request.Headers.ContainsKey("X-Hotel-Code") 
+                    ? Request.Headers["X-Hotel-Code"].ToString() 
+                    : "Not provided";
+                
+                _logger.LogInformation("📋 [GetAllApartments] Request received: PageNumber={PageNumber}, PageSize={PageSize}, SearchTerm={SearchTerm}, X-Hotel-Code={HotelCode}", 
+                    pageNumber, pageSize, searchTerm ?? "null", hotelCode);
 
                 var (apartments, totalCount) = await _apartmentService.GetAllApartmentsAsync(pageNumber, pageSize, searchTerm);
                 
-                _logger.LogInformation("✅ [GetAllApartments] Successfully retrieved {Count} apartments (Total: {TotalCount})", 
-                    apartments.Count(), totalCount);
+                _logger.LogInformation("✅ [GetAllApartments] Successfully retrieved {Count} apartments (Total: {TotalCount}) for HotelCode: {HotelCode}", 
+                    apartments.Count(), totalCount, hotelCode);
+
+                // ✅ Log if no apartments found
+                if (totalCount == 0)
+                {
+                    _logger.LogWarning("⚠️ [GetAllApartments] No apartments found for HotelCode: {HotelCode}. This might indicate:", 
+                        hotelCode);
+                    _logger.LogWarning("   1. No apartments exist in the tenant database for this hotel");
+                    _logger.LogWarning("   2. HotelSettings not found or HotelId mismatch");
+                    _logger.LogWarning("   3. Tenant.Code ({HotelCode}) does not match any HotelSettings.HotelCode in tenant DB", hotelCode);
+                }
 
                 return Ok(new
                 {
-                    Apartments = apartments,
-                    TotalCount = totalCount,
-                    PageNumber = pageNumber,
-                    PageSize = pageSize,
-                    TotalPages = (int)Math.Ceiling((double)totalCount / pageSize)
+                    apartments = apartments, // ✅ Changed to lowercase 'apartments' to match frontend expectation
+                    totalCount = totalCount,
+                    pageNumber = pageNumber,
+                    pageSize = pageSize,
+                    totalPages = (int)Math.Ceiling((double)totalCount / pageSize)
                 });
             }
             catch (UnauthorizedAccessException ex)

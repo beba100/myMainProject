@@ -30,6 +30,12 @@ namespace FinanceLedgerAPI.Models
         [MaxLength(500)]
         public string? Purpose { get; set; }
 
+        /// <summary>
+        /// Amount - المبلغ المرتبط بهذه الغرفة
+        /// </summary>
+        [Column("amount", TypeName = "decimal(12,2)")]
+        public decimal? Amount { get; set; }
+
         [Column("created_at")]
         [Required]
         public DateTime CreatedAt { get; set; } = DateTime.Now;

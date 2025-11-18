@@ -9,17 +9,27 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     
-    <!-- jQuery Calendars (Keith Wood) - Using jsDelivr CDN -->
-    <script src="https://cdn.jsdelivr.net/gh/kbwood/calendars@2.1.0/dist/js/jquery.calendars.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/kbwood/calendars@2.1.0/dist/js/jquery.calendars.plus.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/kbwood/calendars@2.1.0/dist/js/jquery.calendars.picker.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/kbwood/calendars@2.1.0/dist/js/jquery.calendars.ummalqura.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/kbwood/calendars@2.1.0/dist/css/jquery.calendars.picker.min.css" />
+    <!-- Select2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     
-    <!-- Local Calendar CSS -->
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- jQuery Calendars (Local Files) - Load in correct order -->
+    <script src="js/jquery.plugin.js"></script>
+    <script src="js/jquery.calendars.js"></script>
+    <script src="js/jquery.calendars.plus.js"></script>
+    <script src="js/jquery.calendars.picker.js"></script>
+    <script src="js/jquery.calendars.ummalqura.js"></script>
+    
+    <!-- Calendar CSS -->
     <link rel="stylesheet" href="css/ummalqura.calendars.picker.css" />
     
     <!-- Local Calendar Convert JS -->
@@ -48,19 +58,23 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             min-height: 100vh;
-            padding: 10px;
+            padding: 8px;
             direction: rtl;
         }
 
-        /* Header - Smaller */
+        /* Header - Compact */
         .page-header {
             background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%);
             color: white;
-            padding: 15px 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 122, 204, 0.3);
-            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 122, 204, 0.3);
+            margin-bottom: 10px;
             animation: slideDown 0.6s ease-out;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
         }
 
         @keyframes slideDown {
@@ -75,45 +89,119 @@
         }
 
         .page-header h1 {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 600;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
 
         .page-header p {
             opacity: 0.9;
-            font-size: 12px;
+            font-size: 11px;
             margin: 0;
         }
 
-        /* Hotel Selector - Smaller */
+        /* Logout Button */
+        .logout-btn {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-50%) scale(1.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .logout-btn svg {
+            width: 20px;
+            height: 20px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+        }
+
+        /* Session Timeout Warning */
+        .session-warning {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4);
+            z-index: 10001;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            animation: slideInRight 0.3s ease-out;
+            max-width: 350px;
+        }
+
+        .session-warning.show {
+            display: flex;
+        }
+
+        .session-warning svg {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Hotel Selector - Compact */
         .hotel-selector {
             position: fixed;
-            top: 10px;
-            left: 10px;
+            top: 8px;
+            left: 8px;
             z-index: 1000;
             background: white;
-            padding: 10px 15px;
+            padding: 8px 12px;
             border-radius: 6px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
             border: 2px solid var(--primary-blue);
-            min-width: 200px;
+            min-width: 180px;
         }
 
         .hotel-selector label {
             display: block;
             font-weight: 600;
             color: var(--dark-gray);
-            margin-bottom: 5px;
-            font-size: 12px;
+            margin-bottom: 4px;
+            font-size: 11px;
         }
 
         /* Main Container */
         .main-container {
-            max-width: 900px;
+            max-width: 1000px;
             margin: 0 auto;
             animation: fadeIn 0.8s ease-out;
         }
@@ -129,38 +217,38 @@
             }
         }
 
-        /* Form Card - Smaller and Compact */
+        /* Form Card - Compact and Professional */
         .form-card {
             background: white;
             border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
+            padding: 15px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 10px;
         }
 
         .section-title {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
             color: var(--primary-blue);
-            margin-bottom: 15px;
-            padding-bottom: 10px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
             border-bottom: 2px solid var(--light-blue);
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
 
-        /* Form Groups - Closer Together */
+        /* Form Groups - Very Close Together */
         .form-group {
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
 
         .form-group label {
             display: block;
             font-weight: 600;
             color: var(--dark-gray);
-            margin-bottom: 5px;
-            font-size: 13px;
+            margin-bottom: 4px;
+            font-size: 12px;
         }
 
         .form-group.required label::after {
@@ -168,13 +256,42 @@
             color: var(--danger-red);
         }
 
-        /* Inputs - Smaller */
+        /* Tax Checkbox Styling */
+        .tax-checkbox {
+            margin-right: 8px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--primary-blue);
+        }
+
+        .tax-checkbox-label {
+            font-weight: 400;
+            font-size: 11px;
+            color: #666;
+            margin-right: 4px;
+        }
+
+        .tax-info {
+            display: block;
+            color: #666;
+            font-size: 11px;
+            margin-top: 4px;
+        }
+
+        /* Inputs - Compact */
         .form-control, .form-select {
-            font-size: 13px;
-            padding: 6px 10px;
+            font-size: 12px;
+            padding: 5px 8px;
             border-radius: 4px;
             border: 1px solid var(--light-gray);
             transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        textarea.form-control {
+            resize: vertical;
+            min-height: 60px;
         }
 
         .form-control:focus, .form-select:focus {
@@ -183,29 +300,234 @@
             outline: none;
         }
 
-        /* Date Picker Container - Compact */
-        .date-picker-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
+        /* Select2 Custom Styling - Professional Design */
+        .select2-container {
+            width: 100% !important;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        .date-picker-group {
-            display: flex;
-            flex-direction: column;
+        /* Select2 Selection Box */
+        .select2-container--default .select2-selection--single,
+        .select2-container--bootstrap-5 .select2-selection {
+            min-height: 38px;
+            height: 38px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background-color: #ffffff;
+            transition: all 0.2s ease;
+            padding: 0;
         }
 
-        .date-picker-group label {
-            font-size: 12px;
-            margin-bottom: 5px;
-            font-weight: 600;
+        .select2-container--default .select2-selection--single .select2-selection__rendered,
+        .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+            line-height: 36px;
+            padding-right: 12px;
+            padding-left: 32px;
+            color: #374151;
+            font-size: 14px;
+            font-weight: 400;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__arrow,
+        .select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow {
+            height: 36px;
+            right: 10px;
+            width: 20px;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__arrow b,
+        .select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow b {
+            border-color: #6b7280 transparent transparent transparent;
+            border-style: solid;
+            border-width: 5px 4px 0 4px;
+            height: 0;
+            left: 50%;
+            margin-left: -4px;
+            margin-top: -2px;
+            position: absolute;
+            top: 50%;
+            width: 0;
+        }
+
+        /* Focus and Open States */
+        .select2-container--default.select2-container--focus .select2-selection--single,
+        .select2-container--default.select2-container--open .select2-selection--single,
+        .select2-container--bootstrap-5.select2-container--focus .select2-selection,
+        .select2-container--bootstrap-5.select2-container--open .select2-selection {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
+            outline: none;
+        }
+
+        /* Dropdown */
+        .select2-dropdown {
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            direction: rtl;
+            background-color: #ffffff;
+            margin-top: 4px;
+        }
+
+        /* Search Field in Dropdown */
+        .select2-search--dropdown {
+            padding: 8px;
+            background-color: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .select2-search--dropdown .select2-search__field {
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 14px;
+            direction: rtl;
+            width: 100%;
+            background-color: #ffffff;
+            transition: all 0.2s ease;
+        }
+
+        .select2-search--dropdown .select2-search__field:focus {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
+            outline: none;
+        }
+
+        .select2-search--dropdown .select2-search__field::placeholder {
+            color: #9ca3af;
+        }
+
+        /* Results Container */
+        .select2-results {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 4px 0;
+        }
+
+        .select2-results__option {
+            padding: 10px 16px;
+            font-size: 14px;
+            direction: rtl;
+            color: #374151;
+            transition: all 0.15s ease;
+            cursor: pointer;
+        }
+
+        .select2-results__option:hover {
+            background-color: #f3f4f6;
+            color: #111827;
+        }
+
+        .select2-results__option--highlighted {
+            background-color: var(--primary-blue) !important;
+            color: #ffffff !important;
+        }
+
+        .select2-results__option[aria-selected=true] {
+            background-color: var(--light-blue);
             color: var(--dark-gray);
+            font-weight: 500;
         }
 
-        /* Expense Rooms Section - Compact */
+        .select2-results__option[aria-selected=true]:hover {
+            background-color: var(--primary-blue);
+            color: #ffffff;
+        }
+
+        /* No Results Message */
+        .select2-results__message {
+            padding: 12px 16px;
+            color: #6b7280;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        /* Loading State */
+        .select2-results__option--loading {
+            padding: 12px 16px;
+            color: #6b7280;
+            text-align: center;
+        }
+
+        /* Hotel Selector Select2 - Smaller */
+        .hotel-selector .select2-container--default .select2-selection--single,
+        .hotel-selector .select2-container--bootstrap-5 .select2-selection {
+            min-height: 32px;
+            height: 32px;
+            font-size: 13px;
+        }
+
+        .hotel-selector .select2-container--default .select2-selection--single .select2-selection__rendered,
+        .hotel-selector .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+            line-height: 30px;
+            padding-right: 10px;
+            padding-left: 28px;
+            font-size: 13px;
+        }
+
+        .hotel-selector .select2-container--default .select2-selection--single .select2-selection__arrow,
+        .hotel-selector .select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow {
+            height: 30px;
+            right: 8px;
+        }
+
+        /* Disabled State */
+        .select2-container--default.select2-container--disabled .select2-selection--single,
+        .select2-container--bootstrap-5.select2-container--disabled .select2-selection {
+            background-color: #f3f4f6;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        /* Placeholder */
+        .select2-container--default .select2-selection--single .select2-selection__placeholder,
+        .select2-container--bootstrap-5 .select2-selection--single .select2-selection__placeholder {
+            color: #9ca3af;
+        }
+
+        /* Calendar Picker Styles */
+        #expenseDate {
+            position: relative;
+        }
+
+        .calendars-popup {
+            z-index: 10000 !important;
+            direction: rtl;
+        }
+
+        .calendars {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            border: 1px solid #ddd;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .calendars-nav, .calendars-ctrl {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%);
+        }
+
+        .calendars-cmd:hover {
+            background-color: rgba(255, 255, 255, 0.2) !important;
+        }
+
+        .calendars-day-selected {
+            background-color: var(--primary-blue) !important;
+            color: white !important;
+        }
+
+        .calendars-day:hover {
+            background-color: var(--light-blue) !important;
+        }
+
+        .calendars-day-today {
+            border: 2px solid var(--primary-blue) !important;
+            font-weight: bold;
+        }
+
+
+        /* Expense Rooms Section - Very Compact */
         .expense-rooms-section {
-            margin-top: 15px;
-            padding-top: 15px;
+            margin-top: 10px;
+            padding-top: 10px;
             border-top: 2px solid var(--light-gray);
         }
 
@@ -213,16 +535,16 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
 
         .expense-rooms-header h3 {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             color: var(--dark-gray);
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             margin: 0;
         }
 
@@ -230,14 +552,14 @@
             background: linear-gradient(135deg, var(--success-green) 0%, #218838 100%);
             color: white;
             border: none;
-            padding: 6px 12px;
-            border-radius: 6px;
+            padding: 5px 10px;
+            border-radius: 5px;
             cursor: pointer;
             font-weight: 600;
-            font-size: 12px;
+            font-size: 11px;
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 4px;
             transition: all 0.3s ease;
         }
 
@@ -252,7 +574,8 @@
             background: white;
             border-radius: 6px;
             overflow: hidden;
-            font-size: 12px;
+            font-size: 11px;
+            margin-bottom: 8px;
         }
 
         .expense-rooms-table thead {
@@ -261,15 +584,21 @@
         }
 
         .expense-rooms-table th {
-            padding: 8px;
+            padding: 6px 8px;
             text-align: right;
             font-weight: 600;
-            font-size: 12px;
+            font-size: 11px;
         }
 
         .expense-rooms-table td {
-            padding: 8px;
+            padding: 6px 8px;
             border-bottom: 1px solid var(--light-gray);
+        }
+
+        .expense-rooms-table .form-control,
+        .expense-rooms-table .form-select {
+            font-size: 11px;
+            padding: 4px 6px;
         }
 
         .expense-rooms-table tbody tr {
@@ -310,10 +639,10 @@
             background: #C82333;
         }
 
-        /* Images Upload Section */
+        /* Images Upload Section - Compact */
         .images-upload-section {
-            margin-top: 15px;
-            padding-top: 15px;
+            margin-top: 10px;
+            padding-top: 10px;
             border-top: 2px solid var(--light-gray);
         }
 
@@ -321,23 +650,23 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
 
         .images-upload-header h3 {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             color: var(--dark-gray);
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             margin: 0;
         }
 
         .upload-area {
             border: 2px dashed var(--light-gray);
             border-radius: 6px;
-            padding: 20px;
+            padding: 12px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -355,20 +684,20 @@
         }
 
         .upload-icon {
-            font-size: 32px;
+            font-size: 24px;
             color: var(--primary-blue);
-            margin-bottom: 10px;
+            margin-bottom: 6px;
         }
 
         .upload-text {
-            font-size: 13px;
-            color: var(--text-secondary);
-            margin-bottom: 5px;
+            font-size: 12px;
+            color: var(--dark-gray);
+            margin-bottom: 3px;
         }
 
         .upload-hint {
-            font-size: 11px;
-            color: var(--text-secondary);
+            font-size: 10px;
+            color: #666;
         }
 
         #imageFiles {
@@ -377,9 +706,9 @@
 
         .images-preview {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-            gap: 10px;
-            margin-top: 15px;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 8px;
+            margin-top: 10px;
         }
 
         .image-preview-item {
@@ -422,21 +751,21 @@
         /* Action Buttons - Compact */
         .action-buttons {
             display: flex;
-            gap: 10px;
-            margin-top: 20px;
-            padding-top: 15px;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 10px;
             border-top: 2px solid var(--light-gray);
             justify-content: flex-end;
         }
 
         .btn-primary, .btn-secondary {
-            padding: 8px 20px;
-            border-radius: 6px;
+            padding: 6px 16px;
+            border-radius: 5px;
             font-weight: 600;
-            font-size: 14px;
+            font-size: 13px;
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 5px;
             transition: all 0.3s ease;
             border: none;
             cursor: pointer;
@@ -498,11 +827,23 @@
         /* Empty State */
         .empty-rooms-message, .empty-images-message {
             text-align: center;
-            padding: 20px;
-            color: var(--text-secondary);
-            font-size: 12px;
+            padding: 12px;
+            color: #666;
+            font-size: 11px;
             background: var(--gray-bg);
             border-radius: 6px;
+        }
+
+        /* Compact Form Layout - Grid for better organization */
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .form-row.full-width {
+            grid-template-columns: 1fr;
         }
 
         /* Responsive */
@@ -511,10 +852,10 @@
                 position: relative;
                 top: 0;
                 left: 0;
-                margin-bottom: 15px;
+                margin-bottom: 10px;
             }
 
-            .date-picker-container {
+            .form-row {
                 grid-template-columns: 1fr;
             }
 
@@ -523,8 +864,430 @@
             }
 
             .images-preview {
-                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+                grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
             }
+        }
+
+        /* Tabs Navigation */
+        .tabs-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+
+        .tabs-nav {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid var(--light-gray);
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+
+        .tabs-nav li {
+            flex: 1;
+        }
+
+        .tabs-nav button {
+            width: 100%;
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .tabs-nav button:hover {
+            background: rgba(0, 122, 204, 0.05);
+            color: var(--primary-blue);
+        }
+
+        .tabs-nav button.active {
+            background: white;
+            color: var(--primary-blue);
+            border-bottom-color: var(--primary-blue);
+        }
+
+        .tabs-nav button i {
+            font-size: 16px;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 0;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeInTab 0.3s ease-out;
+        }
+
+        @keyframes fadeInTab {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Modern Expenses Table */
+        .expenses-table-container {
+            padding: 15px;
+        }
+
+        .expenses-table-wrapper {
+            overflow-x: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .expenses-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            font-size: 13px;
+            min-width: 1000px;
+        }
+
+        .expenses-table thead {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%);
+            color: white;
+        }
+
+        .expenses-table th {
+            padding: 12px 15px;
+            text-align: right;
+            font-weight: 600;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .expenses-table tbody tr {
+            border-bottom: 1px solid #e5e7eb;
+            transition: all 0.2s ease;
+        }
+
+        .expenses-table tbody tr:hover {
+            background-color: #f9fafb;
+            transform: scale(1.001);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .expenses-table td {
+            padding: 12px 15px;
+            text-align: right;
+            vertical-align: middle;
+        }
+
+        .expenses-table tbody tr:nth-child(even) {
+            background-color: #fafbfc;
+        }
+
+        .expenses-table tbody tr:nth-child(even):hover {
+            background-color: #f3f4f6;
+        }
+
+        /* Approval Status Badge - Modern & Advanced */
+        .approval-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .approval-status-badge::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .approval-status-badge:hover::before {
+            left: 100%;
+        }
+
+        .approval-status-badge:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .approval-status-badge svg {
+            width: 12px;
+            height: 12px;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 4px;
+        }
+
+        /* Spinner SVG Animation */
+        .spinner-svg {
+            animation: spin 1s linear infinite;
+            color: var(--primary-blue);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Auto-Approved Status */
+        .status-auto-approved {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            animation: pulse-green 2s infinite;
+        }
+
+        @keyframes pulse-green {
+            0%, 100% {
+                box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+            }
+            50% {
+                box-shadow: 0 2px 8px rgba(16, 185, 129, 0.5);
+            }
+        }
+
+        /* Pending Status */
+        .status-pending {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            animation: pulse-orange 2s infinite;
+        }
+
+        @keyframes pulse-orange {
+            0%, 100% {
+                box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+            }
+            50% {
+                box-shadow: 0 2px 8px rgba(245, 158, 11, 0.5);
+            }
+        }
+
+        /* Accepted Status */
+        .status-accepted {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+
+        /* Rejected Status */
+        .status-rejected {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        /* Action Buttons in Table */
+        .action-buttons-cell {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .action-btn {
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .action-btn-edit {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+
+        .action-btn-edit:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        }
+
+        .action-btn-images {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+        }
+
+        .action-btn-images:hover {
+            background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+        }
+
+        .action-btn-delete {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .action-btn-delete:hover {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+        }
+
+        /* Empty State */
+        .empty-expenses {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
+        }
+
+        .empty-expenses i {
+            font-size: 64px;
+            color: #d1d5db;
+            margin-bottom: 16px;
+        }
+
+        .empty-expenses h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+            color: #374151;
+        }
+
+        .empty-expenses p {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        /* Images Modal */
+        .images-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 10000;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .images-modal.active {
+            display: block;
+        }
+
+        .images-modal-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+        }
+
+        .images-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .images-modal-header h3 {
+            margin: 0;
+            color: var(--dark-gray);
+            font-size: 20px;
+        }
+
+        .images-modal-close {
+            background: var(--danger-red);
+            color: white;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s ease;
+        }
+
+        .images-modal-close:hover {
+            transform: rotate(90deg);
+            background: #b91c1c;
+        }
+
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .image-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            aspect-ratio: 1;
+        }
+
+        .image-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .image-item img:hover {
+            transform: scale(1.05);
+        }
+
+        .no-images-message {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        /* SweetAlert2 RTL Support */
+        .swal2-rtl {
+            direction: rtl;
+            text-align: right;
+        }
+
+        .swal2-rtl .swal2-title {
+            text-align: right;
+        }
+
+        .swal2-rtl .swal2-content {
+            text-align: right;
+        }
+
+        .swal2-rtl .swal2-actions {
+            flex-direction: row-reverse;
         }
     </style>
 </head>
@@ -546,70 +1309,99 @@
     <div class="main-container">
         <!-- Page Header -->
         <div class="page-header">
-            <h1>
-                <i class="fas fa-file-invoice-dollar"></i>
-                إدارة المصروفات
-            </h1>
-            <p>إضافة وتعديل وإدارة مصروفات الفندق</p>
+            <button class="logout-btn" onclick="handleLogout()" title="تسجيل الخروج والعودة لصفحة تسجيل الدخول">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+            </button>
+            <div>
+                <h1>
+                    <i class="fas fa-file-invoice-dollar"></i>
+                    إدارة المصروفات
+                </h1>
+                <p>إضافة وتعديل وإدارة مصروفات الفندق</p>
+            </div>
         </div>
 
-        <!-- Expense Form -->
-        <div class="form-card">
+        <!-- Session Timeout Warning -->
+        <div id="sessionWarning" class="session-warning">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <div>
+                <strong>تحذير: انتهت الجلسة</strong>
+                <div style="font-size: 12px; margin-top: 3px;">سيتم توجيهك إلى صفحة تسجيل الدخول...</div>
+            </div>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div class="tabs-container">
+            <ul class="tabs-nav">
+                <li>
+                    <button class="tab-btn active" data-tab="add-expense">
+                        <i class="fas fa-plus-circle"></i>
+                        إضافة مصروف جديد
+                    </button>
+                </li>
+                <li>
+                    <button class="tab-btn" data-tab="all-expenses">
+                        <i class="fas fa-list"></i>
+                        جميع المصروفات
+                    </button>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Tab Content: Add Expense -->
+        <div class="tab-content active" id="add-expense-tab">
+            <!-- Expense Form -->
+            <div class="form-card">
             <div class="section-title">
                 <i class="fas fa-plus-circle"></i>
                 إضافة مصروف جديد
             </div>
 
             <form id="expenseForm">
-                <!-- Date Time -->
-                <div class="form-group required">
-                    <label>تاريخ ووقت المصروف:</label>
-                    <div class="date-picker-container">
-                        <div class="date-picker-group">
-                            <label>التاريخ الهجري:</label>
-                            <input type="text" id="expenseDateHijri" class="form-control" placeholder="اختر التاريخ الهجري" />
-                        </div>
-                        <div class="date-picker-group">
-                            <label>التاريخ الميلادي:</label>
-                            <input type="text" id="expenseDateGregorian" class="form-control" placeholder="اختر التاريخ الميلادي" />
-                        </div>
+                <!-- First Row: Date and Category -->
+                <div class="form-row">
+                    <div class="form-group required">
+                        <label>تاريخ ووقت المصروف:</label>
+                        <input type="text" id="expenseDate" class="form-control" placeholder="اختر التاريخ الميلادي" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>فئة المصروف:</label>
+                        <select id="expenseCategorySelect" class="form-select">
+                            <option value="">اختر فئة المصروف...</option>
+                        </select>
                     </div>
                 </div>
 
-                <!-- Expense Category -->
-                <div class="form-group">
-                    <label>فئة المصروف:</label>
-                    <select id="expenseCategorySelect" class="form-select">
-                        <option value="">اختر فئة المصروف...</option>
-                    </select>
+                <!-- Second Row: Total Amount and Tax -->
+                <div class="form-row">
+                    <div class="form-group required">
+                        <label>
+                            المبلغ الإجمالي:
+                            <input type="checkbox" id="includeTaxCheckbox" class="tax-checkbox" />
+                            <span class="tax-checkbox-label">يتضمن ضريبة</span>
+                        </label>
+                        <input type="number" id="totalAmount" class="form-control" placeholder="0.00" min="0" step="0.01" required />
+                    </div>
+                    <div class="form-group" id="taxInputGroup" style="display: none;">
+                        <label>قيمة الضريبة:</label>
+                        <input type="number" id="taxAmount" class="form-control" placeholder="0.00" min="0" step="0.01" />
+                        <small class="tax-info" id="taxInfo" style="display: none; color: #666; font-size: 11px; margin-top: 4px;"></small>
+                    </div>
                 </div>
 
-                <!-- Comment -->
+                <!-- Comment - Full Width -->
                 <div class="form-group">
                     <label>الملاحظات:</label>
-                    <textarea id="expenseComment" class="form-control" rows="3" placeholder="أدخل الملاحظات..."></textarea>
-                </div>
-
-                <!-- Tax Rate and Tax Amount Row -->
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label>نسبة الضريبة (%):</label>
-                            <input type="number" id="taxRate" class="form-control" placeholder="0.00" min="0" max="100" step="0.01" />
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label>مبلغ الضريبة:</label>
-                            <input type="number" id="taxAmount" class="form-control" placeholder="0.00" min="0" step="0.01" />
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Total Amount -->
-                <div class="form-group required">
-                    <label>المبلغ الإجمالي:</label>
-                    <input type="number" id="totalAmount" class="form-control" placeholder="0.00" min="0" step="0.01" required />
+                    <textarea id="expenseComment" class="form-control" rows="2" placeholder="أدخل الملاحظات..."></textarea>
                 </div>
 
                 <!-- Images Upload Section -->
@@ -620,7 +1412,7 @@
                             صور المصروف
                         </h3>
                     </div>
-                    <div class="upload-area" id="uploadArea" onclick="document.getElementById('imageFiles').click()">
+                    <div class="upload-area" id="uploadArea">
                         <i class="fas fa-cloud-upload-alt upload-icon"></i>
                         <div class="upload-text">اضغط لاختيار الصور أو اسحبها هنا</div>
                         <div class="upload-hint">يمكنك رفع صور متعددة (JPG, PNG, GIF)</div>
@@ -650,6 +1442,7 @@
                             <tr>
                                 <th>الغرفة</th>
                                 <th>الغرض من المصروف</th>
+                                <th>المبلغ</th>
                                 <th>إزالة</th>
                             </tr>
                         </thead>
@@ -658,7 +1451,7 @@
                         </tbody>
                     </table>
 
-                    <div id="emptyRoomsMessage" class="empty-rooms-message">
+                    <div id="emptyRoomsMessage" class="empty-rooms-message" style="display: none;">
                         <i class="fas fa-info-circle" style="font-size: 20px; margin-bottom: 5px; display: block;"></i>
                         لا توجد غرف مضافة. اضغط على "إضافة غرفة" لإضافة غرفة جديدة.
                     </div>
@@ -676,10 +1469,75 @@
                     </button>
                 </div>
             </form>
+            </div>
+        </div>
+
+        <!-- Tab Content: All Expenses -->
+        <div class="tab-content" id="all-expenses-tab">
+            <div class="form-card">
+                <div class="section-title">
+                    <i class="fas fa-list"></i>
+                    جميع المصروفات
+                </div>
+                <div class="expenses-table-container">
+                    <div class="expenses-table-wrapper">
+                        <table class="expenses-table" id="expensesTable">
+                            <thead>
+                                <tr>
+                                    <th>رقم المصروف</th>
+                                    <th>التاريخ</th>
+                                    <th>فئة المصروف</th>
+                                    <th>المبلغ الإجمالي</th>
+                                    <th>حالة الموافقة</th>
+                                    <th>الملاحظات</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="expensesTableBody">
+                                <tr>
+                                    <td colspan="7" class="empty-expenses">
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                        <p>جاري التحميل...</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Images Modal -->
+    <div class="images-modal" id="imagesModal">
+        <div class="images-modal-content">
+            <div class="images-modal-header">
+                <h3><i class="fas fa-images"></i> صور المصروف</h3>
+                <button class="images-modal-close" onclick="closeImagesModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="images-grid" id="imagesGrid">
+                <!-- Images will be loaded here -->
+            </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Initialize Select2 for RTL
+        if (typeof $.fn.select2 !== 'undefined') {
+            $.fn.select2.defaults.set('dir', 'rtl');
+            $.fn.select2.defaults.set('language', {
+                noResults: function() {
+                    return "لا توجد نتائج";
+                },
+                searching: function() {
+                    return "جاري البحث...";
+                }
+            });
+        }
+    </script>
     <script>
         const API_BASE_URL = window.location.origin;
         let availableHotels = [];
@@ -688,9 +1546,10 @@
         let expenseCategories = [];
         let expenseRoomRowCounter = 0;
         let selectedImages = [];
+        let taxRate = 0; // Store tax rate from API
 
         // Wait for jQuery calendars to load
-        function waitForCalendars(callback, maxAttempts = 50) {
+        function waitForCalendars(callback, maxAttempts = 100) {
             console.log('⏳ [waitForCalendars] Waiting for jQuery calendars to load...');
             let attempts = 0;
             const checkCalendars = setInterval(function() {
@@ -702,48 +1561,303 @@
                 const instanceLoaded = typeof $.calendars !== 'undefined' && typeof $.calendars.instance !== 'undefined';
                 const pickerLoaded = typeof $.fn !== 'undefined' && typeof $.fn.calendarsPicker !== 'undefined';
                 
-                if (attempts % 10 === 0) {
+                if (attempts % 20 === 0) {
                     console.log(`⏳ [waitForCalendars] Attempt ${attempts}/${maxAttempts}: jQuery=${jqueryLoaded}, Calendars=${calendarsLoaded}, Instance=${instanceLoaded}, Picker=${pickerLoaded}`);
                 }
                 
-                if (instanceLoaded && pickerLoaded) {
+                if (jqueryLoaded && calendarsLoaded && instanceLoaded && pickerLoaded) {
                     clearInterval(checkCalendars);
                     console.log(`✅ [waitForCalendars] jQuery calendars loaded successfully after ${attempts} attempts`);
-                    callback();
+                    // Wait a bit more to ensure everything is ready
+                    setTimeout(callback, 100);
                 } else if (attempts >= maxAttempts) {
                     clearInterval(checkCalendars);
                     console.error(`❌ [waitForCalendars] Failed to load after ${maxAttempts} attempts`);
                     console.error(`❌ [waitForCalendars] Final status: jQuery=${jqueryLoaded}, Calendars=${calendarsLoaded}, Instance=${instanceLoaded}, Picker=${pickerLoaded}`);
-                    showNotification('⚠️ تعذر تحميل التقويم، يرجى إعادة تحميل الصفحة', 'warning');
+                    // Try to initialize anyway if jQuery is loaded
+                    if (jqueryLoaded) {
+                        console.warn('⚠️ [waitForCalendars] Attempting to initialize calendar anyway...');
+                        setTimeout(callback, 200);
+                    } else {
+                        showNotification('⚠️ تعذر تحميل التقويم، يرجى إعادة تحميل الصفحة', 'warning');
+                    }
                 }
-            }, 100);
+            }, 50);
         }
+
+        // ==================== Session Management ====================
+        const SESSION_TIMEOUT = 10 * 60 * 1000; // 10 minutes in milliseconds
+        let sessionTimer = null;
+        let sessionWarningTimer = null;
+
+        // Check if user came from login page
+        function checkSessionAccess() {
+            const fromLogin = sessionStorage.getItem('fromLogin');
+            const sessionValid = localStorage.getItem('sessionValid');
+            const authToken = localStorage.getItem('authToken');
+            
+            // ✅ Priority 1: Check if user has valid auth token (most important)
+            if (!authToken) {
+                console.warn('⚠️ No auth token - redirecting to login');
+                showNotification('⚠️ يجب تسجيل الدخول أولاً', 'warning');
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 1500);
+                return false;
+            }
+            
+            // ✅ Priority 2: If user has authToken but no sessionValid flag, set it now
+            // This handles the case where user logged in but sessionValid wasn't set properly
+            if (authToken && sessionValid !== 'true') {
+                console.log('✅ Auth token found but sessionValid missing - setting it now');
+                localStorage.setItem('sessionValid', 'true');
+                // Also set session start time if missing
+                if (!localStorage.getItem('sessionStartTime')) {
+                    localStorage.setItem('sessionStartTime', Date.now().toString());
+                }
+            }
+            
+            // ✅ Priority 3: Check for direct URL access (only if no fromLogin flag)
+            // But allow if user has valid token (they might have refreshed the page)
+            if (!fromLogin && !authToken) {
+                console.warn('⚠️ Direct access denied - redirecting to login');
+                showNotification('⚠️ يجب تسجيل الدخول أولاً', 'warning');
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 1500);
+                return false;
+            }
+            
+            // Clear the fromLogin flag after checking (if it exists)
+            if (fromLogin) {
+                sessionStorage.removeItem('fromLogin');
+            }
+            
+            console.log('✅ Session access granted - authToken exists');
+            return true;
+        }
+
+        // Start session timer
+        function startSessionTimer() {
+            // Clear existing timers
+            if (sessionTimer) clearTimeout(sessionTimer);
+            if (sessionWarningTimer) clearTimeout(sessionWarningTimer);
+            
+            const sessionStartTime = parseInt(localStorage.getItem('sessionStartTime') || '0');
+            const now = Date.now();
+            const elapsed = now - sessionStartTime;
+            const remaining = SESSION_TIMEOUT - elapsed;
+            
+            // If session already expired
+            if (remaining <= 0) {
+                handleSessionTimeout();
+                return;
+            }
+            
+            // Show warning 1 minute before timeout
+            const warningTime = remaining - 60000; // 1 minute before timeout
+            if (warningTime > 0) {
+                sessionWarningTimer = setTimeout(() => {
+                    showSessionWarning();
+                }, warningTime);
+            }
+            
+            // Set timeout for session expiration
+            sessionTimer = setTimeout(() => {
+                handleSessionTimeout();
+            }, remaining);
+            
+            console.log(`✅ Session timer started. Timeout in ${Math.round(remaining / 1000)} seconds`);
+        }
+
+        // Show session warning
+        function showSessionWarning() {
+            const warning = document.getElementById('sessionWarning');
+            if (warning) {
+                warning.classList.add('show');
+            }
+        }
+
+        // Handle session timeout
+        function handleSessionTimeout() {
+            console.warn('⏰ Session expired - redirecting to login');
+            
+            // Clear session data
+            localStorage.removeItem('sessionStartTime');
+            localStorage.removeItem('sessionValid');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userInfo');
+            sessionStorage.clear();
+            
+            // Show warning if not already shown
+            const warning = document.getElementById('sessionWarning');
+            if (warning) {
+                warning.classList.add('show');
+                warning.querySelector('div').innerHTML = '<strong>انتهت الجلسة</strong><div style="font-size: 12px; margin-top: 3px;">سيتم توجيهك إلى صفحة تسجيل الدخول...</div>';
+            }
+            
+            // Redirect after short delay
+            setTimeout(() => {
+                window.location.href = 'login.html';
+            }, 2000);
+        }
+
+        // Reset session timer on user activity
+        function resetSessionTimer() {
+            localStorage.setItem('sessionStartTime', Date.now().toString());
+            startSessionTimer();
+        }
+
+        // Logout handler
+        function handleLogout() {
+            if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+                // Clear all session data
+                localStorage.removeItem('sessionStartTime');
+                localStorage.removeItem('sessionValid');
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('userInfo');
+                sessionStorage.clear();
+                
+                // Clear timers
+                if (sessionTimer) clearTimeout(sessionTimer);
+                if (sessionWarningTimer) clearTimeout(sessionWarningTimer);
+                
+                // Redirect to login
+                window.location.href = 'login.html';
+            }
+        }
+
+        // Monitor user activity to reset session timer
+        let activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+        activityEvents.forEach(event => {
+            document.addEventListener(event, resetSessionTimer, { passive: true });
+        });
 
         // Initialize on page load
         $(document).ready(function() {
             console.log('🚀 Expenses page loaded - Starting initialization...');
             
-            initializeHotelSelector();
-            initializeImagesUpload();
+            // ✅ Check session access first
+            if (!checkSessionAccess()) {
+                return; // Stop initialization if access denied
+            }
             
-            // Wait for calendars to load, then initialize form controls
-            waitForCalendars(function() {
-                initializeFormControls();
+            // Start session timer
+            startSessionTimer();
+            
+            // Wait a bit for all scripts to load
+            setTimeout(function() {
+                initializeHotelSelector();
+                initializeImagesUpload();
+                
+                // Wait for calendars to load, then initialize form controls
+                waitForCalendars(function() {
+                    initializeFormControls();
+                });
+            }, 100);
+            
+            // ✅ استخدام tenantCode من userInfo فقط (مثل ZAAER) - بدون URL parameter
+            const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+            const authToken = localStorage.getItem('authToken');
+            
+            // ✅ التحقق من وجود Token و userInfo
+            if (!authToken || !userInfo.tenantCode) {
+                console.error('❌ Missing authentication. Redirecting to login...');
+                showNotification('⚠️ يرجى تسجيل الدخول أولاً', 'error');
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 2000);
+                return;
+            }
+            
+            // ✅ استخدام tenantCode من userInfo فقط (من JWT Token)
+            console.log(`✅ Hotel from user info (JWT Token): ${userInfo.tenantCode}`);
+            currentHotelCode = userInfo.tenantCode;
+            
+            // ✅ إزالة ?hotel=... من URL إذا كان موجوداً (للمنطق القديم)
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('hotel')) {
+                const newUrl = window.location.pathname;
+                window.history.replaceState({}, '', newUrl);
+                console.log('✅ Removed hotel parameter from URL');
+            }
+            
+            // ✅ إزالة selectedHotelCode من localStorage (لا نحتاجه)
+            localStorage.removeItem('selectedHotelCode');
+            
+            // ✅ تحميل البيانات
+            loadHotels().then(() => {
+                $('#hotelSelector').val(userInfo.tenantCode).trigger('change');
+                // ✅ إخفاء أو تعطيل Hotel Selector (المستخدم مربوط بفندق واحد)
+                $('#hotelSelector').prop('disabled', true);
+                // Re-initialize Select2 after disabling
+                if ($('#hotelSelector').hasClass('select2-hidden-accessible')) {
+                    $('#hotelSelector').select2('destroy');
+                }
+                $('#hotelSelector').select2({
+                    theme: 'default',
+                    dir: 'rtl',
+                    language: {
+                        noResults: function() { return "لا توجد نتائج"; },
+                        searching: function() { return "جاري البحث..."; }
+                    },
+                    dropdownCssClass: 'select2-dropdown-custom'
+                });
+                $('#hotelSelector').prop('disabled', true);
+                loadApartments();
+                loadExpenseCategories();
+                loadTaxRate(); // Load tax rate
             });
             
-            loadHotels();
+            // ✅ إضافة صف افتراضي واحد في expenseRoomsTable عند تحميل الصفحة
+            // سيتم إضافته بعد تحميل الفنادق والغرف
+            function addDefaultRoomRow() {
+                // إضافة صف افتراضي حتى لو لم يتم تحميل الغرف بعد
+                if ($('#expenseRoomsBody tr').length === 0) {
+                    console.log('✅ Adding default expense room row...');
+                    addExpenseRoomRow();
+                }
+            }
+            
+            // محاولة إضافة الصف الافتراضي بعد تحميل الغرف (مع عدة محاولات)
+            setTimeout(addDefaultRoomRow, 500);
+            setTimeout(addDefaultRoomRow, 1500);
+            setTimeout(addDefaultRoomRow, 3000);
         });
 
-        // Initialize Hotel Selector
+        // Initialize Hotel Selector (Disabled - User is bound to one hotel from JWT Token)
         function initializeHotelSelector() {
+            // Initialize Select2 for Hotel Selector
+            if (typeof $.fn.select2 !== 'undefined') {
+                $('#hotelSelector').select2({
+                    theme: 'default',
+                    dir: 'rtl',
+                    width: '100%',
+                    language: {
+                        noResults: function() { return "لا توجد نتائج"; },
+                        searching: function() { return "جاري البحث..."; }
+                    },
+                    dropdownCssClass: 'select2-dropdown-custom'
+                });
+            }
+            
+            // ✅ منع تغيير الفندق - المستخدم مربوط بفندق واحد من JWT Token
             $('#hotelSelector').on('change', function() {
+                const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
                 const selectedCode = $(this).val();
+                
+                // ✅ التحقق من أن الفندق المختار يطابق tenantCode من JWT Token
+                if (selectedCode && selectedCode !== userInfo.tenantCode) {
+                    showNotification('⚠️ لا يمكنك تغيير الفندق. أنت مربوط بفندق واحد فقط.', 'error');
+                    // إعادة تعيين إلى الفندق الصحيح
+                    $(this).val(userInfo.tenantCode).trigger('change');
+                    return;
+                }
+                
                 if (selectedCode) {
                     currentHotelCode = selectedCode;
-                    localStorage.setItem('selectedHotelCode', selectedCode);
                     loadApartments();
                     loadExpenseCategories();
-                    showNotification('✅ تم اختيار الفندق بنجاح', 'success');
                 }
             });
         }
@@ -756,20 +1870,34 @@
                 if (response.ok) {
                     availableHotels = await response.json();
                     const hotelSelect = $('#hotelSelector');
+                    
+                    // Destroy Select2 if already initialized
+                    if (hotelSelect.hasClass('select2-hidden-accessible')) {
+                        hotelSelect.select2('destroy');
+                    }
+                    
                     hotelSelect.empty().append('<option value="">اختر الفندق...</option>');
                     
                     availableHotels.forEach(hotel => {
                         hotelSelect.append(`<option value="${hotel.code}">${hotel.name}</option>`);
                     });
                     
-                    // Restore previous selection
-                    const savedCode = localStorage.getItem('selectedHotelCode');
-                    if (savedCode) {
-                        hotelSelect.val(savedCode);
-                        currentHotelCode = savedCode;
-                        loadApartments();
-                        loadExpenseCategories();
+                    // Re-initialize Select2
+                    if (typeof $.fn.select2 !== 'undefined') {
+                        hotelSelect.select2({
+                            theme: 'default',
+                            dir: 'rtl',
+                            width: '100%',
+                            language: {
+                                noResults: function() { return "لا توجد نتائج"; },
+                                searching: function() { return "جاري البحث..."; }
+                            },
+                            dropdownCssClass: 'select2-dropdown-custom'
+                        });
                     }
+                    
+                    // ✅ لا نعيد اختيار الفندق هنا - يتم في document.ready
+                    // لأننا نريد أن يكون الأولوية للـ URL parameter أو userInfo
                 } else {
                     showNotification('❌ خطأ في تحميل الفنادق', 'error');
                 }
@@ -794,59 +1922,241 @@
             try {
                 showLoading();
                 
+                // ✅ الحصول على tenantCode من userInfo (من JWT Token)
+                const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                const authToken = localStorage.getItem('authToken');
+                
+                if (!currentHotelCode || !authToken) {
+                    showNotification('⚠️ يرجى تسجيل الدخول أولاً', 'warning');
+                    return;
+                }
+                
+                // ✅ SECURITY: التأكد من أن currentHotelCode يطابق tenantCode من JWT Token
+                if (currentHotelCode !== userInfo.tenantCode) {
+                    console.error(`⚠️ SECURITY: Hotel code mismatch. Current: ${currentHotelCode}, Expected: ${userInfo.tenantCode}`);
+                    showNotification('⚠️ خطأ في الأمان: لا يمكنك الوصول إلى هذا الفندق', 'error');
+                    return;
+                }
+                
                 // Use ApartmentController endpoint which uses X-Hotel-Code
                 // Route: api/[controller] = api/Apartment (singular)
                 const url = `${API_BASE_URL}/api/Apartment?pageNumber=1&pageSize=1000`;
-                console.log(`📤 [loadApartments] Requesting: ${url}`);
-                console.log(`📤 [loadApartments] Headers: X-Hotel-Code = ${currentHotelCode}`);
+                const requestHeaders = {
+                    'Authorization': `Bearer ${authToken}`, // ✅ إضافة JWT Token
+                    'X-Hotel-Code': currentHotelCode,
+                    'Accept': 'application/json'
+                };
+                
+                console.log(`📤 [loadApartments] ===== REQUEST PAYLOAD =====`);
+                console.log(`📤 [loadApartments] URL: ${url}`);
+                console.log(`📤 [loadApartments] Method: GET`);
+                console.log(`📤 [loadApartments] Headers:`, JSON.stringify(requestHeaders, null, 2));
+                console.log(`📤 [loadApartments] Query Params: pageNumber=1, pageSize=1000`);
+                console.log(`📤 [loadApartments] Current Hotel Code: ${currentHotelCode}`);
+                console.log(`📤 [loadApartments] User Info:`, JSON.stringify(userInfo, null, 2));
 
                 const response = await fetch(url, {
-                    headers: {
-                        'X-Hotel-Code': currentHotelCode
-                    }
+                    headers: requestHeaders
                 });
 
                 const endTime = performance.now();
                 const duration = (endTime - startTime).toFixed(2);
 
-                console.log(`📥 [loadApartments] Response received: Status=${response.status}, Duration=${duration}ms`);
+                console.log(`📥 [loadApartments] ===== RESPONSE =====`);
+                console.log(`📥 [loadApartments] Status: ${response.status} ${response.statusText}`);
+                console.log(`📥 [loadApartments] Duration: ${duration}ms`);
+                console.log(`📥 [loadApartments] Response Headers:`, [...response.headers.entries()]);
 
                 if (response.ok) {
                     const data = await response.json();
+                    console.log(`📦 [loadApartments] ===== RESPONSE PAYLOAD =====`);
                     console.log('📦 [loadApartments] Response data structure:', Object.keys(data));
-                    console.log('📦 [loadApartments] Full response:', data);
+                    console.log('📦 [loadApartments] Full response:', JSON.stringify(data, null, 2));
+                    console.log('📦 [loadApartments] Response type:', typeof data);
+                    console.log('📦 [loadApartments] Is array?', Array.isArray(data));
+                    if (data.apartments) {
+                        console.log('📦 [loadApartments] apartments array length:', data.apartments.length);
+                        console.log('📦 [loadApartments] totalCount:', data.totalCount);
+                    }
 
-                    // Handle paginated response
-                    if (data.Apartments && Array.isArray(data.Apartments)) {
-                        apartments = data.Apartments;
+                    // ✅ Handle paginated response - use 'apartments' (lowercase) from updated controller
+                    if (data.apartments && Array.isArray(data.apartments)) {
+                        apartments = data.apartments;
                         console.log(`✅ [loadApartments] Successfully loaded ${apartments.length} apartments`);
-                        console.log(`✅ [loadApartments] Total count: ${data.TotalCount || 'N/A'}`);
                         
                         // Update apartment dropdowns in existing rows
                         $('#expenseRoomsBody tr').each(function() {
                             const rowId = $(this).data('row-id');
-                            const currentApartmentId = $(`.apartment-select[data-row-id="${rowId}"]`).val();
                             const apartmentSelect = $(`.apartment-select[data-row-id="${rowId}"]`);
+                            const currentZaaerId = apartmentSelect.val();
+                            
+                            // Destroy Select2 if already initialized
+                            if (apartmentSelect.hasClass('select2-hidden-accessible')) {
+                                apartmentSelect.select2('destroy');
+                            }
+                            
                             apartmentSelect.empty().append('<option value="">اختر الغرفة...</option>');
                             apartments.forEach(apt => {
-                                apartmentSelect.append(`<option value="${apt.apartmentId}">${apt.apartmentCode} - ${apt.apartmentName}</option>`);
+                                // ✅ Use zaaerId as value and apartmentName as text
+                                const zaaerId = apt.zaaerId || apt.zaaer_id || apt.ZaaerId || '';
+                                const apartmentName = apt.apartmentName || apt.apartment_name || '';
+                                if (zaaerId && apartmentName) {
+                                    apartmentSelect.append(`<option value="${zaaerId}">${apartmentName}</option>`);
+                                }
                             });
-                            apartmentSelect.val(currentApartmentId); // Restore selection
+                            
+                            // Re-initialize Select2
+                            if (typeof $.fn.select2 !== 'undefined') {
+                                apartmentSelect.select2({
+                                    theme: 'default',
+                                    dir: 'rtl',
+                                    width: '100%',
+                                    placeholder: 'اختر الغرفة...',
+                                    allowClear: true,
+                                    language: {
+                                        noResults: function() { return "لا توجد نتائج"; },
+                                        searching: function() { return "جاري البحث..."; }
+                                    },
+                                    dropdownCssClass: 'select2-dropdown-custom'
+                                });
+                            }
+                            
+                            apartmentSelect.val(currentZaaerId).trigger('change'); // Restore selection
                         });
+                        
+                        // ✅ إضافة صف افتراضي إذا لم يكن هناك صفوف
+                        if ($('#expenseRoomsBody tr').length === 0) {
+                            addExpenseRoomRow();
+                        }
+                    } else if (data.Apartments && Array.isArray(data.Apartments)) {
+                        // ✅ Fallback for old format (uppercase)
+                        apartments = data.Apartments;
+                        console.log(`✅ [loadApartments] Successfully loaded ${apartments.length} apartments (old format)`);
+                        
+                        // Update apartment dropdowns in existing rows
+                        $('#expenseRoomsBody tr').each(function() {
+                            const rowId = $(this).data('row-id');
+                            const apartmentSelect = $(`.apartment-select[data-row-id="${rowId}"]`);
+                            const currentZaaerId = apartmentSelect.val();
+                            
+                            // Destroy Select2 if already initialized
+                            if (apartmentSelect.hasClass('select2-hidden-accessible')) {
+                                apartmentSelect.select2('destroy');
+                            }
+                            
+                            apartmentSelect.empty().append('<option value="">اختر الغرفة...</option>');
+                            apartments.forEach(apt => {
+                                // ✅ Use zaaerId as value and apartmentName as text
+                                const zaaerId = apt.zaaerId || apt.zaaer_id || apt.ZaaerId || '';
+                                const apartmentName = apt.apartmentName || apt.apartment_name || '';
+                                if (zaaerId && apartmentName) {
+                                    apartmentSelect.append(`<option value="${zaaerId}">${apartmentName}</option>`);
+                                }
+                            });
+                            
+                            // Re-initialize Select2
+                            if (typeof $.fn.select2 !== 'undefined') {
+                                apartmentSelect.select2({
+                                    theme: 'default',
+                                    dir: 'rtl',
+                                    width: '100%',
+                                    placeholder: 'اختر الغرفة...',
+                                    allowClear: true,
+                                    language: {
+                                        noResults: function() { return "لا توجد نتائج"; },
+                                        searching: function() { return "جاري البحث..."; }
+                                    },
+                                    dropdownCssClass: 'select2-dropdown-custom'
+                                });
+                            }
+                            
+                            apartmentSelect.val(currentZaaerId).trigger('change'); // Restore selection
+                        });
+                        
+                        // ✅ إضافة صف افتراضي إذا لم يكن هناك صفوف
+                        if ($('#expenseRoomsBody tr').length === 0) {
+                            addExpenseRoomRow();
+                        }
                     } else if (Array.isArray(data)) {
                         apartments = data;
                         console.log(`✅ [loadApartments] Successfully loaded ${apartments.length} apartments (direct array)`);
+                        
+                        // Update apartment dropdowns in existing rows
+                        $('#expenseRoomsBody tr').each(function() {
+                            const rowId = $(this).data('row-id');
+                            const apartmentSelect = $(`.apartment-select[data-row-id="${rowId}"]`);
+                            const currentZaaerId = apartmentSelect.val();
+                            
+                            // Destroy Select2 if already initialized
+                            if (apartmentSelect.hasClass('select2-hidden-accessible')) {
+                                apartmentSelect.select2('destroy');
+                            }
+                            
+                            apartmentSelect.empty().append('<option value="">اختر الغرفة...</option>');
+                            apartments.forEach(apt => {
+                                // ✅ Use zaaerId as value and apartmentName as text
+                                const zaaerId = apt.zaaerId || apt.zaaer_id || apt.ZaaerId || '';
+                                const apartmentName = apt.apartmentName || apt.apartment_name || '';
+                                if (zaaerId && apartmentName) {
+                                    apartmentSelect.append(`<option value="${zaaerId}">${apartmentName}</option>`);
+                                }
+                            });
+                            
+                            // Re-initialize Select2
+                            if (typeof $.fn.select2 !== 'undefined') {
+                                apartmentSelect.select2({
+                                    theme: 'default',
+                                    dir: 'rtl',
+                                    width: '100%',
+                                    placeholder: 'اختر الغرفة...',
+                                    allowClear: true,
+                                    language: {
+                                        noResults: function() { return "لا توجد نتائج"; },
+                                        searching: function() { return "جاري البحث..."; }
+                                    },
+                                    dropdownCssClass: 'select2-dropdown-custom'
+                                });
+                            }
+                            
+                            apartmentSelect.val(currentZaaerId).trigger('change'); // Restore selection
+                        });
+                        
+                        // ✅ إضافة صف افتراضي إذا لم يكن هناك صفوف
+                        if ($('#expenseRoomsBody tr').length === 0) {
+                            addExpenseRoomRow();
+                        }
                     } else {
                         apartments = [];
                         console.error('❌ [loadApartments] Unexpected response format:', data);
-                        console.error('❌ [loadApartments] Expected "Apartments" array or direct array, got:', typeof data);
+                        console.error('❌ [loadApartments] Expected "apartments" array or direct array, got:', typeof data);
                         showNotification('⚠️ تنسيق استجابة غير متوقع للغرف', 'warning');
                     }
                 } else {
                     const errorText = await response.text();
                     console.error(`❌ [loadApartments] HTTP Error ${response.status}:`, errorText);
                     console.error(`❌ [loadApartments] Response headers:`, [...response.headers.entries()]);
-                    showNotification(`❌ خطأ في تحميل الغرف (${response.status}): ${errorText.substring(0, 50)}`, 'error');
+                    
+                    let errorMessage = `خطأ في تحميل الغرف (${response.status})`;
+                    try {
+                        const errorData = JSON.parse(errorText || '{}');
+                        errorMessage = errorData.message || errorData.error || errorMessage;
+                    } catch (parseError) {
+                        errorMessage = errorText.substring(0, 100) || errorMessage;
+                    }
+                    
+                    // Don't show error if it's just HotelSettings not found - this is expected for some hotels
+                    if (errorMessage.includes('HotelSettings not found')) {
+                        console.warn('⚠️ [loadApartments] HotelSettings not found - this hotel may not be configured yet');
+                        console.warn('⚠️ [loadApartments] Hotel Code:', currentHotelCode);
+                        console.warn('⚠️ [loadApartments] This means the hotel settings are not configured in the tenant database.');
+                        showNotification('⚠️ إعدادات الفندق غير موجودة - يرجى التأكد من إعداد الفندق في قاعدة البيانات', 'warning');
+                        // إضافة صف افتراضي حتى لو فشل تحميل الغرف
+                        if ($('#expenseRoomsBody tr').length === 0) {
+                            addExpenseRoomRow();
+                        }
+                    } else {
+                        showNotification(`❌ ${errorMessage}`, 'error');
+                    }
                     apartments = [];
                 }
             } catch (error) {
@@ -857,6 +2167,11 @@
                 console.error(`❌ [loadApartments] Stack trace:`, error.stack);
                 showNotification(`❌ خطأ في تحميل الغرف: ${error.message}`, 'error');
                 apartments = [];
+                
+                // ✅ إضافة صف افتراضي حتى لو فشل تحميل الغرف
+                if ($('#expenseRoomsBody tr').length === 0) {
+                    addExpenseRoomRow();
+                }
             } finally {
                 hideLoading();
                 console.log(`🏁 [loadApartments] Function completed`);
@@ -876,28 +2191,65 @@
             try {
                 showLoading();
                 
+                // ✅ الحصول على tenantCode من userInfo (من JWT Token)
+                const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                const authToken = localStorage.getItem('authToken');
+                
+                if (!currentHotelCode || !authToken) {
+                    showNotification('⚠️ يرجى تسجيل الدخول أولاً', 'warning');
+                    return;
+                }
+                
+                // ✅ SECURITY: التأكد من أن currentHotelCode يطابق tenantCode من JWT Token
+                if (currentHotelCode !== userInfo.tenantCode) {
+                    console.error(`⚠️ SECURITY: Hotel code mismatch. Current: ${currentHotelCode}, Expected: ${userInfo.tenantCode}`);
+                    showNotification('⚠️ خطأ في الأمان: لا يمكنك الوصول إلى هذا الفندق', 'error');
+                    return;
+                }
+                
                 // ExpenseController route: api/[controller] = api/Expense (singular)
                 const url = `${API_BASE_URL}/api/Expense/categories`;
-                console.log(`📤 [loadExpenseCategories] Requesting: ${url}`);
-                console.log(`📤 [loadExpenseCategories] Headers: X-Hotel-Code = ${currentHotelCode}`);
+                const requestHeaders = {
+                    'Authorization': `Bearer ${authToken}`, // ✅ إضافة JWT Token
+                    'X-Hotel-Code': currentHotelCode,
+                    'Accept': 'application/json'
+                };
+                
+                console.log(`📤 [loadExpenseCategories] ===== REQUEST PAYLOAD =====`);
+                console.log(`📤 [loadExpenseCategories] URL: ${url}`);
+                console.log(`📤 [loadExpenseCategories] Method: GET`);
+                console.log(`📤 [loadExpenseCategories] Headers:`, JSON.stringify(requestHeaders, null, 2));
+                console.log(`📤 [loadExpenseCategories] Current Hotel Code: ${currentHotelCode}`);
+                console.log(`📤 [loadExpenseCategories] User Info:`, JSON.stringify(userInfo, null, 2));
 
                 const response = await fetch(url, {
-                    headers: {
-                        'X-Hotel-Code': currentHotelCode
-                    }
+                    headers: requestHeaders
                 });
 
                 const endTime = performance.now();
                 const duration = (endTime - startTime).toFixed(2);
 
-                console.log(`📥 [loadExpenseCategories] Response received: Status=${response.status}, Duration=${duration}ms`);
+                console.log(`📥 [loadExpenseCategories] ===== RESPONSE =====`);
+                console.log(`📥 [loadExpenseCategories] Status: ${response.status} ${response.statusText}`);
+                console.log(`📥 [loadExpenseCategories] Duration: ${duration}ms`);
+                console.log(`📥 [loadExpenseCategories] Response Headers:`, [...response.headers.entries()]);
 
                 if (response.ok) {
                     expenseCategories = await response.json();
-                    console.log(`📦 [loadExpenseCategories] Response data:`, expenseCategories);
+                    console.log(`📦 [loadExpenseCategories] ===== RESPONSE PAYLOAD =====`);
+                    console.log(`📦 [loadExpenseCategories] Response data:`, JSON.stringify(expenseCategories, null, 2));
+                    console.log(`📦 [loadExpenseCategories] Response type:`, typeof expenseCategories);
+                    console.log(`📦 [loadExpenseCategories] Is array?`, Array.isArray(expenseCategories));
+                    console.log(`📦 [loadExpenseCategories] Array length:`, expenseCategories.length);
                     console.log(`✅ [loadExpenseCategories] Successfully loaded ${expenseCategories.length} expense categories`);
 
                     const categorySelect = $('#expenseCategorySelect');
+                    
+                    // Destroy Select2 if already initialized
+                    if (categorySelect.hasClass('select2-hidden-accessible')) {
+                        categorySelect.select2('destroy');
+                    }
+                    
                     categorySelect.empty().append('<option value="">اختر فئة المصروف...</option>');
                     
                     if (Array.isArray(expenseCategories)) {
@@ -905,6 +2257,23 @@
                             console.log(`  ➕ Adding category: ${category.expenseCategoryId} - ${category.categoryName}`);
                             categorySelect.append(`<option value="${category.expenseCategoryId}">${category.categoryName}</option>`);
                         });
+                        
+                        // Initialize Select2 for Expense Category
+                        if (typeof $.fn.select2 !== 'undefined') {
+                            categorySelect.select2({
+                                theme: 'default',
+                                dir: 'rtl',
+                                width: '100%',
+                                placeholder: 'اختر فئة المصروف...',
+                                allowClear: true,
+                                language: {
+                                    noResults: function() { return "لا توجد نتائج"; },
+                                    searching: function() { return "جاري البحث..."; }
+                                },
+                                dropdownCssClass: 'select2-dropdown-custom'
+                            });
+                        }
+                        
                         console.log(`✅ [loadExpenseCategories] Populated dropdown with ${expenseCategories.length} categories`);
                     } else {
                         console.error('❌ [loadExpenseCategories] Response is not an array:', typeof expenseCategories);
@@ -916,14 +2285,21 @@
                     console.error(`❌ [loadExpenseCategories] Response headers:`, [...response.headers.entries()]);
                     
                     expenseCategories = [];
-                    let errorMessage = errorText.substring(0, 50);
+                    let errorMessage = `خطأ في تحميل فئات المصروفات (${response.status})`;
                     try {
                         const errorData = JSON.parse(errorText || '{}');
                         errorMessage = errorData.error || errorData.message || errorMessage;
                     } catch (parseError) {
-                        // Use plain text if JSON parsing fails
+                        errorMessage = errorText.substring(0, 100) || errorMessage;
                     }
-                    showNotification(`❌ خطأ في تحميل فئات المصروفات (${response.status}): ${errorMessage}`, 'error');
+                    
+                    // Don't show error if it's 404 or HotelSettings not found - categories might not exist yet
+                    if (response.status === 404 || errorMessage.includes('HotelSettings not found')) {
+                        console.warn('⚠️ [loadExpenseCategories] Categories endpoint not found or hotel not configured');
+                        // Don't show error - categories are optional
+                    } else {
+                        showNotification(`❌ ${errorMessage}`, 'error');
+                    }
                 }
             } catch (error) {
                 const endTime = performance.now();
@@ -940,7 +2316,7 @@
             }
         }
 
-        // Initialize Form Controls (Calendars using calendar-convert.js)
+        // Initialize Form Controls (Gregorian Calendar only)
         function initializeFormControls() {
             console.log('📅 [initializeFormControls] Starting calendar initialization...');
             
@@ -958,6 +2334,10 @@
                     console.error('❌ [initializeFormControls] $.calendars is undefined');
                     console.error('❌ [initializeFormControls] Available jQuery plugins:', Object.keys($.fn));
                     showNotification('❌ تعذر تحميل مكتبة التقويم (calendars)', 'error');
+                    // Fallback: use HTML5 date input
+                    $('#expenseDate').attr('type', 'date');
+                    const today = new Date().toISOString().split('T')[0];
+                    $('#expenseDate').val(today);
                     return;
                 }
                 console.log('✅ [initializeFormControls] $.calendars loaded');
@@ -966,6 +2346,10 @@
                 if (typeof $.calendars.instance === 'undefined') {
                     console.error('❌ [initializeFormControls] $.calendars.instance is undefined');
                     showNotification('❌ تعذر تحميل مكتبة التقويم (instance)', 'error');
+                    // Fallback: use HTML5 date input
+                    $('#expenseDate').attr('type', 'date');
+                    const today = new Date().toISOString().split('T')[0];
+                    $('#expenseDate').val(today);
                     return;
                 }
                 console.log('✅ [initializeFormControls] $.calendars.instance loaded');
@@ -973,72 +2357,68 @@
                 // Check if calendarsPicker plugin is loaded
                 if (typeof $.fn.calendarsPicker === 'undefined') {
                     console.error('❌ [initializeFormControls] calendarsPicker plugin is not loaded');
-                    console.error('❌ [initializeFormControls] Available picker plugins:', Object.keys($.fn).filter(k => k.toLowerCase().includes('picker')));
+                    console.error('❌ [initializeFormControls] Available jQuery plugins:', Object.keys($.fn).filter(k => k.toLowerCase().includes('picker')));
                     showNotification('❌ تعذر تحميل أداة التقويم (calendarsPicker)', 'error');
+                    // Fallback: use HTML5 date input
+                    $('#expenseDate').attr('type', 'date');
+                    const today = new Date().toISOString().split('T')[0];
+                    $('#expenseDate').val(today);
                     return;
                 }
                 console.log('✅ [initializeFormControls] calendarsPicker plugin loaded');
 
-                // Check if calendar-convert.js functions are available
-                if (typeof convertDtFromHijriToGer === 'undefined' || typeof convertDtFromGerToHijri === 'undefined') {
-                    console.error('❌ [initializeFormControls] calendar-convert.js functions not found');
-                    console.error('❌ [initializeFormControls] convertDtFromHijriToGer:', typeof convertDtFromHijriToGer);
-                    console.error('❌ [initializeFormControls] convertDtFromGerToHijri:', typeof convertDtFromGerToHijri);
-                    showNotification('❌ تعذر تحميل وظائف تحويل التاريخ', 'error');
-                    return;
-                }
-                console.log('✅ [initializeFormControls] calendar-convert.js functions loaded');
+                console.log('📅 [initializeFormControls] Initializing Gregorian calendar...');
 
-                console.log('📅 [initializeFormControls] Initializing Hijri and Gregorian calendars...');
-
-                // Initialize Hijri Calendar (Ummalqura)
-                try {
-                    const hijriCalendar = $.calendars.instance('ummalqura');
-                    console.log('✅ [initializeFormControls] Ummalqura calendar instance created');
-                    
-                    $('#expenseDateHijri').calendarsPicker({
-                        calendar: hijriCalendar,
-                        dateFormat: 'yyyy/mm/dd',
-                        showOnFocus: true,
-                        onSelect: function(date) {
-                            console.log('📅 [Hijri Calendar] Date selected:', date);
-                            // Use calendar-convert.js function to convert and set Gregorian date
-                            convertDtFromHijriToGer([date], 'expenseDateGregorian');
-                        }
-                    });
-                    console.log('✅ [initializeFormControls] Hijri calendar initialized');
-                } catch (hijriError) {
-                    console.error('❌ [initializeFormControls] Error initializing Hijri calendar:', hijriError);
-                    throw hijriError;
-                }
-
-                // Initialize Gregorian Calendar
+                // Initialize Gregorian Calendar only
                 try {
                     const gregorianCalendar = $.calendars.instance();
                     console.log('✅ [initializeFormControls] Gregorian calendar instance created');
                     
-                    $('#expenseDateGregorian').calendarsPicker({
+                    // Get today's date
+                    const today = gregorianCalendar.today();
+                    const todayFormatted = today.formatDate('yyyy-mm-dd');
+                    
+                    // Initialize calendar picker
+                    $('#expenseDate').calendarsPicker({
                         calendar: gregorianCalendar,
                         dateFormat: 'yyyy-mm-dd',
                         showOnFocus: true,
-                        onSelect: function(date) {
-                            console.log('📅 [Gregorian Calendar] Date selected:', date);
-                            // Use calendar-convert.js function to convert and set Hijri date
-                            convertDtFromGerToHijri([date], 'expenseDateHijri');
+                        defaultDate: today,
+                        onSelect: function(dates) {
+                            console.log('📅 Date selected:', dates);
+                            // dates is an array of CDate objects
+                            if (dates && dates.length > 0 && dates[0]) {
+                                const selectedDate = dates[0].formatDate('yyyy-mm-dd');
+                                $('#expenseDate').val(selectedDate);
+                                console.log('✅ Date formatted and set:', selectedDate);
+                            }
                         }
                     });
-                    console.log('✅ [initializeFormControls] Gregorian calendar initialized');
+                    
+                    // Set today's date in the input
+                    $('#expenseDate').val(todayFormatted);
+                    
+                    console.log('✅ [initializeFormControls] Gregorian calendar initialized with today\'s date:', todayFormatted);
                 } catch (gregError) {
                     console.error('❌ [initializeFormControls] Error initializing Gregorian calendar:', gregError);
-                    throw gregError;
+                    console.error('❌ [initializeFormControls] Error details:', gregError.message, gregError.stack);
+                    // Fallback: use HTML5 date input
+                    $('#expenseDate').attr('type', 'date');
+                    const today = new Date().toISOString().split('T')[0];
+                    $('#expenseDate').val(today);
+                    showNotification('⚠️ تم استخدام تقويم HTML5 كبديل', 'warning');
                 }
 
-                console.log('✅ [initializeFormControls] All calendars initialized successfully');
+                console.log('✅ [initializeFormControls] Calendar initialization completed');
             } catch (error) {
                 console.error('❌ [initializeFormControls] Exception:', error);
                 console.error(`❌ [initializeFormControls] Error name: ${error.name}, message: ${error.message}`);
                 console.error('❌ [initializeFormControls] Stack trace:', error.stack);
-                showNotification('❌ خطأ في تهيئة التقويم: ' + error.message, 'error');
+                // Fallback: use HTML5 date input
+                $('#expenseDate').attr('type', 'date');
+                const today = new Date().toISOString().split('T')[0];
+                $('#expenseDate').val(today);
+                showNotification('⚠️ تم استخدام تقويم HTML5 كبديل', 'warning');
             }
         }
 
@@ -1047,8 +2427,10 @@
             const uploadArea = $('#uploadArea');
             const imageFiles = $('#imageFiles');
 
-            // Click to select files
-            uploadArea.on('click', function() {
+            // Click to select files (only one handler)
+            uploadArea.on('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
                 imageFiles.click();
             });
 
@@ -1127,9 +2509,17 @@
             expenseRoomRowCounter++;
             const rowId = `roomRow_${expenseRoomRowCounter}`;
 
-            const apartmentOptions = apartments.map(apt => 
-                `<option value="${apt.apartmentId}">${apt.apartmentCode || ''} - ${apt.apartmentName || ''}</option>`
-            ).join('');
+            // ✅ إنشاء options للغرف - استخدام zaaerId كـ value و apartmentName كنص
+            const apartmentOptions = apartments.length > 0 
+                ? apartments.map(apt => {
+                    const zaaerId = apt.zaaerId || apt.zaaer_id || apt.ZaaerId || '';
+                    const apartmentName = apt.apartmentName || apt.apartment_name || '';
+                    if (zaaerId && apartmentName) {
+                        return `<option value="${zaaerId}">${apartmentName}</option>`;
+                    }
+                    return '';
+                }).filter(opt => opt !== '').join('')
+                : '<option value="">جاري تحميل الغرف...</option>';
 
             const row = `
                 <tr id="${rowId}" data-row-id="${expenseRoomRowCounter}">
@@ -1141,6 +2531,9 @@
                     </td>
                     <td>
                         <input type="text" class="form-control form-control-sm purpose-input" data-row-id="${expenseRoomRowCounter}" placeholder="أدخل الغرض من المصروف..." />
+                    </td>
+                    <td>
+                        <input type="number" class="form-control form-control-sm amount-input" data-row-id="${expenseRoomRowCounter}" placeholder="0.00" min="0" step="0.01" />
                     </td>
                     <td>
                         <button type="button" class="remove-room-btn" onclick="removeExpenseRoomRow('${rowId}')">
@@ -1158,6 +2551,41 @@
             // Animate row entry
             $(`#${rowId}`).css({ opacity: 0, transform: 'translateX(20px)' })
                 .animate({ opacity: 1, transform: 'translateX(0)' }, 300);
+            
+            // ✅ إذا تم تحميل الغرف لاحقاً، قم بتحديث dropdown - استخدام zaaerId كـ value و apartmentName كنص
+            if (apartments.length > 0) {
+                const apartmentSelect = $(`.apartment-select[data-row-id="${expenseRoomRowCounter}"]`);
+                apartmentSelect.empty().append('<option value="">اختر الغرفة...</option>');
+                apartments.forEach(apt => {
+                    const zaaerId = apt.zaaerId || apt.zaaer_id || apt.ZaaerId || '';
+                    const apartmentName = apt.apartmentName || apt.apartment_name || '';
+                    if (zaaerId && apartmentName) {
+                        apartmentSelect.append(`<option value="${zaaerId}">${apartmentName}</option>`);
+                    }
+                });
+            }
+            
+            // ✅ Initialize Select2 for the apartment selector (same style as expenseCategorySelect)
+            const apartmentSelect = $(`.apartment-select[data-row-id="${expenseRoomRowCounter}"]`);
+            if (typeof $.fn.select2 !== 'undefined') {
+                // Destroy Select2 if already initialized
+                if (apartmentSelect.hasClass('select2-hidden-accessible')) {
+                    apartmentSelect.select2('destroy');
+                }
+                
+                apartmentSelect.select2({
+                    theme: 'default',
+                    dir: 'rtl',
+                    width: '100%',
+                    placeholder: 'اختر الغرفة...',
+                    allowClear: true,
+                    language: {
+                        noResults: function() { return "لا توجد نتائج"; },
+                        searching: function() { return "جاري البحث..."; }
+                    },
+                    dropdownCssClass: 'select2-dropdown-custom'
+                });
+            }
         }
 
         // Remove Expense Room Row
@@ -1185,18 +2613,38 @@
             try {
                 showLoading();
 
-                const gregorianDate = $('#expenseDateGregorian').val();
-                if (!gregorianDate) {
+                let expenseDate = $('#expenseDate').val();
+                if (!expenseDate) {
                     showNotification('⚠️ يرجى اختيار التاريخ', 'warning');
                     hideLoading();
                     return;
                 }
 
-                const dateTime = new Date(gregorianDate);
+                // Convert date format - use current date/time (like created_at)
+                let dateTime;
+                if (expenseDate.includes('-')) {
+                    // Format: yyyy-mm-dd - use selected date with current time
+                    const selectedDate = new Date(expenseDate + 'T00:00:00');
+                    const now = new Date();
+                    // Set the date from selected date, but keep current time
+                    selectedDate.setHours(now.getHours());
+                    selectedDate.setMinutes(now.getMinutes());
+                    selectedDate.setSeconds(now.getSeconds());
+                    dateTime = selectedDate;
+                } else {
+                    // Try to parse as is, or use current date/time
+                    dateTime = new Date(expenseDate);
+                    if (isNaN(dateTime.getTime())) {
+                        dateTime = new Date(); // Use current date/time as fallback
+                    }
+                }
+                
+                if (isNaN(dateTime.getTime())) {
+                    // Fallback to current date/time
+                    dateTime = new Date();
+                }
                 const categoryId = $('#expenseCategorySelect').val() || null;
                 const comment = $('#expenseComment').val() || null;
-                const taxRate = $('#taxRate').val() ? parseFloat($('#taxRate').val()) : null;
-                const taxAmount = $('#taxAmount').val() ? parseFloat($('#taxAmount').val()) : null;
                 const totalAmount = parseFloat($('#totalAmount').val());
 
                 if (!totalAmount || totalAmount <= 0) {
@@ -1205,17 +2653,71 @@
                     return;
                 }
 
+                // Get tax information - ensure tax is calculated if checkbox is checked
+                const includeTax = $('#includeTaxCheckbox').is(':checked');
+                let taxRateValue = null;
+                let taxAmountValue = null;
+                
+                if (includeTax) {
+                    // Get tax amount from input (may be calculated or manually entered)
+                    const taxAmountInput = parseFloat($('#taxAmount').val()) || 0;
+                    
+                    if (taxRate > 0 && totalAmount > 0) {
+                        // Tax rate is loaded - use it and recalculate to ensure accuracy
+                        const baseAmount = totalAmount / (1 + (taxRate / 100));
+                        const calculatedTax = totalAmount - baseAmount;
+                        taxRateValue = taxRate;
+                        taxAmountValue = calculatedTax > 0 ? calculatedTax : (taxAmountInput > 0 ? taxAmountInput : null);
+                    } else if (taxAmountInput > 0 && totalAmount > 0) {
+                        // Tax rate not loaded but user entered tax amount manually
+                        // Calculate tax rate from amount: taxRate = (taxAmount / (totalAmount - taxAmount)) * 100
+                        const baseAmount = totalAmount - taxAmountInput;
+                        if (baseAmount > 0) {
+                            const calculatedRate = (taxAmountInput / baseAmount) * 100;
+                            taxRateValue = calculatedRate > 0 ? parseFloat(calculatedRate.toFixed(2)) : null;
+                            taxAmountValue = taxAmountInput;
+                        } else {
+                            taxRateValue = null;
+                            taxAmountValue = taxAmountInput;
+                        }
+                    } else if (taxAmountInput > 0) {
+                        // Tax amount entered but total is 0 or invalid
+                        taxRateValue = null;
+                        taxAmountValue = taxAmountInput;
+                    } else {
+                        // Checkbox checked but no tax amount - set to null
+                        taxRateValue = null;
+                        taxAmountValue = null;
+                    }
+                } else {
+                    // If checkbox is unchecked, explicitly set to null
+                    taxRateValue = null;
+                    taxAmountValue = null;
+                }
+                
+                // Debug: Log tax values to ensure they're being set
+                console.log('📊 Tax values:', { 
+                    includeTax, 
+                    taxRate, 
+                    totalAmount, 
+                    taxAmountInput: parseFloat($('#taxAmount').val()) || 0, 
+                    taxRateValue, 
+                    taxAmountValue 
+                });
+
                 // Collect expense rooms
                 const expenseRooms = [];
                 $('#expenseRoomsBody tr').each(function() {
                     const rowId = $(this).data('row-id');
-                    const apartmentId = $(`.apartment-select[data-row-id="${rowId}"]`).val();
+                    const zaaerId = $(`.apartment-select[data-row-id="${rowId}"]`).val(); // ✅ Use zaaerId instead of apartmentId
                     
-                    if (apartmentId) {
+                    if (zaaerId) {
                         const purpose = $(`.purpose-input[data-row-id="${rowId}"]`).val();
+                        const amount = $(`.amount-input[data-row-id="${rowId}"]`).val() ? parseFloat($(`.amount-input[data-row-id="${rowId}"]`).val()) : null;
                         expenseRooms.push({
-                            apartmentId: parseInt(apartmentId),
-                            purpose: purpose || null
+                            zaaerId: parseInt(zaaerId), // ✅ Use zaaerId instead of apartmentId
+                            purpose: purpose || null,
+                            amount: amount || null
                         });
                     }
                 });
@@ -1225,20 +2727,46 @@
                     dateTime: dateTime.toISOString(),
                     comment: comment || null,
                     expenseCategoryId: categoryId ? parseInt(categoryId) : null,
-                    taxRate: taxRate || null,
-                    taxAmount: taxAmount || null,
                     totalAmount: totalAmount,
+                    taxRate: taxRateValue,
+                    taxAmount: taxAmountValue,
                     expenseRooms: expenseRooms.length > 0 ? expenseRooms : null
                 };
 
-                console.log('📤 Sending expense data:', payload);
+                // Debug: Log full payload including tax values
+                console.log('📤 Sending expense data:', JSON.stringify(payload, null, 2));
 
+                // ✅ الحصول على tenantCode من userInfo (من JWT Token)
+                const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                const authToken = localStorage.getItem('authToken');
+                
+                if (!currentHotelCode || !authToken) {
+                    showNotification('⚠️ يرجى تسجيل الدخول أولاً', 'warning');
+                    return;
+                }
+                
+                // ✅ SECURITY: التأكد من أن currentHotelCode يطابق tenantCode من JWT Token
+                if (currentHotelCode !== userInfo.tenantCode) {
+                    console.error(`⚠️ SECURITY: Hotel code mismatch. Current: ${currentHotelCode}, Expected: ${userInfo.tenantCode}`);
+                    showNotification('⚠️ خطأ في الأمان: لا يمكنك الوصول إلى هذا الفندق', 'error');
+                    return;
+                }
+                
+                // Check if we're editing an existing expense
+                const editingExpenseId = $('#expenseForm').data('editing-expense-id');
+                const isEditMode = editingExpenseId !== undefined && editingExpenseId !== null;
+                
                 // Send request with JSON (images will be uploaded separately later)
                 // ExpenseController route: api/[controller] = api/Expense (singular)
-                const response = await fetch(`${API_BASE_URL}/api/Expense`, {
-                    method: 'POST',
+                const url = isEditMode 
+                    ? `${API_BASE_URL}/api/Expense/${editingExpenseId}`
+                    : `${API_BASE_URL}/api/Expense`;
+                
+                const response = await fetch(url, {
+                    method: isEditMode ? 'PUT' : 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`, // ✅ إضافة JWT Token
                         'X-Hotel-Code': currentHotelCode
                     },
                     body: JSON.stringify(payload)
@@ -1246,15 +2774,56 @@
 
                 if (response.ok) {
                     const responseData = await response.json();
-                    const expenseId = responseData.expenseId;
+                    
+                    // ✅ Debug: عرض الاستجابة الكاملة في console
+                    console.log('📦 Full API Response:', JSON.stringify(responseData, null, 2));
+                    
+                    const expenseId = responseData.expenseId || responseData.ExpenseId;
+                    const approvalStatus = responseData.approvalStatus || responseData.ApprovalStatus;
+                    const approvalLink = responseData.approvalLink || responseData.ApprovalLink;
+                    
+                    console.log('🔍 Parsed values:', {
+                        expenseId,
+                        approvalStatus,
+                        approvalLink
+                    });
                     
                     // Upload images if any
                     if (selectedImages.length > 0 && expenseId) {
                         await uploadExpenseImages(expenseId);
                     }
                     
-                    showNotification('✅ تم حفظ المصروف بنجاح!', 'success');
-                    resetForm();
+                    // ✅ عرض رابط الموافقة إذا كان المصروف في حالة pending
+                    if (approvalStatus === 'pending' && approvalLink) {
+                        const message = `✅ تم حفظ المصروف بنجاح!<br><br>` +
+                                      `⚠️ المصروف يحتاج موافقة المشرف (المبلغ > 50 ر.س)<br><br>` +
+                                      `🔗 <a href="${approvalLink}" target="_blank" style="color: #007ACC; text-decoration: underline; font-weight: bold;">اضغط هنا للموافقة على المصروف</a><br><br>` +
+                                      `📱 <button onclick="showWhatsAppModalForExpense('${approvalLink}', ${responseData.totalAmount || 0}, '${(responseData.hotelName || '').replace(/'/g, "\\'")}')" style="background: #25D366; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: 600; margin-top: 10px;"><i class="fab fa-whatsapp"></i> إرسال رابط الموافقة عبر WhatsApp</button>`;
+                        showNotificationWithHTML(message, 'success');
+                        
+                        // ✅ أيضاً عرض رابط الموافقة في console للنسخ
+                        console.log('🔗 Approval Link:', approvalLink);
+                    } else if (approvalStatus === 'pending' && !approvalLink) {
+                        // ✅ إذا كان pending لكن لا يوجد approvalLink، نعرض رسالة تحذير
+                        console.warn('⚠️ Expense is pending but no approvalLink in response');
+                        showNotification('✅ تم حفظ المصروف بنجاح! (في انتظار الموافقة - المبلغ > 50 ر.س)', 'warning');
+                    } else if (approvalStatus === 'auto-approved') {
+                        showNotification('✅ تم حفظ المصروف بنجاح! (موافقة تلقائية - المبلغ ≤ 50 ر.س)', 'success');
+                    } else {
+                        showNotification('✅ تم حفظ المصروف بنجاح!', 'success');
+                    }
+                    
+                    // If editing, reload expenses table and switch to it
+                    if (isEditMode) {
+                        // Clear edit mode
+                        $('#expenseForm').removeData('editing-expense-id');
+                        $('#expenseForm button[type="submit"]').html('<i class="fas fa-save"></i> حفظ المصروف');
+                        
+                        // Switch to all expenses tab and reload
+                        $('.tab-btn[data-tab="all-expenses"]').click();
+                    } else {
+                        resetForm();
+                    }
                 } else {
                     const responseData = await response.json().catch(() => ({ message: 'فشل حفظ المصروف' }));
                     showNotification(`❌ خطأ: ${responseData.message || 'فشل حفظ المصروف'}`, 'error');
@@ -1270,36 +2839,206 @@
 
         // Reset Form
         function resetForm() {
-            // Reset date pickers
+            // Reset date picker to today
             try {
-                $('#expenseDateHijri').val('');
-                $('#expenseDateGregorian').val('');
                 if (typeof $.calendars !== 'undefined' && typeof $.calendars.instance !== 'undefined') {
-                    if (typeof $('#expenseDateHijri').calendarsPicker === 'function') {
-                        $('#expenseDateHijri').calendarsPicker('setDate', null);
-                        $('#expenseDateGregorian').calendarsPicker('setDate', null);
+                    const gregorianCalendar = $.calendars.instance();
+                    const today = gregorianCalendar.today();
+                    const todayFormatted = today.formatDate('yyyy-mm-dd');
+                    
+                    if (typeof $('#expenseDate').calendarsPicker === 'function') {
+                        $('#expenseDate').calendarsPicker('setDate', today);
                     }
+                    $('#expenseDate').val(todayFormatted);
+                } else {
+                    // Fallback: set today's date manually
+                    const today = new Date();
+                    const todayFormatted = today.toISOString().split('T')[0];
+                    $('#expenseDate').val(todayFormatted);
                 }
             } catch (error) {
-                console.warn('⚠️ Warning resetting calendar dates:', error);
+                console.warn('⚠️ Warning resetting calendar date:', error);
+                // Fallback: set today's date manually
+                const today = new Date();
+                const todayFormatted = today.toISOString().split('T')[0];
+                $('#expenseDate').val(todayFormatted);
             }
 
             $('#expenseCategorySelect').val('');
             $('#expenseComment').val('');
-            $('#taxRate').val('');
-            $('#taxAmount').val('');
             $('#totalAmount').val('');
 
-            // Clear expense rooms
+            // Clear expense rooms and add default row
             $('#expenseRoomsBody').empty();
-            $('#expenseRoomsTable').hide();
-            $('#emptyRoomsMessage').show();
             expenseRoomRowCounter = 0;
+            
+            // Add default row if apartments are loaded
+            if (apartments.length > 0) {
+                addExpenseRoomRow();
+            } else {
+                $('#expenseRoomsTable').hide();
+                $('#emptyRoomsMessage').show();
+            }
 
             // Clear images
             selectedImages = [];
             updateImagesPreview();
             $('#imageFiles').val('');
+            
+            // Clear edit mode
+            $('#expenseForm').removeData('editing-expense-id');
+            $('#expenseForm button[type="submit"]').html('<i class="fas fa-save"></i> حفظ المصروف');
+            
+            // Clear tax fields
+            $('#includeTaxCheckbox').prop('checked', false);
+            $('#taxInputGroup').hide();
+            $('#taxAmount').val('');
+            $('#taxInfo').hide();
+        }
+
+        // Load Tax Rate
+        async function loadTaxRate() {
+            if (!currentHotelCode) {
+                return;
+            }
+
+            try {
+                const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                const authToken = localStorage.getItem('authToken');
+                
+                if (!currentHotelCode || !authToken) {
+                    return;
+                }
+                
+                const response = await fetch(`${API_BASE_URL}/api/Expense/tax-rate`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'X-Hotel-Code': currentHotelCode,
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    taxRate = data.taxRate || 0;
+                    if (taxRate > 0) {
+                        console.log(`✅ Tax rate loaded: ${taxRate}% (Tax Name: ${data.taxName || 'N/A'}, Type: ${data.taxType || 'N/A'})`);
+                    } else {
+                        console.warn('⚠️ Tax rate is 0 or not found in database. Tax calculation will be disabled.');
+                        console.warn('⚠️ Response data:', data);
+                    }
+                } else {
+                    const errorText = await response.text();
+                    console.error('❌ Failed to load tax rate:', response.status, errorText);
+                    taxRate = 0;
+                }
+            } catch (error) {
+                console.error('Error loading tax rate:', error);
+                taxRate = 0;
+            }
+        }
+
+        // Tax Calculation Functions
+        function calculateTax() {
+            const includeTax = $('#includeTaxCheckbox').is(':checked');
+            const totalAmountInput = $('#totalAmount');
+            const taxAmountInput = $('#taxAmount');
+            const taxInfo = $('#taxInfo');
+            const taxInputGroup = $('#taxInputGroup');
+            
+            const totalAmount = parseFloat(totalAmountInput.val()) || 0;
+            
+            // Hide tax input if checkbox is unchecked
+            if (!includeTax) {
+                taxInputGroup.hide();
+                taxInfo.hide();
+                return;
+            }
+            
+            // Show tax input group when checkbox is checked (even if totalAmount is 0)
+            taxInputGroup.show();
+            
+            // If total amount is 0, just show the input without calculation
+            if (totalAmount <= 0) {
+                taxAmountInput.val('');
+                taxInfo.text('أدخل المبلغ الإجمالي أولاً لحساب الضريبة تلقائياً').show();
+                return;
+            }
+            
+            // If tax rate is loaded and > 0, calculate automatically
+            if (taxRate > 0) {
+                // Calculate: if total includes tax, calculate base and tax
+                // Formula: base = total / (1 + taxRate/100)
+                // tax = total - base
+                const baseAmount = totalAmount / (1 + (taxRate / 100));
+                const calculatedTax = totalAmount - baseAmount;
+                
+                taxAmountInput.val(calculatedTax.toFixed(2));
+                taxInfo.text(`المبلغ قبل الضريبة: ${baseAmount.toFixed(2)} ر.س | نسبة الضريبة: ${taxRate}%`).show();
+            } else {
+                // Tax rate not loaded - show input but allow manual entry
+                taxAmountInput.val('');
+                taxInfo.text(`⚠️ لم يتم تحميل نسبة الضريبة من قاعدة البيانات. يمكنك إدخال قيمة الضريبة يدوياً.`).show();
+                console.warn('⚠️ Tax rate not loaded (taxRate = 0). Tax input will be shown but calculation disabled.');
+            }
+        }
+
+        // Load expense images for editing (silently, no popup)
+        async function loadExpenseImagesForEdit(expenseId) {
+            try {
+                const headers = getApiHeaders();
+                const response = await fetch(`${API_BASE_URL}/api/Expense/${expenseId}/images`, {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                if (response.ok) {
+                    const images = await response.json();
+                    
+                    if (images && images.length > 0) {
+                        // Clear existing images
+                        selectedImages = [];
+                        
+                        // Load images into selectedImages array
+                        for (const image of images) {
+                            const imageUrl = image.imageUrl || image.ImageUrl || image.image_path || image.url || image.Url;
+                            if (imageUrl) {
+                                const fullImageUrl = imageUrl.startsWith('http') ? imageUrl : `${API_BASE_URL}${imageUrl}`;
+                                
+                                // Fetch image and convert to File-like object
+                                try {
+                                    const imgResponse = await fetch(fullImageUrl);
+                                    const blob = await imgResponse.blob();
+                                    
+                                    // Create a File object from blob
+                                    const fileName = image.originalFilename || image.original_filename || `expense_${expenseId}_${Date.now()}.jpg`;
+                                    const file = new File([blob], fileName, { type: blob.type });
+                                    
+                                    // Create data URL for preview
+                                    const reader = new FileReader();
+                                    reader.onload = function(e) {
+                                        selectedImages.push({
+                                            file: file,
+                                            dataUrl: e.target.result,
+                                            id: Date.now() + Math.random()
+                                        });
+                                        updateImagesPreview();
+                                    };
+                                    reader.readAsDataURL(file);
+                                } catch (imgError) {
+                                    console.log('Could not load image:', imageUrl);
+                                    // Continue with other images - no popup
+                                }
+                            }
+                        }
+                    }
+                }
+                // Silently fail if images can't be loaded - no popup or warning
+            } catch (error) {
+                // Silently fail - no popup or warning
+                console.log('Images not available for this expense or error loading:', error);
+            }
         }
 
         // Loading Functions
@@ -1322,9 +3061,25 @@
                     formData.append('images', image.file);
                 });
 
+                // ✅ الحصول على tenantCode من userInfo (من JWT Token)
+                const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                const authToken = localStorage.getItem('authToken');
+                
+                if (!currentHotelCode || !authToken) {
+                    console.error('⚠️ Missing authentication');
+                    return;
+                }
+                
+                // ✅ SECURITY: التأكد من أن currentHotelCode يطابق tenantCode من JWT Token
+                if (currentHotelCode !== userInfo.tenantCode) {
+                    console.error(`⚠️ SECURITY: Hotel code mismatch. Current: ${currentHotelCode}, Expected: ${userInfo.tenantCode}`);
+                    return;
+                }
+                
                 const response = await fetch(`${API_BASE_URL}/api/Expense/${expenseId}/images`, {
                     method: 'POST',
                     headers: {
+                        'Authorization': `Bearer ${authToken}`, // ✅ إضافة JWT Token
                         'X-Hotel-Code': currentHotelCode
                         // Don't set Content-Type - browser will set it with boundary for FormData
                     },
@@ -1348,7 +3103,7 @@
             // Simple alert for now - can be replaced with better notification system
             const bgColor = type === 'success' ? '#28A745' : type === 'error' ? '#DC3545' : type === 'warning' ? '#FF9800' : '#007ACC';
             const notification = $(`
-                <div style="position: fixed; top: 20px; right: 20px; background: ${bgColor}; color: white; padding: 12px 20px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000; animation: slideInRight 0.3s ease-out;">
+                <div style="position: fixed; top: 20px; right: 20px; background: ${bgColor}; color: white; padding: 12px 20px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000; animation: slideInRight 0.3s ease-out; max-width: 400px;">
                     ${message}
                 </div>
             `);
@@ -1357,7 +3112,155 @@
                 notification.fadeOut(300, function() {
                     $(this).remove();
                 });
-            }, 3000);
+            }, 5000); // زيادة الوقت إلى 5 ثواني
+        }
+
+        // Notification function with HTML support (for links)
+        function showNotificationWithHTML(htmlMessage, type = 'info') {
+            const bgColor = type === 'success' ? '#28A745' : type === 'error' ? '#DC3545' : type === 'warning' ? '#FF9800' : '#007ACC';
+            const notification = $(`
+                <div style="position: fixed; top: 20px; right: 20px; background: ${bgColor}; color: white; padding: 15px 20px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000; animation: slideInRight 0.3s ease-out; max-width: 500px; line-height: 1.6;">
+                    ${htmlMessage}
+                </div>
+            `);
+            $('body').append(notification);
+            // زيادة الوقت إلى 10 ثواني للرسائل التي تحتوي على روابط
+            setTimeout(() => {
+                notification.fadeOut(300, function() {
+                    $(this).remove();
+                });
+            }, 10000);
+        }
+
+        // ✅ WhatsApp Modal Functions for expenses.html
+        function showWhatsAppModalForExpense(approvalLink, amount, hotelName) {
+            // إنشاء modal بسيط
+            const modal = `
+                <div id="whatsappModalExpense" style="display: flex; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
+                    <div style="background: white; padding: 25px; border-radius: 8px; max-width: 500px; width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #E0E0E0;">
+                            <h3 style="margin: 0; color: #007ACC; font-size: 20px;">
+                                <i class="fab fa-whatsapp" style="color: #25D366;"></i> إرسال رابط الموافقة عبر WhatsApp
+                            </h3>
+                            <button onclick="closeWhatsAppModalExpense()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">&times;</button>
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 5px;">رقم هاتف المشرف:</label>
+                            <input type="text" id="supervisorPhoneExpense" placeholder="966XXXXXXXXX" maxlength="15" style="width: 100%; padding: 10px; border: 1px solid #E0E0E0; border-radius: 4px; font-size: 14px; box-sizing: border-box;" />
+                            <small style="color: #666; font-size: 12px;">أدخل الرقم مع كود الدولة (مثال: 966541997799)</small>
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 5px;">الرسالة:</label>
+                            <textarea id="whatsappMessageExpense" readonly style="width: 100%; padding: 10px; border: 1px solid #E0E0E0; border-radius: 4px; font-size: 14px; min-height: 100px; resize: vertical; direction: rtl; box-sizing: border-box;"></textarea>
+                        </div>
+                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                            <button onclick="copyMessageExpense()" style="background: #007ACC; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                <i class="fas fa-copy"></i> نسخ الرسالة
+                            </button>
+                            <button onclick="sendWhatsAppMessageExpense('${approvalLink}', ${amount}, '${hotelName.replace(/'/g, "\\'")}')" style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                <i class="fab fa-whatsapp"></i> إرسال عبر WhatsApp
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            $('body').append(modal);
+            
+            // تعبئة الرسالة
+            const date = new Date().toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric', calendar: 'gregory' });
+            const message = `مرحباً،
+
+يوجد مصروف يحتاج موافقتك:
+
+🏨 الفندق: ${hotelName || 'غير محدد'}
+💰 المبلغ: ${parseFloat(amount || 0).toFixed(2)} ر.س
+📅 التاريخ: ${date}
+
+🔗 رابط الموافقة:
+${approvalLink}
+
+يرجى مراجعة المصروف والموافقة عليه أو رفضه.
+
+شكراً لك.`;
+            
+            $('#whatsappMessageExpense').val(message);
+        }
+
+        function closeWhatsAppModalExpense() {
+            $('#whatsappModalExpense').remove();
+        }
+
+        function copyMessageExpense() {
+            const message = $('#whatsappMessageExpense').val();
+            navigator.clipboard.writeText(message).then(() => {
+                showNotification('✅ تم نسخ الرسالة بنجاح!', 'success');
+            }).catch(() => {
+                const textArea = $('<textarea>').val(message).appendTo('body').select();
+                document.execCommand('copy');
+                textArea.remove();
+                showNotification('✅ تم نسخ الرسالة بنجاح!', 'success');
+            });
+        }
+
+        async function sendWhatsAppMessageExpense(approvalLink, amount, hotelName) {
+            const phone = $('#supervisorPhoneExpense').val().trim();
+            const message = $('#whatsappMessageExpense').val();
+
+            if (!phone) {
+                showNotification('⚠️ يرجى إدخال رقم هاتف المشرف', 'error');
+                return;
+            }
+
+            // const phoneRegex = /^966\d{9}$/;
+            // if (!phoneRegex.test(phone)) {
+            //     showNotification('⚠️ رقم الهاتف غير صحيح. يجب أن يكون بصيغة: 966XXXXXXXXX', 'error');
+            //     return;
+            // }
+
+            try {
+                showLoading();
+
+                // ✅ SECURITY: Use backend endpoint instead of direct API call
+                const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                const authToken = localStorage.getItem('authToken');
+                
+                if (!authToken) {
+                    showNotification('⚠️ يرجى تسجيل الدخول أولاً', 'error');
+                    hideLoading();
+                    return;
+                }
+
+                console.log('📤 Sending WhatsApp message to:', phone);
+
+                // Call backend endpoint
+                const response = await fetch(`${API_BASE_URL}/api/WhatsApp/send`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        phoneNumber: phone,
+                        message: message
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    showNotification('✅ تم إرسال الرسالة بنجاح عبر WhatsApp!', 'success');
+                    closeWhatsAppModalExpense();
+                } else {
+                    const errorMsg = result.error || 'خطأ غير معروف';
+                    showNotification(`❌ فشل إرسال الرسالة: ${errorMsg}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error sending WhatsApp message:', error);
+                showNotification(`❌ خطأ في إرسال الرسالة: ${error.message}`, 'error');
+            } finally {
+                hideLoading();
+            }
         }
 
         // Initialize empty state
@@ -1365,7 +3268,482 @@
             $('#expenseRoomsTable').hide();
             $('#emptyRoomsMessage').show();
             $('#emptyImagesMessage').show();
+            
+            // Initialize tabs
+            initializeTabs();
+            
+            // Initialize tax checkbox handler
+            $('#includeTaxCheckbox').on('change', function() {
+                console.log('✅ Tax checkbox changed:', $(this).is(':checked'));
+                calculateTax();
+            });
+            
+            $('#totalAmount').on('input', function() {
+                if ($('#includeTaxCheckbox').is(':checked')) {
+                    calculateTax();
+                }
+            });
+            
+            // Also trigger calculation when tax amount input changes (for manual entry)
+            $(document).on('input', '#taxAmount', function() {
+                // Allow manual entry - don't recalculate if user is typing
+            });
         });
+
+        // ==================== Tabs Functionality ====================
+        function initializeTabs() {
+            $('.tab-btn').on('click', function() {
+                const targetTab = $(this).data('tab');
+                
+                // Remove active class from all tabs and contents
+                $('.tab-btn').removeClass('active');
+                $('.tab-content').removeClass('active');
+                
+                // Add active class to clicked tab and corresponding content
+                $(this).addClass('active');
+                $(`#${targetTab}-tab`).addClass('active');
+                
+                // Load expenses when switching to all-expenses tab
+                if (targetTab === 'all-expenses') {
+                    loadAllExpenses();
+                }
+            });
+        }
+
+        // ==================== Get API Headers Helper ====================
+        function getApiHeaders() {
+            const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+            const authToken = localStorage.getItem('authToken');
+            
+            if (!currentHotelCode || !authToken) {
+                throw new Error('No hotel selected or not authenticated');
+            }
+            
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`,
+                'X-Hotel-Code': currentHotelCode
+            };
+        }
+
+        // ==================== Load All Expenses ====================
+        async function loadAllExpenses() {
+            const tbody = document.getElementById('expensesTableBody');
+            
+            try {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-expenses"><svg class="spinner-svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle><path d="M12 2 A10 10 0 0 1 22 12" stroke-linecap="round"></path></svg><p>جاري التحميل...</p></td></tr>';
+                
+                const headers = getApiHeaders();
+                const response = await fetch(`${API_BASE_URL}/api/Expense`, {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load expenses');
+                }
+                
+                const expenses = await response.json();
+                
+                if (!expenses || expenses.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="empty-expenses">
+                                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: #d1d5db; margin-bottom: 16px;">
+                                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                                </svg>
+                                <h3>لا توجد مصروفات</h3>
+                                <p>لم يتم إضافة أي مصروفات بعد</p>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                tbody.innerHTML = '';
+                
+                // Sort expenses by expenseId descending (newest first)
+                const sortedExpenses = expenses.sort((a, b) => {
+                    const idA = a.expenseId || a.ExpenseId || a.expense_id || 0;
+                    const idB = b.expenseId || b.ExpenseId || b.expense_id || 0;
+                    return idB - idA;
+                });
+                
+                sortedExpenses.forEach(expense => {
+                    const row = createExpenseRow(expense);
+                    tbody.appendChild(row);
+                });
+                
+            } catch (error) {
+                console.error('Error loading expenses:', error);
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="empty-expenses">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: #f59e0b; margin-bottom: 16px;">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                <line x1="12" y1="9" x2="12" y2="13"></line>
+                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            </svg>
+                            <h3>خطأ في التحميل</h3>
+                            <p>${error.message}</p>
+                        </td>
+                    </tr>
+                `;
+                showNotification(`❌ خطأ في تحميل المصروفات: ${error.message}`, 'error');
+            }
+        }
+
+        // ==================== Create Expense Row ====================
+        function createExpenseRow(expense) {
+            const tr = document.createElement('tr');
+            
+            // Get expense ID - ensure correct field name
+            const expenseId = expense.expenseId || expense.ExpenseId || expense.expense_id;
+            
+            // Format date in Gregorian format (not Arabic Hijri) - date only (no time)
+            const date = new Date(expense.dateTime || expense.DateTime || expense.date_time);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const formattedDate = `${day}/${month}/${year}`;
+            
+            // Format amount
+            const amount = (expense.totalAmount || expense.TotalAmount || expense.total_amount || 0).toFixed(2);
+            
+            // Get approval status
+            const approvalStatus = (expense.approvalStatus || expense.ApprovalStatus || expense.approval_status || '').toLowerCase();
+            
+            // Get approval status badge
+            const statusBadge = getApprovalStatusBadge(approvalStatus);
+            
+            // Get comment (truncate if too long)
+            const comment = (expense.comment || expense.Comment || '').substring(0, 50);
+            const commentDisplay = comment.length < (expense.comment || expense.Comment || '').length 
+                ? comment + '...' 
+                : comment;
+            
+            // Determine if edit and view images buttons should be shown
+            // Only show for auto-approved and accepted expenses
+            const canEdit = approvalStatus === 'auto-approved' || approvalStatus === 'accepted';
+            const canViewImages = approvalStatus === 'auto-approved' || approvalStatus === 'accepted';
+            
+            // Build action buttons HTML with SVG icons
+            let actionButtonsHtml = '';
+            if (canEdit) {
+                actionButtonsHtml += `
+                    <button class="action-btn action-btn-edit" onclick="editExpense(${expenseId})" title="تعديل">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </button>`;
+            }
+            if (canViewImages) {
+                actionButtonsHtml += `
+                    <button class="action-btn action-btn-images" onclick="viewExpenseImages(${expenseId})" title="عرض الصور">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21 15 16 10 5 21"></polyline>
+                        </svg>
+                    </button>`;
+            }
+            // Delete button is always shown
+            actionButtonsHtml += `
+                    <button class="action-btn action-btn-delete" onclick="deleteExpense(${expenseId})" title="حذف">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                    </button>`;
+            
+            tr.innerHTML = `
+                <td>${expenseId}</td>
+                <td>${formattedDate}</td>
+                <td>${expense.expenseCategoryName || expense.ExpenseCategoryName || expense.expense_category_name || 'غير محدد'}</td>
+                <td><strong>${amount} ر.س</strong></td>
+                <td>${statusBadge}</td>
+                <td>${commentDisplay || '-'}</td>
+                <td class="action-buttons-cell">
+                    ${actionButtonsHtml}
+                </td>
+            `;
+            
+            return tr;
+        }
+
+        // ==================== Get Approval Status Badge ====================
+        function getApprovalStatusBadge(status) {
+            const statusLower = (status || '').toLowerCase();
+            let badgeClass = '';
+            let icon = '';
+            let text = '';
+            
+            switch(statusLower) {
+                case 'auto-approved':
+                    badgeClass = 'status-auto-approved';
+                    icon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
+                    text = 'موافقة تلقائية';
+                    break;
+                case 'pending':
+                    badgeClass = 'status-pending';
+                    icon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>';
+                    text = 'في الانتظار';
+                    break;
+                case 'accepted':
+                    badgeClass = 'status-accepted';
+                    icon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+                    text = 'مقبول';
+                    break;
+                case 'rejected':
+                    badgeClass = 'status-rejected';
+                    icon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
+                    text = 'مرفوض';
+                    break;
+                default:
+                    badgeClass = 'status-pending';
+                    icon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+                    text = status || 'غير محدد';
+            }
+            
+            return `<span class="approval-status-badge ${badgeClass}">${icon} ${text}</span>`;
+        }
+
+        // ==================== Edit Expense ====================
+        function editExpense(expenseId) {
+            // Ensure expenseId is a number
+            expenseId = parseInt(expenseId);
+            if (isNaN(expenseId)) {
+                showNotification('❌ معرف المصروف غير صحيح', 'error');
+                return;
+            }
+            
+            // Switch to add expense tab
+            $('.tab-btn[data-tab="add-expense"]').click();
+            
+            // Load expense data into form
+            loadExpenseForEdit(expenseId);
+        }
+
+        async function loadExpenseForEdit(expenseId) {
+            try {
+                showLoading();
+                
+                const headers = getApiHeaders();
+                const response = await fetch(`${API_BASE_URL}/api/Expense/${expenseId}`, {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load expense');
+                }
+                
+                const expense = await response.json();
+                
+                // Fill form with expense data
+                if (expense.dateTime || expense.DateTime) {
+                    const date = new Date(expense.dateTime || expense.DateTime);
+                    const formattedDate = date.toISOString().split('T')[0];
+                    $('#expenseDate').val(formattedDate);
+                }
+                
+                if (expense.expenseCategoryId || expense.ExpenseCategoryId) {
+                    $('#expenseCategorySelect').val(expense.expenseCategoryId || expense.ExpenseCategoryId).trigger('change');
+                }
+                
+                if (expense.totalAmount || expense.TotalAmount) {
+                    $('#totalAmount').val(expense.totalAmount || expense.TotalAmount);
+                }
+                
+                if (expense.comment || expense.Comment) {
+                    $('#expenseComment').val(expense.comment || expense.Comment);
+                }
+                
+                // Load tax information
+                const expenseTaxRate = expense.taxRate || expense.TaxRate || null;
+                const expenseTaxAmount = expense.taxAmount || expense.TaxAmount || null;
+                
+                if (expenseTaxRate && expenseTaxRate > 0) {
+                    $('#includeTaxCheckbox').prop('checked', true);
+                    $('#taxInputGroup').show();
+                    if (expenseTaxAmount) {
+                        $('#taxAmount').val(expenseTaxAmount.toFixed(2));
+                        const totalAmount = parseFloat($('#totalAmount').val()) || 0;
+                        const baseAmount = totalAmount - expenseTaxAmount;
+                        $('#taxInfo').text(`المبلغ قبل الضريبة: ${baseAmount.toFixed(2)} ر.س | نسبة الضريبة: ${expenseTaxRate}%`).show();
+                    }
+                } else {
+                    $('#includeTaxCheckbox').prop('checked', false);
+                    $('#taxInputGroup').hide();
+                }
+                
+                // Load existing images for this expense (silently, no popup)
+                await loadExpenseImagesForEdit(expenseId);
+                
+                // Store expense ID for update
+                $('#expenseForm').data('editing-expense-id', expenseId);
+                
+                // Change submit button text
+                $('#expenseForm button[type="submit"]').html('<i class="fas fa-save"></i> تحديث المصروف');
+                
+                showNotification('✅ تم تحميل بيانات المصروف للتعديل', 'success');
+                
+            } catch (error) {
+                console.error('Error loading expense for edit:', error);
+                showNotification(`❌ خطأ في تحميل المصروف: ${error.message}`, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // ==================== View Expense Images ====================
+        async function viewExpenseImages(expenseId) {
+            // Ensure expenseId is a number
+            expenseId = parseInt(expenseId);
+            if (isNaN(expenseId)) {
+                showNotification('❌ معرف المصروف غير صحيح', 'error');
+                return;
+            }
+            
+            try {
+                showLoading();
+                
+                const headers = getApiHeaders();
+                const response = await fetch(`${API_BASE_URL}/api/Expense/${expenseId}/images`, {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load images');
+                }
+                
+                const images = await response.json();
+                const imagesGrid = document.getElementById('imagesGrid');
+                
+                if (!images || images.length === 0) {
+                    imagesGrid.innerHTML = `
+                        <div class="no-images-message">
+                            <i class="fas fa-image" style="font-size: 48px; color: #d1d5db; margin-bottom: 16px;"></i>
+                            <p>لا توجد صور لهذا المصروف</p>
+                        </div>
+                    `;
+                } else {
+                    imagesGrid.innerHTML = '';
+                    images.forEach(image => {
+                        const imageUrl = image.imageUrl || image.ImageUrl || image.image_path || image.url || image.Url;
+                        if (imageUrl) {
+                            const imageItem = document.createElement('div');
+                            imageItem.className = 'image-item';
+                            // Handle relative paths
+                            const fullImageUrl = imageUrl.startsWith('http') ? imageUrl : `${API_BASE_URL}${imageUrl}`;
+                            imageItem.innerHTML = `<img src="${fullImageUrl}" alt="Expense Image" onclick="window.open('${fullImageUrl}', '_blank')">`;
+                            imagesGrid.appendChild(imageItem);
+                        }
+                    });
+                }
+                
+                // Show modal
+                document.getElementById('imagesModal').classList.add('active');
+                
+            } catch (error) {
+                console.error('Error loading images:', error);
+                showNotification(`❌ خطأ في تحميل الصور: ${error.message}`, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // ==================== Close Images Modal ====================
+        function closeImagesModal() {
+            document.getElementById('imagesModal').classList.remove('active');
+        }
+
+        // Close modal when clicking outside
+        document.addEventListener('click', function(event) {
+            const modal = document.getElementById('imagesModal');
+            if (event.target === modal) {
+                closeImagesModal();
+            }
+        });
+
+        // ==================== Delete Expense ====================
+        async function deleteExpense(expenseId) {
+            // Ensure expenseId is a number
+            expenseId = parseInt(expenseId);
+            if (isNaN(expenseId)) {
+                showNotification('❌ معرف المصروف غير صحيح', 'error');
+                return;
+            }
+            
+            // Use SweetAlert2 for confirmation
+            const result = await Swal.fire({
+                title: 'هل أنت متأكد؟',
+                text: 'هل أنت متأكد من حذف هذا المصروف؟ لا يمكن التراجع عن هذه العملية.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'نعم، احذف',
+                cancelButtonText: 'إلغاء',
+                reverseButtons: true,
+                customClass: {
+                    popup: 'swal2-rtl'
+                }
+            });
+            
+            if (!result.isConfirmed) {
+                return;
+            }
+            
+            try {
+                showLoading();
+                
+                const headers = getApiHeaders();
+                const response = await fetch(`${API_BASE_URL}/api/Expense/${expenseId}`, {
+                    method: 'DELETE',
+                    headers: headers
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.message || errorData.error || 'Failed to delete expense');
+                }
+                
+                // Show success message with SweetAlert2
+                await Swal.fire({
+                    title: 'تم الحذف!',
+                    text: 'تم حذف المصروف بنجاح',
+                    icon: 'success',
+                    confirmButtonText: 'حسناً',
+                    customClass: {
+                        popup: 'swal2-rtl'
+                    }
+                });
+                
+                // Reload expenses table
+                loadAllExpenses();
+                
+            } catch (error) {
+                console.error('Error deleting expense:', error);
+                
+                // Show error message with SweetAlert2
+                await Swal.fire({
+                    title: 'خطأ!',
+                    text: `فشل حذف المصروف: ${error.message}`,
+                    icon: 'error',
+                    confirmButtonText: 'حسناً',
+                    customClass: {
+                        popup: 'swal2-rtl'
+                    }
+                });
+            } finally {
+                hideLoading();
+            }
+        }
     </script>
 </body>
 </html>

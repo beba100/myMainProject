@@ -1,5 +1,8 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Serilog;
+using System.Text;
 using zaaerIntegration.Configuration;
 using zaaerIntegration.Data;
 using zaaerIntegration.Repositories.Implementations;
@@ -43,6 +46,10 @@ builder.Services.AddHttpContextAccessor();
 // Tenant Services - للحصول على معلومات الفندق الحالي
 builder.Services.AddScoped<ITenantService, TenantService>();
 builder.Services.AddScoped<IQueueSettingsProvider, QueueSettingsProvider>();
+
+// Authentication Services
+builder.Services.AddScoped<IMasterUserService, MasterUserService>();
+builder.Services.AddScoped<IJwtService, JwtService>();
 
 // Tenant DB Context Resolver - لإنشاء DbContext ديناميكي للـ Tenant
 builder.Services.AddScoped<TenantDbContextResolver>();
@@ -122,6 +129,37 @@ builder.Services.AddScoped<IZaaerExpenseService, ZaaerExpenseService>();
 // Register Expense Service (new CRUD operations with X-Hotel-Code header)
 builder.Services.AddScoped<IExpenseService, ExpenseService>();
 
+// Register WhatsApp Service
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<IWhatsAppService, WhatsAppService>();
+
+// Configure JWT Authentication
+var jwtSecretKey = builder.Configuration["Jwt:SecretKey"] ?? "YourSuperSecretKeyThatShouldBeAtLeast32CharactersLong!";
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "ZaaerIntegration";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "ZaaerIntegration";
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecretKey)),
+        ValidateIssuer = true,
+        ValidIssuer = jwtIssuer,
+        ValidateAudience = true,
+        ValidAudience = jwtAudience,
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero
+    };
+});
+
+builder.Services.AddAuthorization();
+
 // Partner Queue services
 builder.Services.AddScoped<IPartnerQueueService, PartnerQueueService>();
 builder.Services.AddScoped<IQueuedOperationHandler, ZaaerReservationCreateHandler>();
@@ -159,8 +197,9 @@ builder.Services.AddScoped<IQueuedOperationHandler, ZaaerHotelSettingsCreateHand
 builder.Services.AddScoped<IQueuedOperationHandler, ZaaerHotelSettingsUpdateByIdHandler>();
 builder.Services.AddScoped<IQueuedOperationHandler, ZaaerUserCreateHandler>();
 builder.Services.AddScoped<IQueuedOperationHandler, ZaaerUserUpdateHandler>();
-builder.Services.AddScoped<IQueuedOperationHandler, ZaaerRoleCreateHandler>();
-builder.Services.AddScoped<IQueuedOperationHandler, ZaaerRoleUpdateHandler>();
+	// ZaaerRoleCreateHandler and ZaaerRoleUpdateHandler disabled - Role model is now in Master DB only
+	// builder.Services.AddScoped<IQueuedOperationHandler, ZaaerRoleCreateHandler>();
+	// builder.Services.AddScoped<IQueuedOperationHandler, ZaaerRoleUpdateHandler>();
 builder.Services.AddScoped<IQueuedOperationHandler, ZaaerBankCreateHandler>();
 builder.Services.AddScoped<IQueuedOperationHandler, ZaaerBankUpdateByIdHandler>();
 builder.Services.AddScoped<IQueuedOperationHandler, ZaaerExpenseCreateHandler>();
@@ -192,18 +231,41 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "Zaaer Integration API - Multi-Tenant", Version = "v1" });
     
-    // ? إضافة X-Hotel-Code Header في Swagger
+    // ✅ إضافة JWT Authentication في Swagger
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token in the text input below.\n\nExample: \"Bearer 12345abcdef\"",
+        Name = "Authorization",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "JWT"
+    });
+
+    // ✅ إضافة X-Hotel-Code Header في Swagger (للتوافق مع النظام القديم)
     c.AddSecurityDefinition("X-Hotel-Code", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
-        Description = "Hotel Code Header (e.g., Dammam1, Dammam2)",
+        Description = "Hotel Code Header (e.g., Dammam1, Dammam2) - Optional if using JWT Token",
         Name = "X-Hotel-Code",
         In = Microsoft.OpenApi.Models.ParameterLocation.Header,
         Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
         Scheme = "X-Hotel-Code"
     });
 
+    // ✅ إضافة Security Requirements (JWT أولوية، X-Hotel-Code اختياري)
     c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
     {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        },
         {
             new Microsoft.OpenApi.Models.OpenApiSecurityScheme
             {
@@ -261,10 +323,15 @@ app.UseDefaultFiles();
 
 app.UseCors("AllowAll");
 
+// ? تشغيل Master User Resolver Middleware (يقرأ JWT Token ويضع TenantId في HttpContext)
+// يجب أن يكون بعد CORS وقبل TenantMiddleware
+app.UseMasterUserResolverMiddleware();
+
 // ? تشغيل Multi-Tenant Middleware
-// يجب أن يكون بعد CORS وقبل Authorization
+// يجب أن يكون بعد MasterUserResolverMiddleware وقبل Authorization
 app.UseTenantMiddleware();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 // Optional global queue middleware (proxy). Use separate flag so controllers can still enqueue while global proxy is off

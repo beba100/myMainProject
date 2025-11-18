@@ -1,6 +1,7 @@
 using FinanceLedgerAPI.Models;
 using zaaerIntegration.DTOs.Zaaer;
-using zaaerIntegration.Repositories.Interfaces;
+using zaaerIntegration.Data;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -8,22 +9,23 @@ namespace zaaerIntegration.Services.Zaaer
 {
 	public class ZaaerUserService : IZaaerUserService
 	{
-		private readonly IUnitOfWork _unitOfWork;
+		private readonly ApplicationDbContext _context;
 
-		public ZaaerUserService(IUnitOfWork unitOfWork)
+		public ZaaerUserService(ApplicationDbContext context)
 		{
-			_unitOfWork = unitOfWork;
+			_context = context;
 		}
 
 		public async Task<ZaaerUserResponseDto> CreateUserAsync(ZaaerCreateUserDto dto)
 		{
-			await _unitOfWork.BeginTransactionAsync();
+			using var transaction = await _context.Database.BeginTransactionAsync();
 			try
 			{
 				// Check if user with same ZaaerId already exists
 				if (dto.ZaaerId.HasValue)
 				{
-					var existingZaaerUser = await _unitOfWork.Users.FindSingleAsync(u => u.ZaaerId.HasValue && u.ZaaerId.Value == dto.ZaaerId.Value);
+					var existingZaaerUser = await _context.Set<User>()
+						.FirstOrDefaultAsync(u => u.ZaaerId.HasValue && u.ZaaerId.Value == dto.ZaaerId.Value);
 					if (existingZaaerUser != null)
 					{
 						throw new InvalidOperationException($"User with Zaaer ID {dto.ZaaerId} already exists. Use PUT endpoint to update instead.");
@@ -31,7 +33,8 @@ namespace zaaerIntegration.Services.Zaaer
 				}
 
 				// Check if email already exists
-				var existingUser = await _unitOfWork.Users.FindSingleAsync(u => u.Email == dto.Email && u.HotelId == dto.HotelId);
+				var existingUser = await _context.Set<User>()
+					.FirstOrDefaultAsync(u => u.Email == dto.Email && u.HotelId == dto.HotelId);
 				if (existingUser != null)
 				{
 					throw new InvalidOperationException($"User with email '{dto.Email}' already exists in this hotel.");
@@ -67,29 +70,30 @@ namespace zaaerIntegration.Services.Zaaer
 					IsActive = true
 				};
 
-				await _unitOfWork.Users.AddAsync(user);
-				await _unitOfWork.SaveChangesAsync();
-				await _unitOfWork.CommitTransactionAsync();
+				await _context.Set<User>().AddAsync(user);
+				await _context.SaveChangesAsync();
+				await transaction.CommitAsync();
 
-				return await GetUserResponseDtoAsync(user);
+				return GetUserResponseDtoAsync(user);
 			}
 			catch
 			{
-				await _unitOfWork.RollbackTransactionAsync();
+				await transaction.RollbackAsync();
 				throw;
 			}
 		}
 
 		public async Task<ZaaerUserResponseDto> UpdateUserAsync(ZaaerUpdateUserDto dto)
 		{
-			await _unitOfWork.BeginTransactionAsync();
+			using var transaction = await _context.Database.BeginTransactionAsync();
 			try
 			{
 				// Find user by ZaaerId (preferred) or fallback to other methods
 				User? user = null;
 				if (dto.ZaaerId.HasValue)
 				{
-					user = await _unitOfWork.Users.FindSingleAsync(u => u.ZaaerId.HasValue && u.ZaaerId.Value == dto.ZaaerId.Value);
+					user = await _context.Set<User>()
+						.FirstOrDefaultAsync(u => u.ZaaerId.HasValue && u.ZaaerId.Value == dto.ZaaerId.Value);
 				}
 				
 				if (user == null)
@@ -101,7 +105,8 @@ namespace zaaerIntegration.Services.Zaaer
 				if (!string.IsNullOrEmpty(dto.Email) && dto.Email != user.Email)
 				{
 					var hotelId = dto.HotelId ?? user.HotelId;
-					var existingUser = await _unitOfWork.Users.FindSingleAsync(u => u.Email == dto.Email && u.HotelId == hotelId && u.UserId != user.UserId);
+					var existingUser = await _context.Set<User>()
+						.FirstOrDefaultAsync(u => u.Email == dto.Email && u.HotelId == hotelId && u.UserId != user.UserId);
 					if (existingUser != null)
 					{
 						throw new InvalidOperationException($"User with email '{dto.Email}' already exists in this hotel.");
@@ -156,27 +161,29 @@ namespace zaaerIntegration.Services.Zaaer
 					user.PasswordHash = HashPassword(dto.Password);
 				}
 
-				_unitOfWork.Users.Update(user);
-				await _unitOfWork.SaveChangesAsync();
-				await _unitOfWork.CommitTransactionAsync();
+				_context.Set<User>().Update(user);
+				await _context.SaveChangesAsync();
+				await transaction.CommitAsync();
 
-				return await GetUserResponseDtoAsync(user);
+				return GetUserResponseDtoAsync(user);
 			}
 			catch
 			{
-				await _unitOfWork.RollbackTransactionAsync();
+				await transaction.RollbackAsync();
 				throw;
 			}
 		}
 
 		public async Task<List<ZaaerUserResponseDto>> GetAllUsersAsync(int hotelId)
 		{
-			var users = await _unitOfWork.Users.FindAsync(u => u.HotelId == hotelId);
+			var users = await _context.Set<User>()
+				.Where(u => u.HotelId == hotelId)
+				.ToListAsync();
 			var result = new List<ZaaerUserResponseDto>();
 
 			foreach (var user in users)
 			{
-				result.Add(await GetUserResponseDtoAsync(user));
+				result.Add(GetUserResponseDtoAsync(user));
 			}
 
 			return result;
@@ -184,19 +191,19 @@ namespace zaaerIntegration.Services.Zaaer
 
 		public async Task<ZaaerUserResponseDto?> GetUserByIdAsync(int userId)
 		{
-			var user = await _unitOfWork.Users.GetByIdAsync(userId);
+			var user = await _context.Set<User>().FindAsync(userId);
 			if (user == null)
 				return null;
 
-			return await GetUserResponseDtoAsync(user);
+			return GetUserResponseDtoAsync(user);
 		}
 
 		public async Task<bool> DeleteUserAsync(int userId)
 		{
-			await _unitOfWork.BeginTransactionAsync();
+			using var transaction = await _context.Database.BeginTransactionAsync();
 			try
 			{
-				var user = await _unitOfWork.Users.GetByIdAsync(userId);
+				var user = await _context.Set<User>().FindAsync(userId);
 				if (user == null)
 					return false;
 
@@ -204,27 +211,25 @@ namespace zaaerIntegration.Services.Zaaer
 				user.IsActive = false;
 				user.UpdatedAt = KsaTime.Now;
 
-				_unitOfWork.Users.Update(user);
-				await _unitOfWork.SaveChangesAsync();
-				await _unitOfWork.CommitTransactionAsync();
+				_context.Set<User>().Update(user);
+				await _context.SaveChangesAsync();
+				await transaction.CommitAsync();
 
 				return true;
 			}
 			catch
 			{
-				await _unitOfWork.RollbackTransactionAsync();
+				await transaction.RollbackAsync();
 				throw;
 			}
 		}
 
-		private async Task<ZaaerUserResponseDto> GetUserResponseDtoAsync(User user)
+		private ZaaerUserResponseDto GetUserResponseDtoAsync(User user)
 		{
+			// Role model is now in Master DB only, not in Tenant DB
+			// RoleName will be empty string since we can't access Master DB from here
+			// If role name is needed, it should be fetched from Master DB separately
 			var roleName = string.Empty;
-			if (user.RoleId.HasValue)
-			{
-				var role = await _unitOfWork.Roles.GetByIdAsync(user.RoleId.Value);
-				roleName = role?.RoleName ?? string.Empty;
-			}
 
 			return new ZaaerUserResponseDto
 			{

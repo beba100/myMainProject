@@ -44,10 +44,7 @@ namespace zaaerIntegration.Repositories.Interfaces
         IGenericRepository<Penalty> Penalties { get; }
         IGenericRepository<Refund> Refunds { get; }
         IGenericRepository<CreditNote> CreditNotes { get; }
-        IGenericRepository<User> Users { get; }
-        IGenericRepository<Role> Roles { get; }
-        IGenericRepository<Permission> Permissions { get; }
-        IGenericRepository<RolePermission> RolePermissions { get; }
+        // User, Role, Permission, RolePermission removed - now in Master DB only
         IGenericRepository<HotelSettings> HotelSettings { get; }
         
         // New tables (Rate Types, Seasonal Rates, etc.)

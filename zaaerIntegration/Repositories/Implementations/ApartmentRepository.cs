@@ -19,25 +19,95 @@ namespace zaaerIntegration.Repositories.Implementations
             int pageSize = 10, 
             System.Linq.Expressions.Expression<Func<Apartment, bool>>? filter = null)
         {
-            var query = _context.Apartments
-                .Include(a => a.HotelSettings)
-                .Include(a => a.Building)
-                .Include(a => a.Floor)
-                .Include(a => a.RoomType)
-                .Include(a => a.ReservationUnits)
-                .AsQueryable();
-
+            // ✅ Step 1: Apply filter and get total count (without Include)
+            var countQuery = _context.Apartments.AsQueryable();
             if (filter != null)
             {
-                query = query.Where(filter);
+                countQuery = countQuery.Where(filter);
+            }
+            var totalCount = await countQuery.CountAsync();
+
+            // ✅ Step 2: Create a NEW query for data retrieval (to avoid EF Core expression tree issues)
+            // Extract filter parameters if needed, or rebuild the query
+            IQueryable<Apartment> dataQuery = _context.Apartments.AsQueryable();
+            
+            if (filter != null)
+            {
+                // Rebuild the filter expression on a fresh query
+                dataQuery = dataQuery.Where(filter);
             }
 
-            var totalCount = await query.CountAsync();
-            var apartments = await query
+            // ✅ Step 3: DO NOT use Include for HotelSettings - it fails when HotelSettings doesn't exist for the HotelId
+            // Instead, we'll load HotelSettings separately after getting apartments
+            // This avoids EF Core filtering out apartments when HotelSettings is missing
+
+            // ✅ Step 4: Execute query to get apartments (WITHOUT Include)
+            var apartments = await dataQuery
                 .OrderBy(a => a.ApartmentCode)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
+            
+            // ✅ DEBUG: Log if we got apartments but totalCount > 0
+            if (totalCount > 0 && !apartments.Any())
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ GetPagedAsync: totalCount={totalCount} but apartments.Count=0. Filter may be too restrictive after Include.");
+            }
+
+            // ✅ Step 5: Load navigation properties separately using batch loading
+            // This avoids EF Core issues when navigation properties don't exist
+            if (apartments.Any())
+            {
+                // Load HotelSettings separately (may not exist for all HotelIds)
+                var hotelIds = apartments.Select(a => a.HotelId).Distinct().ToList();
+                var hotelSettings = hotelIds.Any() 
+                    ? await _context.HotelSettings.Where(h => hotelIds.Contains(h.HotelId)).ToListAsync() 
+                    : new List<HotelSettings>();
+                var hotelSettingsDict = hotelSettings.ToDictionary(h => h.HotelId);
+
+                // Load nullable navigation properties
+                var buildingIds = apartments.Where(a => a.BuildingId.HasValue).Select(a => a.BuildingId!.Value).Distinct().ToList();
+                var floorIds = apartments.Where(a => a.FloorId.HasValue).Select(a => a.FloorId!.Value).Distinct().ToList();
+                var roomTypeIds = apartments.Where(a => a.RoomTypeId.HasValue).Select(a => a.RoomTypeId!.Value).Distinct().ToList();
+
+                // Load all related entities in batches
+                var buildings = buildingIds.Any() 
+                    ? await _context.Buildings.Where(b => buildingIds.Contains(b.BuildingId)).ToListAsync() 
+                    : new List<Building>();
+                var floors = floorIds.Any() 
+                    ? await _context.Floors.Where(f => floorIds.Contains(f.FloorId)).ToListAsync() 
+                    : new List<Floor>();
+                var roomTypes = roomTypeIds.Any() 
+                    ? await _context.RoomTypes.Where(rt => roomTypeIds.Contains(rt.RoomTypeId)).ToListAsync() 
+                    : new List<RoomType>();
+
+                // Attach loaded entities to apartments using dictionary for O(1) lookup (more efficient)
+                var buildingsDict = buildings.ToDictionary(b => b.BuildingId);
+                var floorsDict = floors.ToDictionary(f => f.FloorId);
+                var roomTypesDict = roomTypes.ToDictionary(rt => rt.RoomTypeId);
+
+                foreach (var apartment in apartments)
+                {
+                    // Attach HotelSettings if it exists (may be null if HotelSettings doesn't exist for this HotelId)
+                    if (hotelSettingsDict.TryGetValue(apartment.HotelId, out var hotelSetting))
+                    {
+                        apartment.HotelSettings = hotelSetting;
+                    }
+                    
+                    if (apartment.BuildingId.HasValue && buildingsDict.TryGetValue(apartment.BuildingId.Value, out var building))
+                    {
+                        apartment.Building = building;
+                    }
+                    if (apartment.FloorId.HasValue && floorsDict.TryGetValue(apartment.FloorId.Value, out var floor))
+                    {
+                        apartment.Floor = floor;
+                    }
+                    if (apartment.RoomTypeId.HasValue && roomTypesDict.TryGetValue(apartment.RoomTypeId.Value, out var roomType))
+                    {
+                        apartment.RoomType = roomType;
+                    }
+                }
+            }
 
             return (apartments, totalCount);
         }

@@ -1,0 +1,57 @@
+/* Design Preview Styles - loaded only with ?designPreview=1 */
+/* Palette */
+:root{
+  --surface:#ffffff;
+  --border:#e2e8f0;
+  --text:#0f172a;
+  --muted:#64748b;
+  --primary:#3a6ff8;
+  --primary-600:#2563eb;
+  --shadow:0 2px 8px rgba(15,23,42,.06);
+}
+
+/* Page background subtle */
+body.dx-viewport.has-sidebar{ background:#f6f8fb; }
+
+/* Toolbar */
+.filter-toolbar{ position:sticky; top:0; z-index:1020; background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); padding:10px; }
+.filter-toolbar .btn,.filter-toolbar .btn-reset{ border-radius:10px; padding:6px 12px; font-weight:700; }
+.filter-toolbar .btn:hover,.filter-toolbar .btn-reset:hover{ background:#f8fafc; border-color:var(--primary); color:var(--primary); }
+.search-input-wrapper input{ height:42px; font-weight:600; }
+
+/* Cards grid spacing */
+#cards-view .row.g-3{ --bs-gutter-x:1rem; --bs-gutter-y:1rem; }
+.room-card.card{ border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); transition:transform .15s ease, box-shadow .15s ease; }
+.room-card.card:hover{ transform:translateY(-2px); box-shadow:0 6px 16px rgba(15,23,42,.12); }
+.room-card .room-name{ font-weight:800; color:var(--text); letter-spacing:.2px; }
+.room-card .customer-name{ color:var(--muted); font-weight:600; }
+
+/* Status pills softer */
+.status-badge.bg-success{ background:#bfe6c7!important; color:#065f46; }
+.status-badge.bg-danger{ background:#f7c6c6!important; color:#7f1d1d; }
+.status-badge.bg-warning{ background:#e6e6e6!important; color:#374151; }
+.status-badge.bg-secondary{ background:#d6b3ff!important; color:#4c1d95; }
+
+/* Dropdown menu (card actions) */
+.professional-dropdown{ border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow); padding:4px 0; }
+.professional-item{ font-weight:700; color:#374151; }
+.professional-item:hover{ background:#f8fafc; color:var(--primary); }
+
+/* DataGrid refinements */
+.dx-datagrid-headers{ background:#f8fafc; border-bottom:1px solid var(--border); color:#1e293b; font-weight:800; }
+.dx-datagrid .dx-row>td{ padding:12px 10px; font-size:14px; }
+.dx-datagrid .dx-row-alt{ background:#f8fafc; }
+.dx-pager .dx-page, .dx-pager .dx-page-size{ border-radius:8px; }
+
+/* Calendar toolbar */
+.calendar-container .calendar-toolbar{ background:linear-gradient(135deg, var(--primary) 0%, var(--primary-600) 100%); box-shadow:var(--shadow); }
+.calendar-container .calendar-legend{ background:#f1f5f9; }
+.calendar-container .booking-bar{ border-radius:8px; border:2px solid rgba(0,0,0,.12); box-shadow:0 2px 4px rgba(0,0,0,.12); }
+
+/* Sidebar */
+.app-sidebar{ border-inline-end:1px solid var(--border); }
+.sidebar-link{ border-radius:10px; }
+.sidebar-link:hover{ background:#f8fafc; }
+.sidebar-link.active{ background:var(--primary); color:#fff; }
+
+

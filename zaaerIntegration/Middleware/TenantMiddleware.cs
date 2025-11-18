@@ -28,7 +28,8 @@ namespace zaaerIntegration.Middleware
                 path.Contains("/_framework") ||
                 path.Contains("/css") ||
                 path.Contains("/js") ||
-                path.Contains("/api/tenant") ||  // ? ������ ���� ����� ������� ���� hotel code
+                path.Contains("/api/tenant") ||
+                path.Contains("/api/auth") ||    // ✅ Allow authentication endpoints without hotel code  // ? ������ ���� ����� ������� ���� hotel code
                 path == "/" ||
                 path == "/index.html" ||
                 path == "/queue.html" ||

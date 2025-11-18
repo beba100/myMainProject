@@ -19,6 +19,9 @@ namespace zaaerIntegration.Services.Expense
         Task<ExpenseRoomResponseDto> AddExpenseRoomAsync(int expenseId, CreateExpenseRoomDto dto);
         Task<ExpenseRoomResponseDto?> UpdateExpenseRoomAsync(int expenseRoomId, UpdateExpenseRoomDto dto);
         Task<bool> DeleteExpenseRoomAsync(int expenseRoomId);
+
+        // Approval Operations
+        Task<ExpenseResponseDto?> ApproveExpenseAsync(int id, string status, int approvedBy);
     }
 }
 

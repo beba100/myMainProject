@@ -38,7 +38,7 @@ namespace zaaerIntegration.Services.Implementations
         }
 
         /// <summary>
-        /// الحصول على الفندق الحالي بناءً على X-Hotel-Code Header
+        /// الحصول على الفندق الحالي بناءً على JWT Token أو X-Hotel-Code Header
         /// </summary>
         public Tenant? GetTenant()
         {
@@ -53,50 +53,122 @@ namespace zaaerIntegration.Services.Implementations
                 throw new InvalidOperationException("HttpContext is not available. Cannot resolve tenant.");
             }
 
-            // قراءة قيمة X-Hotel-Code من Header
-            if (!httpContext.Request.Headers.TryGetValue("X-Hotel-Code", out var hotelCodeValues) || 
-                string.IsNullOrWhiteSpace(hotelCodeValues))
-            {
-                _logger.LogWarning("Missing or empty X-Hotel-Code header");
-                throw new UnauthorizedAccessException("Missing X-Hotel-Code header. Please provide a valid hotel code.");
-            }
-
-            // تحويل StringValues إلى string وtrim whitespace
-            string hotelCode = hotelCodeValues.ToString().Trim();
-
-            if (string.IsNullOrWhiteSpace(hotelCode))
-            {
-                _logger.LogWarning("X-Hotel-Code header is empty or whitespace only");
-                throw new UnauthorizedAccessException("X-Hotel-Code header cannot be empty. Please provide a valid hotel code.");
-            }
-
             try
             {
-                // البحث عن الفندق في قاعدة البيانات المركزية (Case-insensitive)
-                _currentTenant = _masterDbContext.Tenants
-                    .AsNoTracking()
-                    .FirstOrDefault(t => t.Code.ToLower() == hotelCode.ToLower());
-
-                if (_currentTenant == null)
+                // ✅ أولاً: محاولة قراءة TenantId من JWT Token (من MasterUserResolverMiddleware)
+                if (httpContext.Items.TryGetValue("TenantId", out var tenantIdObj) && tenantIdObj != null)
                 {
-                    _logger.LogError("Tenant not found for code: {HotelCode} in Master DB (db29328)", hotelCode);
-                    throw new KeyNotFoundException($"Tenant not found for code: {hotelCode}. Please verify the hotel code exists in Master Database.");
+                    if (int.TryParse(tenantIdObj.ToString(), out int tenantId))
+                    {
+                        _currentTenant = _masterDbContext.Tenants
+                            .AsNoTracking()
+                            .FirstOrDefault(t => t.Id == tenantId);
+
+                        if (_currentTenant != null)
+                        {
+                            _logger.LogInformation("✅ Tenant resolved from JWT Token: {TenantName} ({TenantCode}), Database: {DatabaseName}", 
+                                _currentTenant.Name, _currentTenant.Code, _currentTenant.DatabaseName);
+                            
+                            // التحقق من وجود DatabaseName
+                            if (string.IsNullOrWhiteSpace(_currentTenant.DatabaseName))
+                            {
+                                _logger.LogError("DatabaseName is not set for tenant: {TenantCode} (Id: {TenantId})", 
+                                    _currentTenant.Code, _currentTenant.Id);
+                                throw new InvalidOperationException(
+                                    $"DatabaseName is not configured for tenant: {_currentTenant.Code}. " +
+                                    "Please add DatabaseName to the tenant record in Master Database.");
+                            }
+
+                            return _currentTenant;
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Tenant not found for TenantId from JWT: {TenantId}", tenantId);
+                        }
+                    }
                 }
 
-                // التحقق من وجود DatabaseName
-                if (string.IsNullOrWhiteSpace(_currentTenant.DatabaseName))
+                // ✅ ثانياً: قراءة من X-Hotel-Code Header (للتوافق مع النظام الحالي)
+                // ⚠️ SECURITY: التحقق من أن X-Hotel-Code يطابق tenantCode من JWT Token
+                if (httpContext.Request.Headers.TryGetValue("X-Hotel-Code", out var hotelCodeValues) && 
+                    !string.IsNullOrWhiteSpace(hotelCodeValues))
                 {
-                    _logger.LogError("DatabaseName is not set for tenant: {TenantCode} (Id: {TenantId})", 
-                        _currentTenant.Code, _currentTenant.Id);
-                    throw new InvalidOperationException(
-                        $"DatabaseName is not configured for tenant: {_currentTenant.Code}. " +
-                        "Please add DatabaseName to the tenant record in Master Database.");
+                    string hotelCode = hotelCodeValues.ToString().Trim();
+
+                    if (!string.IsNullOrWhiteSpace(hotelCode))
+                    {
+                        // ✅ أولاً: التحقق من وجود Tenant من JWT Token
+                        Tenant? tenantFromToken = null;
+                        if (httpContext.Items.TryGetValue("TenantId", out var tenantIdObjFromHeader) && tenantIdObjFromHeader != null)
+                        {
+                            if (int.TryParse(tenantIdObjFromHeader.ToString(), out int tenantIdFromHeader))
+                            {
+                                tenantFromToken = _masterDbContext.Tenants
+                                    .AsNoTracking()
+                                    .FirstOrDefault(t => t.Id == tenantIdFromHeader);
+                            }
+                        }
+
+                        // ✅ SECURITY: إذا كان هناك Tenant من JWT Token، يجب أن يطابق X-Hotel-Code
+                        if (tenantFromToken != null)
+                        {
+                            if (!string.Equals(tenantFromToken.Code, hotelCode, StringComparison.OrdinalIgnoreCase))
+                            {
+                                _logger.LogWarning("⚠️ SECURITY: X-Hotel-Code header ({HotelCode}) does not match tenantCode from JWT Token ({TenantCode}). UserId: {UserId}", 
+                                    hotelCode, tenantFromToken.Code, httpContext.Items.ContainsKey("UserId") ? httpContext.Items["UserId"] : "Unknown");
+                                throw new UnauthorizedAccessException(
+                                    $"Security violation: Hotel code mismatch. You are authorized for hotel '{tenantFromToken.Code}' only.");
+                            }
+                            
+                            // ✅ استخدام Tenant من JWT Token (الأكثر أماناً)
+                            _currentTenant = tenantFromToken;
+                            _logger.LogInformation("✅ Tenant resolved from JWT Token (validated with X-Hotel-Code): {TenantName} ({TenantCode}), Database: {DatabaseName}", 
+                                _currentTenant.Name, _currentTenant.Code, _currentTenant.DatabaseName);
+                            
+                            if (string.IsNullOrWhiteSpace(_currentTenant.DatabaseName))
+                            {
+                                _logger.LogError("DatabaseName is not set for tenant: {TenantCode} (Id: {TenantId})", 
+                                    _currentTenant.Code, _currentTenant.Id);
+                                throw new InvalidOperationException(
+                                    $"DatabaseName is not configured for tenant: {_currentTenant.Code}. " +
+                                    "Please add DatabaseName to the tenant record in Master Database.");
+                            }
+
+                            return _currentTenant;
+                        }
+
+                        // ✅ إذا لم يكن هناك Tenant من JWT Token، البحث عن الفندق من X-Hotel-Code (للتوافق مع النظام القديم)
+                        _currentTenant = _masterDbContext.Tenants
+                            .AsNoTracking()
+                            .FirstOrDefault(t => t.Code.ToLower() == hotelCode.ToLower());
+
+                        if (_currentTenant != null)
+                        {
+                            _logger.LogInformation("✅ Tenant resolved from X-Hotel-Code header (no JWT Token): {TenantName} ({TenantCode}), Database: {DatabaseName}", 
+                                _currentTenant.Name, _currentTenant.Code, _currentTenant.DatabaseName);
+                            
+                            if (string.IsNullOrWhiteSpace(_currentTenant.DatabaseName))
+                            {
+                                _logger.LogError("DatabaseName is not set for tenant: {TenantCode} (Id: {TenantId})", 
+                                    _currentTenant.Code, _currentTenant.Id);
+                                throw new InvalidOperationException(
+                                    $"DatabaseName is not configured for tenant: {_currentTenant.Code}. " +
+                                    "Please add DatabaseName to the tenant record in Master Database.");
+                            }
+
+                            return _currentTenant;
+                        }
+                        else
+                        {
+                            _logger.LogError("Tenant not found for code: {HotelCode} in Master DB", hotelCode);
+                            throw new KeyNotFoundException($"Tenant not found for code: {hotelCode}. Please verify the hotel code exists in Master Database.");
+                        }
+                    }
                 }
 
-                _logger.LogInformation("✅ Tenant resolved successfully: {TenantName} ({TenantCode}), Database: {DatabaseName}", 
-                    _currentTenant.Name, _currentTenant.Code, _currentTenant.DatabaseName);
-
-                return _currentTenant;
+                // ❌ لم يتم العثور على Tenant من أي مصدر
+                _logger.LogWarning("Missing tenant information. No JWT Token or X-Hotel-Code header found.");
+                throw new UnauthorizedAccessException("Missing tenant information. Please provide a valid JWT token or X-Hotel-Code header.");
             }
             catch (KeyNotFoundException)
             {
@@ -110,8 +182,8 @@ namespace zaaerIntegration.Services.Implementations
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Database error while resolving tenant for code: {HotelCode}. Error: {ErrorMessage}", 
-                    hotelCode, ex.Message);
+                var tenantCode = _currentTenant?.Code ?? "Unknown";
+                _logger.LogError(ex, "❌ Database error while resolving tenant. Error: {ErrorMessage}", ex.Message);
                 
                 // Check if it's a database connection error
                 if (ex is Microsoft.Data.SqlClient.SqlException || 
@@ -120,12 +192,12 @@ namespace zaaerIntegration.Services.Implementations
                     ex.Message.Contains("timeout", StringComparison.OrdinalIgnoreCase))
                 {
                     throw new InvalidOperationException(
-                        $"Failed to connect to Master Database (db29328) while resolving tenant. " +
+                        $"Failed to connect to Master Database while resolving tenant. " +
                         $"Please check Master Database connection. Error: {ex.Message}", ex);
                 }
                 
                 throw new InvalidOperationException(
-                    $"An error occurred while resolving tenant for code: {hotelCode}. Error: {ex.Message}", ex);
+                    $"An error occurred while resolving tenant. Error: {ex.Message}", ex);
             }
         }
 

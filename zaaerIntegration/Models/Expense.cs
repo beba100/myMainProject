@@ -43,6 +43,28 @@ namespace FinanceLedgerAPI.Models
         [Column("updated_at")]
         public DateTime? UpdatedAt { get; set; }
 
+        /// <summary>
+        /// حالة الموافقة على المصروف
+        /// Approval status: auto-approved, pending, accepted, rejected
+        /// </summary>
+        [Column("approval_status")]
+        [MaxLength(20)]
+        public string ApprovalStatus { get; set; } = "auto-approved";
+
+        /// <summary>
+        /// معرف المستخدم الذي وافق/رفض المصروف
+        /// User ID who approved/rejected the expense
+        /// </summary>
+        [Column("approved_by")]
+        public int? ApprovedBy { get; set; }
+
+        /// <summary>
+        /// تاريخ ووقت الموافقة/الرفض
+        /// Date and time of approval/rejection
+        /// </summary>
+        [Column("approved_at")]
+        public DateTime? ApprovedAt { get; set; }
+
         // Navigation properties
         [ForeignKey("HotelId")]
         public HotelSettings? HotelSettings { get; set; }

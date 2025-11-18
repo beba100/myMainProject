@@ -44,10 +44,7 @@ namespace zaaerIntegration.Data
         public DbSet<Refund> Refunds { get; set; }
         public DbSet<CreditNote> CreditNotes { get; set; }
         public DbSet<HotelSettings> HotelSettings { get; set; }
-        public DbSet<User> Users { get; set; }
-        public DbSet<Role> Roles { get; set; }
-        public DbSet<Permission> Permissions { get; set; }
-        public DbSet<RolePermission> RolePermissions { get; set; }
+        // User, Role, Permission, RolePermission removed - now in Master DB only
         public DbSet<RoomTypeRate> RoomTypeRates { get; set; }
         public DbSet<SeasonalRate> SeasonalRates { get; set; }
         public DbSet<SeasonalRateItem> SeasonalRateItems { get; set; }
@@ -87,10 +84,7 @@ namespace zaaerIntegration.Data
             ConfigureFloorRelationships(modelBuilder);
             ConfigureRoomTypeRelationships(modelBuilder);
             ConfigureCorporateCustomerRelationships(modelBuilder);
-            ConfigureUserRelationships(modelBuilder);
-            ConfigureRoleRelationships(modelBuilder);
-            ConfigurePermissionRelationships(modelBuilder);
-            ConfigureRolePermissionRelationships(modelBuilder);
+            // User, Role, Permission, RolePermission relationships removed - now in Master DB only
             ConfigureRoomTypeRateRelationships(modelBuilder);
             ConfigureSeasonalRateRelationships(modelBuilder);
             ConfigureZatcaDetails(modelBuilder);
@@ -574,84 +568,8 @@ namespace zaaerIntegration.Data
             // The ReservationId foreign key will still work for data integrity
         }
 
-        private void ConfigureUserRelationships(ModelBuilder modelBuilder)
-        {
-            // User relationships
-            modelBuilder.Entity<User>()
-                .HasOne(u => u.HotelSettings)
-                .WithMany()
-                .HasForeignKey(u => u.HotelId)
-                .HasConstraintName("FK_Users_HotelSettings")
-                .OnDelete(DeleteBehavior.Restrict);
-
-            modelBuilder.Entity<User>()
-                .HasOne(u => u.Role)
-                .WithMany(r => r.Users)
-                .HasForeignKey(u => u.RoleId)
-                .HasConstraintName("FK_Users_Roles")
-                .OnDelete(DeleteBehavior.SetNull);
-        }
-
-        private void ConfigureRoleRelationships(ModelBuilder modelBuilder)
-        {
-            // Role relationships
-            modelBuilder.Entity<Role>()
-                .HasOne(r => r.HotelSettings)
-                .WithMany()
-                .HasForeignKey(r => r.HotelId)
-                .HasConstraintName("FK_Roles_HotelSettings")
-                .OnDelete(DeleteBehavior.Restrict);
-
-            modelBuilder.Entity<Role>()
-                .HasOne(r => r.CreatedByUser)
-                .WithMany()
-                .HasForeignKey(r => r.CreatedBy)
-                .HasConstraintName("FK_Roles_CreatedBy_Users")
-                .OnDelete(DeleteBehavior.SetNull);
-
-            modelBuilder.Entity<Role>()
-                .HasOne(r => r.UpdatedByUser)
-                .WithMany()
-                .HasForeignKey(r => r.UpdatedBy)
-                .HasConstraintName("FK_Roles_UpdatedBy_Users")
-                .OnDelete(DeleteBehavior.SetNull);
-        }
-
-        private void ConfigurePermissionRelationships(ModelBuilder modelBuilder)
-        {
-            // Permission relationships - no foreign keys needed as permissions are global
-        }
-
-        private void ConfigureRolePermissionRelationships(ModelBuilder modelBuilder)
-        {
-            // RolePermission relationships
-            modelBuilder.Entity<RolePermission>()
-                .HasOne(rp => rp.Role)
-                .WithMany(r => r.RolePermissions)
-                .HasForeignKey(rp => rp.RoleId)
-                .HasConstraintName("FK_RolePermissions_Roles")
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<RolePermission>()
-                .HasOne(rp => rp.Permission)
-                .WithMany(p => p.RolePermissions)
-                .HasForeignKey(rp => rp.PermissionId)
-                .HasConstraintName("FK_RolePermissions_Permissions")
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<RolePermission>()
-                .HasOne(rp => rp.CreatedByUser)
-                .WithMany()
-                .HasForeignKey(rp => rp.CreatedBy)
-                .HasConstraintName("FK_RolePermissions_CreatedBy_Users")
-                .OnDelete(DeleteBehavior.SetNull);
-
-            // Unique constraint to prevent duplicate role-permission combinations
-            modelBuilder.Entity<RolePermission>()
-                .HasIndex(rp => new { rp.RoleId, rp.PermissionId })
-                .IsUnique()
-                .HasDatabaseName("IX_RolePermissions_RoleId_PermissionId");
-        }
+        // User, Role, Permission, RolePermission relationships removed
+        // These entities are now in Master DB only, not in Tenant DB
 
         private void ConfigureRoomTypeRateRelationships(ModelBuilder modelBuilder)
         {

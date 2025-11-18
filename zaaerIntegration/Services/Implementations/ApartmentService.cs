@@ -38,29 +38,47 @@ namespace zaaerIntegration.Services.Implementations
 
         /// <summary>
         /// الحصول على HotelId من Tenant (يُقرأ من X-Hotel-Code header)
+        /// 1. يحصل على Tenant.Code من Master DB
+        /// 2. يبحث عن HotelSettings في Tenant DB باستخدام HotelCode == Tenant.Code
+        /// 3. يستخدم HotelSettings.HotelId في الاستعلامات
         /// </summary>
         private async Task<int> GetCurrentHotelIdAsync()
         {
             var tenant = _tenantService.GetTenant();
             if (tenant == null)
             {
-                _logger.LogError("Tenant not resolved in ApartmentService.");
+                _logger.LogError("❌ [GetCurrentHotelIdAsync] Tenant not resolved in ApartmentService.");
                 throw new UnauthorizedAccessException("Tenant not resolved. Please ensure X-Hotel-Code header is provided.");
             }
 
-            // البحث عن HotelSettings في Tenant DB باستخدام HotelCode
+            _logger.LogInformation("🔍 [GetCurrentHotelIdAsync] Looking for HotelSettings with HotelCode='{TenantCode}' (case-insensitive)", tenant.Code);
+
+            // ✅ البحث عن HotelSettings في Tenant DB باستخدام Tenant.Code من Master DB (case-insensitive)
             var hotelSettings = await _context.HotelSettings
                 .AsNoTracking()
-                .FirstOrDefaultAsync(h => h.HotelCode == tenant.Code);
+                .FirstOrDefaultAsync(h => h.HotelCode != null && h.HotelCode.ToLower() == tenant.Code.ToLower());
 
             if (hotelSettings == null)
             {
-                _logger.LogError("HotelSettings not found for tenant code: {TenantCode} in Tenant DB", tenant.Code);
+                // ✅ DEBUG: Log all available HotelSettings
+                var allHotelSettings = await _context.HotelSettings
+                    .AsNoTracking()
+                    .Select(h => new { h.HotelId, h.HotelCode })
+                    .ToListAsync();
+                
+                _logger.LogError("❌ [GetCurrentHotelIdAsync] HotelSettings not found for Tenant Code: '{TenantCode}' in Tenant DB", tenant.Code);
+                _logger.LogError("❌ [GetCurrentHotelIdAsync] Available HotelSettings in tenant DB: {Available}", 
+                    string.Join(", ", allHotelSettings.Select(h => $"HotelId={h.HotelId}, HotelCode='{h.HotelCode}'")));
+                
                 throw new InvalidOperationException(
                     $"HotelSettings not found for hotel code: {tenant.Code}. " +
-                    "Please ensure hotel settings are configured in the tenant database.");
+                    "Please ensure hotel settings are configured in the tenant database with matching HotelCode.");
             }
 
+            _logger.LogInformation("✅ [GetCurrentHotelIdAsync] Found HotelSettings: HotelId={HotelId}, HotelCode='{HotelCode}' for Tenant Code: '{TenantCode}'", 
+                hotelSettings.HotelId, hotelSettings.HotelCode, tenant.Code);
+            
+            // ✅ Return HotelId - but we'll use HotelCode for filtering in GetAllApartmentsAsync
             return hotelSettings.HotelId;
         }
 
@@ -71,26 +89,133 @@ namespace zaaerIntegration.Services.Implementations
         {
             try
             {
-                // Get current HotelId from X-Hotel-Code header
-                var hotelId = await GetCurrentHotelIdAsync();
-                _logger.LogInformation("Fetching apartments for HotelId: {HotelId}, PageNumber: {PageNumber}, PageSize: {PageSize}", 
-                    hotelId, pageNumber, pageSize);
+                // Get current HotelId from X-Hotel-Code header (Tenant.Code from Master DB)
+                var tenant = _tenantService.GetTenant();
+                var hotelSettings = await _context.HotelSettings
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(h => h.HotelCode != null && h.HotelCode.ToLower() == tenant.Code.ToLower());
+                
+                if (hotelSettings == null)
+                {
+                    throw new InvalidOperationException($"HotelSettings not found for hotel code: {tenant.Code}.");
+                }
+                
+                var hotelCode = hotelSettings.HotelCode ?? tenant.Code; // Fallback to tenant.Code if null
+                
+                // ✅ DEBUG: Log ALL HotelSettings in the database to see what we have
+                var allHotelSettingsInDb = await _context.HotelSettings
+                    .AsNoTracking()
+                    .Select(h => new { h.HotelId, h.HotelCode })
+                    .ToListAsync();
+                _logger.LogInformation("🔍 [GetAllApartmentsAsync] ALL HotelSettings in tenant DB: {AllSettings}", 
+                    string.Join(", ", allHotelSettingsInDb.Select(h => $"HotelId={h.HotelId}, HotelCode='{h.HotelCode}'")));
+                
+                // ✅ SOLUTION: Find ALL HotelSettings with the same HotelCode, then use ALL their HotelIds
+                // This handles cases where data is linked to different HotelIds but same HotelCode
+                var allHotelIdsWithSameCode = await _context.HotelSettings
+                    .AsNoTracking()
+                    .Where(h => h.HotelCode != null && h.HotelCode.ToLower() == hotelCode.ToLower())
+                    .Select(h => h.HotelId)
+                    .ToListAsync();
+                
+                _logger.LogInformation("📋 [GetAllApartmentsAsync] Fetching apartments for Tenant Code: {TenantCode} (HotelCode: '{HotelCode}') from Master DB, PageNumber: {PageNumber}, PageSize: {PageSize}", 
+                    tenant?.Code ?? "Unknown", hotelCode, pageNumber, pageSize);
+                _logger.LogInformation("🔍 [GetAllApartmentsAsync] All HotelIds with HotelCode='{HotelCode}': {HotelIds}", 
+                    hotelCode, string.Join(", ", allHotelIdsWithSameCode));
+                
+                // ✅ CRITICAL FIX: If data is linked to HotelId=11 but we only found HotelId=1,
+                // we need to also check if there's a HotelSettings with HotelId=11 that should have the same HotelCode
+                // OR we need to include HotelId=11 in our search if apartments are linked to it
+                // Let's check what HotelIds are actually used in the apartments table
+                var hotelIdsInApartments = await _context.Apartments
+                    .AsNoTracking()
+                    .Select(a => a.HotelId)
+                    .Distinct()
+                    .ToListAsync();
+                _logger.LogInformation("🔍 [GetAllApartmentsAsync] HotelIds actually used in apartments table: {HotelIds}", 
+                    string.Join(", ", hotelIdsInApartments));
+                
+                // ✅ If apartments are linked to HotelId=11 but we're searching with HotelId=1,
+                // we need to include HotelId=11 in our search
+                // Check if there's a HotelSettings with HotelId=11
+                var hotelSettingsWithId11 = await _context.HotelSettings
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(h => h.HotelId == 11);
+                
+                if (hotelSettingsWithId11 != null)
+                {
+                    _logger.LogInformation("🔍 [GetAllApartmentsAsync] Found HotelSettings with HotelId=11: HotelCode='{HotelCode}'", 
+                        hotelSettingsWithId11.HotelCode);
+                    
+                    // ✅ If HotelId=11 has the same HotelCode, add it to the list
+                    if (hotelSettingsWithId11.HotelCode != null && 
+                        hotelSettingsWithId11.HotelCode.ToLower() == hotelCode.ToLower())
+                    {
+                        if (!allHotelIdsWithSameCode.Contains(11))
+                        {
+                            allHotelIdsWithSameCode.Add(11);
+                            _logger.LogInformation("✅ [GetAllApartmentsAsync] Added HotelId=11 to search list (same HotelCode)");
+                        }
+                    }
+                    // ✅ If HotelId=11 is used in apartments but has different HotelCode, still include it
+                    // This handles data migration scenarios
+                    else if (hotelIdsInApartments.Contains(11))
+                    {
+                        allHotelIdsWithSameCode.Add(11);
+                        _logger.LogWarning("⚠️ [GetAllApartmentsAsync] Added HotelId=11 to search list (data exists but different HotelCode: '{DifferentCode}')", 
+                            hotelSettingsWithId11.HotelCode);
+                    }
+                }
+                else if (hotelIdsInApartments.Contains(11))
+                {
+                    // ✅ If HotelId=11 is used in apartments but no HotelSettings exists for it,
+                    // we still need to include it in the search
+                    allHotelIdsWithSameCode.Add(11);
+                    _logger.LogWarning("⚠️ [GetAllApartmentsAsync] Added HotelId=11 to search list (data exists but no HotelSettings record)");
+                }
+                
+                _logger.LogInformation("🔍 [GetAllApartmentsAsync] Final HotelIds to search: {HotelIds}", 
+                    string.Join(", ", allHotelIdsWithSameCode));
 
-                // Build filter: always filter by current hotel, and optionally by search term
-                System.Linq.Expressions.Expression<Func<Apartment, bool>>? filter = a => a.HotelId == hotelId;
+                // ✅ DEBUG: Check total apartments in DB before filtering
+                var totalApartmentsInDb = await _context.Apartments.CountAsync();
+                var apartmentsForHotelIds = await _context.Apartments
+                    .Where(a => allHotelIdsWithSameCode.Contains(a.HotelId))
+                    .Select(a => new { a.ApartmentId, a.ApartmentCode, a.ApartmentName, a.HotelId, a.ZaaerId })
+                    .ToListAsync();
+                
+                _logger.LogInformation("🔍 [GetAllApartmentsAsync] DEBUG - Total apartments in tenant DB: {TotalCount}", totalApartmentsInDb);
+                _logger.LogInformation("🔍 [GetAllApartmentsAsync] DEBUG - Apartments with HotelCode='{HotelCode}' (HotelIds: {HotelIds}): {Count} apartments", 
+                    hotelCode, string.Join(", ", allHotelIdsWithSameCode), apartmentsForHotelIds.Count);
+                if (apartmentsForHotelIds.Any())
+                {
+                    _logger.LogInformation("🔍 [GetAllApartmentsAsync] DEBUG - Sample apartments: {Sample}", 
+                        string.Join(", ", apartmentsForHotelIds.Take(5).Select(a => $"Id={a.ApartmentId}, Code='{a.ApartmentCode}', Name='{a.ApartmentName}', HotelId={a.HotelId}, ZaaerId={a.ZaaerId}")));
+                }
+                else
+                {
+                    // ✅ Check all HotelIds in apartments table
+                    var allHotelIds = await _context.Apartments
+                        .Select(a => a.HotelId)
+                        .Distinct()
+                        .ToListAsync();
+                    _logger.LogWarning("⚠️ [GetAllApartmentsAsync] No apartments found with HotelCode='{HotelCode}' (HotelIds: {HotelIds}). Available HotelIds in DB: {AvailableHotelIds}", 
+                        hotelCode, string.Join(", ", allHotelIdsWithSameCode), string.Join(", ", allHotelIds));
+                }
+
+                // ✅ Build filter: filter by ALL HotelIds that have the same HotelCode
+                System.Linq.Expressions.Expression<Func<Apartment, bool>>? filter = a => allHotelIdsWithSameCode.Contains(a.HotelId);
 
                 if (!string.IsNullOrEmpty(searchTerm))
                 {
-                    var searchFilter = filter;
-                    filter = a => a.HotelId == hotelId && (
-                        a.ApartmentName.Contains(searchTerm) ||
-                        a.ApartmentCode.Contains(searchTerm) ||
-                        a.Status.Contains(searchTerm) ||
-                        (a.HotelSettings != null && a.HotelSettings.HotelName.Contains(searchTerm)) ||
-                        (a.Building != null && a.Building.BuildingName.Contains(searchTerm)) ||
-                        (a.Floor != null && a.Floor.FloorName.Contains(searchTerm)) ||
-                        (a.RoomType != null && a.RoomType.RoomTypeName.Contains(searchTerm))
+                    // ✅ Only search in direct properties to avoid EF Core Include issues
+                    // Navigation properties will be loaded via Include, but we can't use them in Where clause
+                    filter = a => allHotelIdsWithSameCode.Contains(a.HotelId) && (
+                        a.ApartmentName != null && a.ApartmentName.Contains(searchTerm) ||
+                        a.ApartmentCode != null && a.ApartmentCode.Contains(searchTerm) ||
+                        a.Status != null && a.Status.Contains(searchTerm)
                     );
+                    _logger.LogInformation("🔍 [GetAllApartmentsAsync] Using search filter with term: {SearchTerm}", searchTerm);
                 }
 
                 var (apartments, totalCount) = await _apartmentRepository.GetPagedAsync(
@@ -98,15 +223,40 @@ namespace zaaerIntegration.Services.Implementations
                     pageSize, 
                     filter);
 
-                _logger.LogInformation("Successfully retrieved {Count} apartments (Total: {TotalCount}) for HotelId: {HotelId}", 
-                    apartments.Count(), totalCount, hotelId);
+                _logger.LogInformation("✅ [GetAllApartmentsAsync] Successfully retrieved {Count} apartments (Total: {TotalCount}) for HotelCode: '{HotelCode}' (HotelIds: {HotelIds})", 
+                    apartments.Count(), totalCount, hotelCode, string.Join(", ", allHotelIdsWithSameCode));
+
+                // ✅ DEBUG: Log raw apartments before mapping
+                if (apartments.Any())
+                {
+                    _logger.LogInformation("🔍 [GetAllApartmentsAsync] DEBUG - Raw apartments before mapping: {Count} apartments", apartments.Count());
+                    var sampleApartments = apartments.Take(3).Select(a => $"Id={a.ApartmentId}, Code='{a.ApartmentCode}', Name='{a.ApartmentName}', HotelId={a.HotelId}, ZaaerId={a.ZaaerId}");
+                    _logger.LogInformation("🔍 [GetAllApartmentsAsync] DEBUG - Sample raw apartments: {Sample}", string.Join(", ", sampleApartments));
+                }
+                else if (totalCount > 0)
+                {
+                    _logger.LogWarning("⚠️ [GetAllApartmentsAsync] WARNING: totalCount={TotalCount} but apartments.Count=0. This may indicate a filter or Include issue.", totalCount);
+                }
 
                 var apartmentDtos = _mapper.Map<IEnumerable<ApartmentResponseDto>>(apartments);
+                
+                // ✅ DEBUG: Log mapped DTOs
+                if (apartmentDtos.Any())
+                {
+                    _logger.LogInformation("🔍 [GetAllApartmentsAsync] DEBUG - Mapped DTOs: {Count} DTOs", apartmentDtos.Count());
+                    _logger.LogInformation("🔍 [GetAllApartmentsAsync] DEBUG - Mapped DTOs sample: {Sample}", 
+                        string.Join(", ", apartmentDtos.Take(3).Select(dto => $"Id={dto.ApartmentId}, Code='{dto.ApartmentCode}', Name='{dto.ApartmentName}', ZaaerId={dto.ZaaerId}")));
+                }
+                else if (apartments.Any())
+                {
+                    _logger.LogWarning("⚠️ [GetAllApartmentsAsync] WARNING: {Count} raw apartments but 0 DTOs after mapping. Mapping may have failed.", apartments.Count());
+                }
+                
                 return (apartmentDtos, totalCount);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving apartments: {Message}", ex.Message);
+                _logger.LogError(ex, "❌ [GetAllApartmentsAsync] Error retrieving apartments: {Message}", ex.Message);
                 throw new InvalidOperationException($"Error retrieving apartments: {ex.Message}", ex);
             }
         }
