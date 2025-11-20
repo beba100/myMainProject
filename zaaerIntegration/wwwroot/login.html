@@ -204,29 +204,25 @@
         }
 
         .logo-icon {
-            width: 40px;
-            height: 40px;
-            border: 3px solid #1a1a2e;
-            border-radius: 50%;
+            width: 60px;
+            height: 60px;
             display: flex;
             align-items: center;
             justify-content: center;
             position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            flex-shrink: 0;
         }
 
-        .logo-icon::before {
-            content: '✓';
-            color: #00D4AA;
-            font-size: 20px;
-            font-weight: bold;
-        }
-
-        .logo-icon::after {
-            content: '📍';
-            position: absolute;
-            bottom: -8px;
-            right: -8px;
-            font-size: 16px;
+        .logo-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            padding: 4px;
         }
 
         .illustration-container {
@@ -538,7 +534,9 @@
             <div class="logo-arabic">العييري</div>
             <div class="logo-english">
                 <span>ALEAIRY GROUP</span>
-                <div class="logo-icon"></div>
+                <div class="logo-icon">
+                    <img src="logo/logo.jpeg" alt="ALEAIRY GROUP Logo" />
+                </div>
             </div>
         </div>
         <div class="illustration-container">
@@ -668,10 +666,14 @@
                 const userInfo = {
                     userId: data.userId,
                     username: data.username,
+                    fullName: data.fullName || data.FullName || null,
                     tenantId: data.tenantId,
                     tenantCode: data.tenantCode,
                     tenantName: data.tenantName,
-                    roles: data.roles
+                    roles: data.roles,
+                    phoneNumber: data.phoneNumber || data.PhoneNumber || null,
+                    email: data.email || data.Email || null,
+                    employeeNumber: data.employeeNumber || data.EmployeeNumber || null
                 };
                 localStorage.setItem('userInfo', JSON.stringify(userInfo));
                 
@@ -699,11 +701,59 @@
                 localStorage.setItem('sessionValid', 'true');
                 sessionStorage.setItem('fromLogin', 'true');
 
-                // ✅ فتح صفحة expenses.html
+                // ✅ التحقق من الدور وإعادة التوجيه بناءً عليه
+                const roles = data.roles || [];
+                const hasSupervisorRole = roles.some(role => {
+                    if (typeof role === 'string') {
+                        return role.toLowerCase() === 'supervisor';
+                    } else if (typeof role === 'object' && role.code) {
+                        return role.code.toLowerCase() === 'supervisor';
+                    }
+                    return false;
+                });
+                
+                const hasManagerRole = roles.some(role => {
+                    if (typeof role === 'string') {
+                        return role.toLowerCase() === 'manager';
+                    } else if (typeof role === 'object' && role.code) {
+                        return role.code.toLowerCase() === 'manager';
+                    }
+                    return false;
+                });
+                
+                const hasAccountantRole = roles.some(role => {
+                    if (typeof role === 'string') {
+                        return role.toLowerCase() === 'accountant';
+                    } else if (typeof role === 'object' && role.code) {
+                        return role.code.toLowerCase() === 'accountant';
+                    }
+                    return false;
+                });
+                
+                const hasAdminRole = roles.some(role => {
+                    if (typeof role === 'string') {
+                        return role.toLowerCase() === 'admin';
+                    } else if (typeof role === 'object' && role.code) {
+                        return role.code.toLowerCase() === 'admin';
+                    }
+                    return false;
+                });
+
                 showAlert('تم تسجيل الدخول بنجاح! جاري التوجيه...', 'success');
                 
                 setTimeout(() => {
-                    window.location.href = 'expenses.html';
+                    // ✅ ترتيب الأولويات: Admin -> Manager -> Accountant -> Supervisor -> Employee
+                    if (hasAdminRole) {
+                        window.location.href = 'admin-expenses.html';
+                    } else if (hasManagerRole) {
+                        window.location.href = 'manager-expenses.html';
+                    } else if (hasAccountantRole) {
+                        window.location.href = 'accountant-expenses.html';
+                    } else if (hasSupervisorRole) {
+                        window.location.href = 'supervisor-expenses.html';
+                    } else {
+                        window.location.href = 'expenses.html';
+                    }
                 }, 1000);
 
             } catch (error) {

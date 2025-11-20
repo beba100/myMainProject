@@ -11,6 +11,8 @@ namespace zaaerIntegration.DTOs.Expense
         [Required]
         public DateTime DateTime { get; set; }
 
+        public DateTime? DueDate { get; set; }
+
         [MaxLength(500)]
         public string? Comment { get; set; }
 

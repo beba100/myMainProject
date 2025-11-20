@@ -96,7 +96,28 @@ namespace zaaerIntegration.Controllers
             {
                 _logger.LogInformation("🔍 Fetching expense with id: {ExpenseId}", id);
 
-                var expense = await _expenseService.GetByIdAsync(id);
+                // ✅ الحصول على X-Hotel-Code header إذا كان موجوداً (للمشرفين)
+                string? hotelCode = null;
+                if (HttpContext.Request.Headers.TryGetValue("X-Hotel-Code", out var hotelCodeValues) && 
+                    !string.IsNullOrWhiteSpace(hotelCodeValues))
+                {
+                    hotelCode = hotelCodeValues.ToString().Trim();
+                    _logger.LogInformation("✅ [GetById] X-Hotel-Code header found: {HotelCode}", hotelCode);
+                }
+
+                ExpenseResponseDto? expense = null;
+
+                // ✅ إذا كان هناك X-Hotel-Code header، نستخدمه لتحديد قاعدة البيانات الصحيحة
+                if (!string.IsNullOrWhiteSpace(hotelCode))
+                {
+                    // ✅ للمشرفين: البحث في قاعدة البيانات الصحيحة بناءً على HotelCode
+                    expense = await GetExpenseByIdForSupervisorAsync(id, hotelCode);
+                }
+                else
+                {
+                    // ✅ للمستخدمين العاديين: استخدام الطريقة العادية
+                    expense = await _expenseService.GetByIdAsync(id);
+                }
 
                 if (expense == null)
                 {
@@ -112,6 +133,125 @@ namespace zaaerIntegration.Controllers
             {
                 _logger.LogError(ex, "❌ Error fetching expense: {Message}", ex.Message);
                 return StatusCode(500, new { error = "Failed to fetch expense", details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// الحصول على تفاصيل مصروف للمشرف (مع تحديد قاعدة البيانات الصحيحة)
+        /// Get expense details for supervisor (with correct database identification)
+        /// </summary>
+        private async Task<ExpenseResponseDto?> GetExpenseByIdForSupervisorAsync(int expenseId, string hotelCode)
+        {
+            try
+            {
+                _logger.LogInformation("🔍 [GetExpenseByIdForSupervisor] Fetching expense: ExpenseId={ExpenseId}, HotelCode={HotelCode}", 
+                    expenseId, hotelCode);
+
+                // ✅ الحصول على معلومات Tenant من Master DB
+                var masterDb = HttpContext.RequestServices.GetRequiredService<MasterDbContext>();
+                var tenant = await masterDb.Tenants
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(t => t.Code.ToLower() == hotelCode.ToLower());
+
+                if (tenant == null)
+                {
+                    _logger.LogError("❌ [GetExpenseByIdForSupervisor] Tenant not found for HotelCode: {HotelCode}", hotelCode);
+                    return null;
+                }
+
+                if (string.IsNullOrWhiteSpace(tenant.DatabaseName))
+                {
+                    _logger.LogError("❌ [GetExpenseByIdForSupervisor] DatabaseName not set for Tenant: {Code}", tenant.Code);
+                    return null;
+                }
+
+                // ✅ بناء connection string للـ tenant
+                var configuration = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+                var server = configuration["TenantDatabase:Server"]?.Trim();
+                var dbUserId = configuration["TenantDatabase:UserId"]?.Trim();
+                var password = configuration["TenantDatabase:Password"]?.Trim();
+
+                if (string.IsNullOrWhiteSpace(server) || string.IsNullOrWhiteSpace(dbUserId) || string.IsNullOrWhiteSpace(password))
+                {
+                    _logger.LogError("❌ [GetExpenseByIdForSupervisor] TenantDatabase settings not found in configuration");
+                    return null;
+                }
+
+                var connectionString = $"Server={server}; Database={tenant.DatabaseName}; User Id={dbUserId}; Password={password}; Encrypt=True; TrustServerCertificate=True; MultipleActiveResultSets=True;";
+
+                // ✅ إنشاء DbContext للـ tenant
+                var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
+                optionsBuilder.UseSqlServer(connectionString);
+                using var tenantContext = new ApplicationDbContext(optionsBuilder.Options);
+
+                // ✅ الحصول على HotelId من HotelSettings
+                var hotelSettings = await tenantContext.HotelSettings
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(h => h.HotelCode != null && h.HotelCode.ToLower() == hotelCode.ToLower());
+
+                if (hotelSettings == null)
+                {
+                    _logger.LogError("❌ [GetExpenseByIdForSupervisor] HotelSettings not found for HotelCode: {HotelCode}", hotelCode);
+                    return null;
+                }
+
+                // ✅ البحث عن المصروف في قاعدة البيانات الصحيحة
+                var expense = await tenantContext.Expenses
+                    .AsNoTracking()
+                    .Include(e => e.ExpenseCategory)
+                    .Include(e => e.HotelSettings)
+                    .Include(e => e.ExpenseRooms)
+                        .ThenInclude(er => er.Apartment)
+                    .FirstOrDefaultAsync(e => e.ExpenseId == expenseId && e.HotelId == hotelSettings.HotelId);
+
+                if (expense == null)
+                {
+                    _logger.LogWarning("⚠️ [GetExpenseByIdForSupervisor] Expense not found: ExpenseId={ExpenseId}, HotelId={HotelId}, HotelCode={HotelCode}", 
+                        expenseId, hotelSettings.HotelId, hotelCode);
+                    return null;
+                }
+
+                // ✅ تحويل إلى DTO
+                var expenseRooms = expense.ExpenseRooms.Select(er => new ExpenseRoomResponseDto
+                {
+                    ExpenseRoomId = er.ExpenseRoomId,
+                    ExpenseId = er.ExpenseId,
+                    ZaaerId = er.ZaaerId,
+                    Purpose = er.Purpose,
+                    Amount = er.Amount,
+                    CreatedAt = er.CreatedAt,
+                    ApartmentId = er.Apartment?.ApartmentId,
+                    ApartmentCode = er.Apartment?.ApartmentCode,
+                    ApartmentName = er.Apartment?.ApartmentName
+                }).ToList();
+
+                return new ExpenseResponseDto
+                {
+                    ExpenseId = expense.ExpenseId,
+                    HotelId = expense.HotelId,
+                    HotelName = expense.HotelSettings?.HotelName,
+                    HotelCode = hotelCode,
+                    DateTime = expense.DateTime,
+                    DueDate = expense.DueDate,
+                    Comment = expense.Comment,
+                    ExpenseCategoryId = expense.ExpenseCategoryId,
+                    ExpenseCategoryName = expense.ExpenseCategory?.CategoryName,
+                    TaxRate = expense.TaxRate,
+                    TaxAmount = expense.TaxAmount,
+                    TotalAmount = expense.TotalAmount,
+                    CreatedAt = expense.CreatedAt,
+                    UpdatedAt = expense.UpdatedAt,
+                    ApprovalStatus = expense.ApprovalStatus,
+                    ApprovedBy = expense.ApprovedBy,
+                    ApprovedAt = expense.ApprovedAt,
+                    RejectionReason = expense.RejectionReason,
+                    ExpenseRooms = expenseRooms
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ [GetExpenseByIdForSupervisor] Error fetching expense: {Message}", ex.Message);
+                return null;
             }
         }
 
@@ -937,6 +1077,29 @@ namespace zaaerIntegration.Controllers
             {
                 _logger.LogInformation("📸 Fetching images for expense: ExpenseId={ExpenseId}", expenseId);
 
+                // ✅ الحصول على X-Hotel-Code header إذا كان موجوداً (للمشرفين)
+                string? hotelCode = null;
+                if (HttpContext.Request.Headers.TryGetValue("X-Hotel-Code", out var hotelCodeValues) && 
+                    !string.IsNullOrWhiteSpace(hotelCodeValues))
+                {
+                    hotelCode = hotelCodeValues.ToString().Trim();
+                    _logger.LogInformation("✅ [GetExpenseImages] X-Hotel-Code header found: {HotelCode}", hotelCode);
+                }
+
+                // ✅ إذا كان هناك X-Hotel-Code header، نستخدمه لتحديد قاعدة البيانات الصحيحة
+                if (!string.IsNullOrWhiteSpace(hotelCode))
+                {
+                    // ✅ للمشرفين: البحث في قاعدة البيانات الصحيحة بناءً على HotelCode
+                    var supervisorImages = await GetExpenseImagesForSupervisorAsync(expenseId, hotelCode);
+                    if (supervisorImages != null)
+                    {
+                        return Ok(supervisorImages);
+                    }
+                    // If not found, return NotFound
+                    return NotFound(new { error = $"Expense with id {expenseId} not found in tenant: {hotelCode}" });
+                }
+
+                // ✅ للمستخدمين العاديين: استخدام الطريقة العادية
                 var tenant = _tenantService.GetTenant();
                 if (tenant == null)
                 {
@@ -999,23 +1162,33 @@ namespace zaaerIntegration.Controllers
         /// Approve or reject an expense
         /// </summary>
         /// <param name="id">معرف المصروف</param>
-        /// <param name="status">حالة الموافقة (accepted أو rejected)</param>
+        /// <param name="status">حالة الموافقة (accepted, rejected, awaiting-manager, awaiting-accountant, أو awaiting-admin)</param>
+        /// <param name="rejectionReason">سبب الرفض (اختياري، يُستخدم فقط في حالة rejected)</param>
         /// <returns>نتيجة العملية</returns>
         [HttpPut("approve/{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> ApproveExpense(int id, [FromQuery] string status)
+        public async Task<IActionResult> ApproveExpense(int id, [FromQuery] string status, [FromQuery] string? rejectionReason = null)
         {
             try
             {
                 _logger.LogInformation("🔐 Approving/Rejecting expense: ExpenseId={ExpenseId}, Status={Status}", id, status);
 
                 // التحقق من صحة الحالة
-                if (status != "accepted" && status != "rejected")
+                if (status != "accepted" && status != "rejected" && status != "awaiting-manager" && status != "awaiting-accountant" && status != "awaiting-admin")
                 {
-                    return BadRequest(new { error = "Invalid status. Must be 'accepted' or 'rejected'" });
+                    return BadRequest(new { error = "Invalid status. Must be 'accepted', 'rejected', 'awaiting-manager', 'awaiting-accountant', or 'awaiting-admin'" });
+                }
+
+                // ✅ الحصول على X-Hotel-Code header إذا كان موجوداً (للمشرفين)
+                string? hotelCode = null;
+                if (HttpContext.Request.Headers.TryGetValue("X-Hotel-Code", out var hotelCodeValues) && 
+                    !string.IsNullOrWhiteSpace(hotelCodeValues))
+                {
+                    hotelCode = hotelCodeValues.ToString().Trim();
+                    _logger.LogInformation("✅ X-Hotel-Code header found: {HotelCode}", hotelCode);
                 }
 
                 // الحصول على UserId من JWT Token
@@ -1035,7 +1208,18 @@ namespace zaaerIntegration.Controllers
                     userId = 0; // Default value if not found
                 }
 
-                var expense = await _expenseService.ApproveExpenseAsync(id, status, userId.Value);
+                // ✅ إذا كان هناك X-Hotel-Code header، نستخدمه لتحديد قاعدة البيانات الصحيحة
+                ExpenseResponseDto? expense = null;
+                if (!string.IsNullOrWhiteSpace(hotelCode))
+                {
+                    // ✅ للمشرفين: البحث في قاعدة البيانات الصحيحة بناءً على HotelCode
+                    expense = await ApproveExpenseForSupervisorAsync(id, status, userId.Value, rejectionReason, hotelCode);
+                }
+                else
+                {
+                    // ✅ للمستخدمين العاديين: استخدام الطريقة العادية
+                    expense = await _expenseService.ApproveExpenseAsync(id, status, userId.Value, rejectionReason);
+                }
 
                 if (expense == null)
                 {
@@ -1051,13 +1235,578 @@ namespace zaaerIntegration.Controllers
                     expenseId = expense.ExpenseId,
                     status = expense.ApprovalStatus,
                     approvedBy = expense.ApprovedBy,
-                    approvedAt = expense.ApprovedAt
+                    approvedAt = expense.ApprovedAt,
+                    rejectionReason = expense.RejectionReason
                 });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ Error approving/rejecting expense: {Message}", ex.Message);
                 return StatusCode(500, new { error = "Failed to update expense status", details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// الموافقة/الرفض على مصروف للمشرف (مع تحديد قاعدة البيانات الصحيحة)
+        /// Approve/Reject expense for supervisor (with correct database identification)
+        /// </summary>
+        private async Task<ExpenseResponseDto?> ApproveExpenseForSupervisorAsync(int expenseId, string status, int approvedBy, string? rejectionReason, string hotelCode)
+        {
+            try
+            {
+                _logger.LogInformation("🔐 [ApproveExpenseForSupervisor] Approving expense: ExpenseId={ExpenseId}, Status={Status}, HotelCode={HotelCode}", 
+                    expenseId, status, hotelCode);
+
+                // ✅ الحصول على معلومات Tenant من Master DB
+                var masterDb = HttpContext.RequestServices.GetRequiredService<MasterDbContext>();
+                var tenant = await masterDb.Tenants
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(t => t.Code.ToLower() == hotelCode.ToLower());
+
+                if (tenant == null)
+                {
+                    _logger.LogError("❌ [ApproveExpenseForSupervisor] Tenant not found for HotelCode: {HotelCode}", hotelCode);
+                    throw new InvalidOperationException($"Tenant not found for hotel code: {hotelCode}");
+                }
+
+                if (string.IsNullOrWhiteSpace(tenant.DatabaseName))
+                {
+                    _logger.LogError("❌ [ApproveExpenseForSupervisor] DatabaseName not set for Tenant: {Code}", tenant.Code);
+                    throw new InvalidOperationException($"DatabaseName not configured for tenant: {tenant.Code}");
+                }
+
+                // ✅ بناء connection string للـ tenant
+                var configuration = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+                var server = configuration["TenantDatabase:Server"]?.Trim();
+                var dbUserId = configuration["TenantDatabase:UserId"]?.Trim();
+                var password = configuration["TenantDatabase:Password"]?.Trim();
+
+                if (string.IsNullOrWhiteSpace(server) || string.IsNullOrWhiteSpace(dbUserId) || string.IsNullOrWhiteSpace(password))
+                {
+                    _logger.LogError("❌ [ApproveExpenseForSupervisor] TenantDatabase settings not found in configuration");
+                    throw new InvalidOperationException("TenantDatabase settings not found in configuration");
+                }
+
+                var connectionString = $"Server={server}; Database={tenant.DatabaseName}; User Id={dbUserId}; Password={password}; Encrypt=True; TrustServerCertificate=True; MultipleActiveResultSets=True;";
+
+                // ✅ إنشاء DbContext للـ tenant
+                var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
+                optionsBuilder.UseSqlServer(connectionString);
+                using var tenantContext = new ApplicationDbContext(optionsBuilder.Options);
+
+                // ✅ الحصول على HotelId من HotelSettings
+                var hotelSettings = await tenantContext.HotelSettings
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(h => h.HotelCode != null && h.HotelCode.ToLower() == hotelCode.ToLower());
+
+                if (hotelSettings == null)
+                {
+                    _logger.LogError("❌ [ApproveExpenseForSupervisor] HotelSettings not found for HotelCode: {HotelCode}", hotelCode);
+                    throw new InvalidOperationException($"HotelSettings not found for hotel code: {hotelCode}");
+                }
+
+                // ✅ البحث عن المصروف في قاعدة البيانات الصحيحة
+                // ✅ محاولة البحث أولاً مع HotelId filter
+                var expense = await tenantContext.Expenses
+                    .FirstOrDefaultAsync(e => e.ExpenseId == expenseId && e.HotelId == hotelSettings.HotelId);
+
+                // ✅ إذا لم يتم العثور عليه، نبحث بدون HotelId filter (في حالة وجود مشكلة في التطابق)
+                if (expense == null)
+                {
+                    _logger.LogWarning("⚠️ [ApproveExpenseForSupervisor] Expense not found with HotelId filter. Trying without filter: ExpenseId={ExpenseId}, HotelId={HotelId}, HotelCode={HotelCode}", 
+                        expenseId, hotelSettings.HotelId, hotelCode);
+                    
+                    expense = await tenantContext.Expenses
+                        .FirstOrDefaultAsync(e => e.ExpenseId == expenseId);
+                    
+                    if (expense != null)
+                    {
+                        _logger.LogInformation("✅ [ApproveExpenseForSupervisor] Expense found without HotelId filter: ExpenseId={ExpenseId}, ActualHotelId={ActualHotelId}, ExpectedHotelId={ExpectedHotelId}", 
+                            expenseId, expense.HotelId, hotelSettings.HotelId);
+                    }
+                }
+
+                if (expense == null)
+                {
+                    _logger.LogError("❌ [ApproveExpenseForSupervisor] Expense not found: ExpenseId={ExpenseId}, HotelId={HotelId}, HotelCode={HotelCode}", 
+                        expenseId, hotelSettings.HotelId, hotelCode);
+                    throw new InvalidOperationException($"Expense with id {expenseId} not found in tenant database for hotel code {hotelCode}");
+                }
+
+                // ✅ تحديث حالة الموافقة
+                expense.ApprovalStatus = status;
+
+                bool awaitingNextLevel = status == "awaiting-manager" || status == "awaiting-accountant" || status == "awaiting-admin";
+                if (awaitingNextLevel)
+                {
+                    expense.ApprovedBy = null;
+                    expense.ApprovedAt = null;
+                }
+                else
+                {
+                    expense.ApprovedBy = approvedBy;
+                    expense.ApprovedAt = DateTime.Now;
+                }
+                expense.UpdatedAt = DateTime.Now;
+
+                // ✅ تحديث سبب الرفض إذا كان موجوداً
+                if (status == "rejected" && !string.IsNullOrWhiteSpace(rejectionReason))
+                {
+                    expense.RejectionReason = rejectionReason;
+                }
+                else if (status != "rejected")
+                {
+                    // ✅ مسح سبب الرفض إذا تمت الموافقة
+                    expense.RejectionReason = null;
+                }
+
+                await tenantContext.SaveChangesAsync();
+
+                _logger.LogInformation("✅ [ApproveExpenseForSupervisor] Expense approval updated: ExpenseId={ExpenseId}, Status={Status}, ApprovedBy={ApprovedBy}, HotelCode={HotelCode}", 
+                    expenseId, status, approvedBy, hotelCode);
+
+                // ✅ تحميل المصروف مع العلاقات لعرضه
+                var updatedExpense = await tenantContext.Expenses
+                    .AsNoTracking()
+                    .Include(e => e.ExpenseCategory)
+                    .Include(e => e.HotelSettings)
+                    .Include(e => e.ExpenseRooms)
+                        .ThenInclude(er => er.Apartment)
+                    .FirstOrDefaultAsync(e => e.ExpenseId == expenseId && e.HotelId == hotelSettings.HotelId);
+
+                // ✅ إذا لم يتم العثور عليه، نبحث بدون HotelId filter
+                if (updatedExpense == null)
+                {
+                    _logger.LogWarning("⚠️ [ApproveExpenseForSupervisor] Updated expense not found with HotelId filter. Trying without filter: ExpenseId={ExpenseId}", expenseId);
+                    updatedExpense = await tenantContext.Expenses
+                        .AsNoTracking()
+                        .Include(e => e.ExpenseCategory)
+                        .Include(e => e.HotelSettings)
+                        .Include(e => e.ExpenseRooms)
+                            .ThenInclude(er => er.Apartment)
+                        .FirstOrDefaultAsync(e => e.ExpenseId == expenseId);
+                }
+
+                if (updatedExpense == null)
+                {
+                    _logger.LogError("❌ [ApproveExpenseForSupervisor] Updated expense not found after save: ExpenseId={ExpenseId}", expenseId);
+                    throw new InvalidOperationException($"Failed to retrieve updated expense with id {expenseId}");
+                }
+
+                // ✅ تحويل إلى DTO
+                var expenseRooms = updatedExpense.ExpenseRooms.Select(er => new ExpenseRoomResponseDto
+                {
+                    ExpenseRoomId = er.ExpenseRoomId,
+                    ExpenseId = er.ExpenseId,
+                    ZaaerId = er.ZaaerId,
+                    Purpose = er.Purpose,
+                    Amount = er.Amount,
+                    CreatedAt = er.CreatedAt,
+                    ApartmentId = er.Apartment?.ApartmentId,
+                    ApartmentCode = er.Apartment?.ApartmentCode,
+                    ApartmentName = er.Apartment?.ApartmentName
+                }).ToList();
+
+                return new ExpenseResponseDto
+                {
+                    ExpenseId = updatedExpense.ExpenseId,
+                    HotelId = updatedExpense.HotelId,
+                    HotelName = updatedExpense.HotelSettings?.HotelName,
+                    HotelCode = hotelCode,
+                    DateTime = updatedExpense.DateTime,
+                    DueDate = updatedExpense.DueDate,
+                    Comment = updatedExpense.Comment,
+                    ExpenseCategoryId = updatedExpense.ExpenseCategoryId,
+                    ExpenseCategoryName = updatedExpense.ExpenseCategory?.CategoryName,
+                    TaxRate = updatedExpense.TaxRate,
+                    TaxAmount = updatedExpense.TaxAmount,
+                    TotalAmount = updatedExpense.TotalAmount,
+                    CreatedAt = updatedExpense.CreatedAt,
+                    UpdatedAt = updatedExpense.UpdatedAt,
+                    ApprovalStatus = updatedExpense.ApprovalStatus,
+                    ApprovedBy = updatedExpense.ApprovedBy,
+                    ApprovedAt = updatedExpense.ApprovedAt,
+                    RejectionReason = updatedExpense.RejectionReason,
+                    ExpenseRooms = expenseRooms
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ [ApproveExpenseForSupervisor] Error approving expense: {Message}", ex.Message);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// الحصول على صور مصروف للمشرف (مع تحديد قاعدة البيانات الصحيحة)
+        /// Get expense images for supervisor (with correct database identification)
+        /// </summary>
+        private async Task<List<object>?> GetExpenseImagesForSupervisorAsync(int expenseId, string hotelCode)
+        {
+            try
+            {
+                _logger.LogInformation("📸 [GetExpenseImagesForSupervisor] Fetching images for expense: ExpenseId={ExpenseId}, HotelCode={HotelCode}", 
+                    expenseId, hotelCode);
+
+                // ✅ الحصول على معلومات Tenant من Master DB
+                var masterDb = HttpContext.RequestServices.GetRequiredService<MasterDbContext>();
+                var tenant = await masterDb.Tenants
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(t => t.Code.ToLower() == hotelCode.ToLower());
+
+                if (tenant == null)
+                {
+                    _logger.LogError("❌ [GetExpenseImagesForSupervisor] Tenant not found for HotelCode: {HotelCode}", hotelCode);
+                    return null;
+                }
+
+                if (string.IsNullOrWhiteSpace(tenant.DatabaseName))
+                {
+                    _logger.LogError("❌ [GetExpenseImagesForSupervisor] DatabaseName not set for Tenant: {Code}", tenant.Code);
+                    return null;
+                }
+
+                // ✅ بناء connection string للـ tenant
+                var configuration = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+                var server = configuration["TenantDatabase:Server"]?.Trim();
+                var dbUserId = configuration["TenantDatabase:UserId"]?.Trim();
+                var password = configuration["TenantDatabase:Password"]?.Trim();
+
+                if (string.IsNullOrWhiteSpace(server) || string.IsNullOrWhiteSpace(dbUserId) || string.IsNullOrWhiteSpace(password))
+                {
+                    _logger.LogError("❌ [GetExpenseImagesForSupervisor] TenantDatabase settings not found in configuration");
+                    return null;
+                }
+
+                var connectionString = $"Server={server}; Database={tenant.DatabaseName}; User Id={dbUserId}; Password={password}; Encrypt=True; TrustServerCertificate=True; MultipleActiveResultSets=True;";
+
+                // ✅ إنشاء DbContext للـ tenant
+                var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
+                optionsBuilder.UseSqlServer(connectionString);
+                using var tenantContext = new ApplicationDbContext(optionsBuilder.Options);
+
+                // ✅ الحصول على HotelId من HotelSettings
+                var hotelSettings = await tenantContext.HotelSettings
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(h => h.HotelCode != null && h.HotelCode.ToLower() == hotelCode.ToLower());
+
+                if (hotelSettings == null)
+                {
+                    _logger.LogError("❌ [GetExpenseImagesForSupervisor] HotelSettings not found for HotelCode: {HotelCode}", hotelCode);
+                    return null;
+                }
+
+                // ✅ التحقق من وجود المصروف في قاعدة البيانات الصحيحة
+                var expense = await tenantContext.Expenses
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(e => e.ExpenseId == expenseId && e.HotelId == hotelSettings.HotelId);
+
+                if (expense == null)
+                {
+                    _logger.LogWarning("⚠️ [GetExpenseImagesForSupervisor] Expense not found: ExpenseId={ExpenseId}, HotelId={HotelId}, HotelCode={HotelCode}", 
+                        expenseId, hotelSettings.HotelId, hotelCode);
+                    return null;
+                }
+
+                // ✅ الحصول على الصور
+                var images = await tenantContext.ExpenseImages
+                    .AsNoTracking()
+                    .Where(ei => ei.ExpenseId == expenseId)
+                    .OrderBy(ei => ei.DisplayOrder)
+                    .ThenBy(ei => ei.CreatedAt)
+                    .Select(ei => new
+                    {
+                        expenseImageId = ei.ExpenseImageId,
+                        imageUrl = ei.ImagePath.StartsWith("http") ? ei.ImagePath : $"{Request.Scheme}://{Request.Host}{ei.ImagePath}",
+                        imagePath = ei.ImagePath,
+                        originalFilename = ei.OriginalFilename,
+                        fileSize = ei.FileSize,
+                        contentType = ei.ContentType,
+                        displayOrder = ei.DisplayOrder,
+                        createdAt = ei.CreatedAt
+                    })
+                    .ToListAsync<object>();
+
+                _logger.LogInformation("✅ [GetExpenseImagesForSupervisor] Successfully retrieved {Count} images for expense: ExpenseId={ExpenseId}, HotelCode={HotelCode}", 
+                    images.Count, expenseId, hotelCode);
+
+                return images;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ [GetExpenseImagesForSupervisor] Error fetching expense images: {Message}", ex.Message);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// الحصول على جميع المصروفات من عدة tenants للمشرف
+        /// Get all expenses from multiple tenants for supervisor
+        /// </summary>
+        /// <returns>قائمة المصروفات من جميع الفنادق التابعة للمشرف</returns>
+        [HttpGet("supervisor/all")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<IEnumerable<ExpenseResponseDto>>> GetSupervisorExpenses()
+        {
+            try
+            {
+                // ✅ استخراج معلومات المستخدم من JWT Token
+                var userIdClaim = HttpContext.Items["UserId"]?.ToString();
+                if (string.IsNullOrWhiteSpace(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+                {
+                    _logger.LogWarning("⚠️ [GetSupervisorExpenses] UserId not found in JWT token");
+                    return Unauthorized(new { error = "User information not found in token" });
+                }
+
+                _logger.LogInformation("📋 [GetSupervisorExpenses] Fetching expenses for supervisor UserId: {UserId}", userId);
+
+                // ✅ الحصول على قائمة الفنادق التابعة للمشرف من UserTenants
+                var masterDb = HttpContext.RequestServices.GetRequiredService<MasterDbContext>();
+                
+                // ✅ محاولة استخراج الأدوار من HttpContext أولاً
+                var roleCsv = HttpContext.Items["Roles"]?.ToString() ?? string.Empty;
+                _logger.LogInformation("🔍 [GetSupervisorExpenses] Raw roles CSV from HttpContext for UserId {UserId}: '{RoleCsv}'", userId, roleCsv);
+                
+                var rolesList = roleCsv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                                       .Select(r => r.Trim().ToLower())
+                                       .Where(r => !string.IsNullOrWhiteSpace(r))
+                                       .ToList();
+                
+                // ✅ إذا لم تكن الأدوار متوفرة في HttpContext، جلبها مباشرة من قاعدة البيانات
+                if (!rolesList.Any())
+                {
+                    _logger.LogWarning("⚠️ [GetSupervisorExpenses] No roles found in HttpContext for UserId {UserId}. Fetching from database.", userId);
+                    var dbRoles = await masterDb.UserRoles
+                        .AsNoTracking()
+                        .Include(ur => ur.Role)
+                        .Where(ur => ur.UserId == userId)
+                        .Select(ur => ur.Role!.Code)
+                        .ToListAsync();
+                    
+                    _logger.LogInformation("📋 [GetSupervisorExpenses] Raw roles from database for UserId {UserId}: {RawRoles}", userId, string.Join(", ", dbRoles));
+                    
+                    rolesList = dbRoles.Where(r => !string.IsNullOrWhiteSpace(r))
+                                      .Select(r => r.Trim().ToLower())
+                                      .ToList();
+                    _logger.LogInformation("📋 [GetSupervisorExpenses] Fetched and normalized roles from database for UserId {UserId}: {Roles}", userId, string.Join(", ", rolesList));
+                }
+                else
+                {
+                    _logger.LogInformation("📋 [GetSupervisorExpenses] Roles from HttpContext (normalized) for UserId {UserId}: {Roles}", userId, string.Join(", ", rolesList));
+                }
+                
+                var isManagerOrAdminOrAccountant = rolesList.Contains("manager") || rolesList.Contains("admin") || rolesList.Contains("accountant");
+                _logger.LogInformation("🔍 [GetSupervisorExpenses] UserId {UserId} - isManagerOrAdminOrAccountant: {IsManagerOrAdminOrAccountant} (checked for 'manager', 'admin', or 'accountant' in: [{Roles}])", 
+                    userId, isManagerOrAdminOrAccountant, string.Join(", ", rolesList));
+
+                var userTenants = await masterDb.UserTenants
+                    .AsNoTracking()
+                    .Include(ut => ut.Tenant)
+                    .Where(ut => ut.UserId == userId)
+                    .Select(ut => new { ut.TenantId, ut.Tenant!.Code, ut.Tenant.DatabaseName, ut.Tenant.Name })
+                    .ToListAsync();
+
+                _logger.LogInformation("📊 [GetSupervisorExpenses] UserId {UserId} - Found {Count} tenants from UserTenants table", userId, userTenants.Count);
+
+                if (isManagerOrAdminOrAccountant)
+                {
+                    _logger.LogInformation("✅ [GetSupervisorExpenses] Manager/Admin/Accountant role detected for UserId {UserId}. Loading all tenants.", userId);
+                    userTenants = await masterDb.Tenants
+                        .AsNoTracking()
+                        .Select(t => new { TenantId = t.Id, Code = t.Code, DatabaseName = t.DatabaseName, Name = t.Name })
+                        .ToListAsync();
+                    _logger.LogInformation("✅ [GetSupervisorExpenses] Loaded {Count} tenants for Manager/Admin/Accountant", userTenants.Count);
+                }
+                else if (!userTenants.Any())
+                {
+                    _logger.LogWarning("⚠️ [GetSupervisorExpenses] No tenants linked to user {UserId}. Loading all tenants (fallback).", userId);
+                    userTenants = await masterDb.Tenants
+                        .AsNoTracking()
+                        .Select(t => new { TenantId = t.Id, Code = t.Code, DatabaseName = t.DatabaseName, Name = t.Name })
+                        .ToListAsync();
+
+                    if (!userTenants.Any())
+                    {
+                        return Ok(new List<ExpenseResponseDto>());
+                    }
+                }
+
+                _logger.LogInformation("✅ [GetSupervisorExpenses] Found {Count} tenants for supervisor", userTenants.Count);
+
+                var allExpenses = new List<ExpenseResponseDto>();
+
+                // ✅ Performance Optimization: Get configuration once
+                var configuration = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+                var server = configuration["TenantDatabase:Server"]?.Trim();
+                var dbUserId = configuration["TenantDatabase:UserId"]?.Trim();
+                var password = configuration["TenantDatabase:Password"]?.Trim();
+                
+                if (string.IsNullOrWhiteSpace(server) || string.IsNullOrWhiteSpace(dbUserId) || string.IsNullOrWhiteSpace(password))
+                {
+                    _logger.LogError("❌ [GetSupervisorExpenses] TenantDatabase settings not found in configuration");
+                    return Ok(new List<ExpenseResponseDto>());
+                }
+
+                // ✅ Performance Optimization: Use Parallel processing to fetch from all tenants simultaneously
+                var tenantExpensesTasks = userTenants.Select(async userTenant =>
+                {
+                    try
+                    {
+                        var connectionString = $"Server={server}; Database={userTenant.DatabaseName}; User Id={dbUserId}; Password={password}; Encrypt=True; TrustServerCertificate=True; MultipleActiveResultSets=True;";
+
+                        // ✅ إنشاء DbContext للـ tenant (using for proper disposal)
+                        var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
+                        optionsBuilder.UseSqlServer(connectionString);
+                        await using var tenantContext = new ApplicationDbContext(optionsBuilder.Options);
+
+                        // ✅ الحصول على HotelIds من هذا Tenant
+                        var hotelSettings = await tenantContext.HotelSettings
+                            .AsNoTracking()
+                            .Where(h => h.HotelCode != null && h.HotelCode.ToLower() == userTenant.Code.ToLower())
+                            .Select(h => h.HotelId)
+                            .ToListAsync();
+
+                        if (!hotelSettings.Any())
+                        {
+                            _logger.LogWarning("⚠️ [GetSupervisorExpenses] No HotelSettings found for Tenant Code: {Code}", userTenant.Code);
+                            return new List<ExpenseResponseDto>();
+                        }
+
+                        // ✅ الحصول على المصروفات من هذا Tenant (optimized query)
+                        var tenantExpenses = await tenantContext.Expenses
+                            .AsNoTracking()
+                            .Include(e => e.ExpenseCategory)
+                            .Include(e => e.HotelSettings)
+                            .Include(e => e.ExpenseRooms)
+                                .ThenInclude(er => er.Apartment)
+                            .Where(e => hotelSettings.Contains(e.HotelId))
+                            .OrderByDescending(e => e.DateTime)
+                            .Select(e => new
+                            {
+                                Expense = e,
+                                ExpenseCategoryName = e.ExpenseCategory != null ? e.ExpenseCategory.CategoryName : null,
+                                HotelName = e.HotelSettings != null ? e.HotelSettings.HotelName : null,
+                                ExpenseRooms = e.ExpenseRooms.Select(er => new
+                                {
+                                    ExpenseRoomId = er.ExpenseRoomId,
+                                    ExpenseId = er.ExpenseId,
+                                    ZaaerId = er.ZaaerId,
+                                    Purpose = er.Purpose,
+                                    Amount = er.Amount,
+                                    CreatedAt = er.CreatedAt,
+                                    Apartment = er.Apartment != null ? new
+                                    {
+                                        ApartmentId = er.Apartment.ApartmentId,
+                                        ApartmentCode = er.Apartment.ApartmentCode,
+                                        ApartmentName = er.Apartment.ApartmentName
+                                    } : null
+                                }).ToList()
+                            })
+                            .ToListAsync();
+
+                        // ✅ تحويل إلى DTOs
+                        var tenantExpenseDtos = tenantExpenses.Select(item =>
+                        {
+                            var expense = item.Expense;
+                            var expenseRooms = item.ExpenseRooms.Select(er => new ExpenseRoomResponseDto
+                            {
+                                ExpenseRoomId = er.ExpenseRoomId,
+                                ExpenseId = er.ExpenseId,
+                                ZaaerId = er.ZaaerId,
+                                Purpose = er.Purpose,
+                                Amount = er.Amount,
+                                CreatedAt = er.CreatedAt,
+                                ApartmentId = er.Apartment?.ApartmentId,
+                                ApartmentCode = er.Apartment?.ApartmentCode,
+                                ApartmentName = er.Apartment?.ApartmentName
+                            }).ToList();
+
+                            return new ExpenseResponseDto
+                            {
+                                ExpenseId = expense.ExpenseId,
+                                HotelId = expense.HotelId,
+                                HotelName = item.HotelName ?? userTenant.Name,
+                                HotelCode = userTenant.Code,
+                                DateTime = expense.DateTime,
+                                DueDate = expense.DueDate,
+                                Comment = expense.Comment,
+                                ExpenseCategoryId = expense.ExpenseCategoryId,
+                                ExpenseCategoryName = item.ExpenseCategoryName,
+                                TaxRate = expense.TaxRate,
+                                TaxAmount = expense.TaxAmount,
+                                TotalAmount = expense.TotalAmount,
+                                CreatedAt = expense.CreatedAt,
+                                UpdatedAt = expense.UpdatedAt,
+                                ApprovalStatus = expense.ApprovalStatus,
+                                ApprovedBy = expense.ApprovedBy,
+                                ApprovedAt = expense.ApprovedAt,
+                                RejectionReason = expense.RejectionReason,
+                                ExpenseRooms = expenseRooms
+                            };
+                        }).ToList();
+
+                        _logger.LogInformation("✅ [GetSupervisorExpenses] Retrieved {Count} expenses from Tenant: {Code}", 
+                            tenantExpenseDtos.Count, userTenant.Code);
+                        
+                        return tenantExpenseDtos;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "❌ [GetSupervisorExpenses] Error fetching expenses from Tenant: {Code}, Error: {Message}", 
+                            userTenant.Code, ex.Message);
+                        return new List<ExpenseResponseDto>(); // Return empty list on error
+                    }
+                });
+
+                // ✅ Wait for all tenants to complete in parallel (Performance Optimization)
+                var allTenantResults = await Task.WhenAll(tenantExpensesTasks);
+                
+                // ✅ Flatten results into single list
+                allExpenses = allTenantResults.SelectMany(x => x).ToList();
+
+                _logger.LogInformation("✅ [GetSupervisorExpenses] Successfully retrieved {Count} total expenses for supervisor", allExpenses.Count);
+
+                return Ok(allExpenses);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ [GetSupervisorExpenses] Error fetching supervisor expenses: {Message}", ex.Message);
+                return StatusCode(500, new { error = "Failed to fetch supervisor expenses", details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// الحصول على المصروفات المعلقة للموافقة للمشرف
+        /// Get pending expenses for supervisor approval
+        /// </summary>
+        /// <returns>قائمة المصروفات المعلقة</returns>
+        [HttpGet("supervisor/pending")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<IEnumerable<ExpenseResponseDto>>> GetSupervisorPendingExpenses()
+        {
+            try
+            {
+                var allExpenses = await GetSupervisorExpenses();
+                if (allExpenses.Result is OkObjectResult okResult && okResult.Value is IEnumerable<ExpenseResponseDto> expenses)
+                {
+                    // Filter for pending expenses only (including awaiting-manager)
+                    var pendingExpenses = expenses.Where(e => 
+                        e.ApprovalStatus?.ToLower() == "pending" || 
+                        e.ApprovalStatus?.ToLower() == "awaiting-manager"
+                    ).ToList();
+                    _logger.LogInformation("✅ [GetSupervisorPendingExpenses] Found {Count} pending expenses", pendingExpenses.Count);
+                    return Ok(pendingExpenses);
+                }
+                return Ok(new List<ExpenseResponseDto>());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ [GetSupervisorPendingExpenses] Error: {Message}", ex.Message);
+                return StatusCode(500, new { error = "Failed to fetch pending expenses", details = ex.Message });
             }
         }
     }

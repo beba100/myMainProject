@@ -17,6 +17,11 @@ namespace zaaerIntegration.Services.Interfaces
             string? searchTerm = null);
 
         /// <summary>
+        /// Lightweight list used by the expenses page (apartment dropdown).
+        /// </summary>
+        Task<IEnumerable<ApartmentLookupDto>> GetApartmentLookupAsync();
+
+        /// <summary>
         /// Get apartment by ID
         /// </summary>
         Task<ApartmentResponseDto?> GetApartmentByIdAsync(int id);

@@ -38,6 +38,30 @@ namespace zaaerIntegration.Services.Interfaces
         Task<MasterUser> CreateUserAsync(string username, string password, int tenantId, IEnumerable<int> roleIds);
 
         /// <summary>
+        /// إنشاء مستخدم جديد مع الحقول الإضافية
+        /// </summary>
+        Task<MasterUser> CreateUserAsync(string username, string password, int tenantId, IEnumerable<int> roleIds, 
+            string? phoneNumber, string? email, string? employeeNumber, string? fullName, 
+            IEnumerable<int>? additionalTenantIds = null);
+
+        /// <summary>
+        /// الحصول على جميع المستخدمين
+        /// </summary>
+        Task<IEnumerable<MasterUser>> GetAllUsersAsync();
+
+        /// <summary>
+        /// تحديث مستخدم
+        /// </summary>
+        Task<MasterUser> UpdateUserAsync(int userId, string? username, string? password, int? tenantId, 
+            string? phoneNumber, string? email, string? employeeNumber, string? fullName, 
+            bool? isActive, IEnumerable<int>? roleIds, IEnumerable<int>? additionalTenantIds);
+
+        /// <summary>
+        /// حذف مستخدم
+        /// </summary>
+        Task<bool> DeleteUserAsync(int userId);
+
+        /// <summary>
         /// التحقق من صحة بيانات تسجيل الدخول
         /// </summary>
         Task<MasterUser?> ValidateLoginAsync(string username, string password);

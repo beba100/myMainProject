@@ -7,7 +7,13 @@ namespace zaaerIntegration.DTOs.Expense
     /// </summary>
     public class UpdateExpenseRoomDto
     {
-        public int? ApartmentId { get; set; }
+        public int? ApartmentId { get; set; } // ✅ For backward compatibility
+
+        /// <summary>
+        /// Zaaer System ID (استخدام ZaaerId للبحث عن Apartment)
+        /// يتم استخدامه إذا كان ApartmentId غير موجود
+        /// </summary>
+        public int? ZaaerId { get; set; }
 
         /// <summary>
         /// Purpose - الغرض من ربط النفقة بالغرفة

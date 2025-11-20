@@ -261,6 +261,95 @@ namespace zaaerIntegration.Services.Implementations
             }
         }
 
+        public async Task<IEnumerable<ApartmentLookupDto>> GetApartmentLookupAsync()
+        {
+            try
+            {
+                var tenant = _tenantService.GetTenant();
+                if (tenant == null)
+                {
+                    throw new UnauthorizedAccessException("Tenant not resolved. Please ensure X-Hotel-Code header is provided.");
+                }
+
+                var tenantCode = tenant.Code ?? throw new InvalidOperationException("Tenant code is missing.");
+
+                var hotelSettingsSnapshot = await _context.HotelSettings
+                    .AsNoTracking()
+                    .ToListAsync();
+
+                var matchingSettings = hotelSettingsSnapshot
+                    .Where(h => !string.IsNullOrWhiteSpace(h.HotelCode) && h.HotelCode!.Equals(tenantCode, StringComparison.OrdinalIgnoreCase))
+                    .Select(h => new { h.HotelId, h.HotelCode })
+                    .ToList();
+
+                if (matchingSettings.Count == 0)
+                {
+                    throw new InvalidOperationException($"HotelSettings not found for hotel code: {tenantCode}.");
+                }
+
+                var hotelCode = matchingSettings.First().HotelCode ?? tenantCode;
+                var hotelIds = new HashSet<int>(matchingSettings.Select(h => h.HotelId));
+
+                // Include any additional HotelSettings entries that share the same HotelCode (case insensitive)
+                foreach (var id in hotelSettingsSnapshot
+                             .Where(h => !string.IsNullOrWhiteSpace(h.HotelCode) && h.HotelCode!.Equals(hotelCode, StringComparison.OrdinalIgnoreCase))
+                             .Select(h => h.HotelId))
+                {
+                    hotelIds.Add(id);
+                }
+
+                // Safety net for data that might be linked to other HotelIds (legacy records)
+                var distinctHotelIdsInApartments = await _context.Apartments
+                    .AsNoTracking()
+                    .Select(a => a.HotelId)
+                    .Distinct()
+                    .ToListAsync();
+
+                // If any apartment uses a HotelId that shares the same code but was missed above, include it
+                foreach (var apartmentHotelId in distinctHotelIdsInApartments)
+                {
+                    if (hotelIds.Contains(apartmentHotelId))
+                    {
+                        continue;
+                    }
+
+                    var matchingSetting = hotelSettingsSnapshot.FirstOrDefault(h => h.HotelId == apartmentHotelId);
+
+                    if (matchingSetting != null &&
+                        !string.IsNullOrWhiteSpace(matchingSetting.HotelCode) &&
+                        matchingSetting.HotelCode!.Equals(hotelCode, StringComparison.OrdinalIgnoreCase))
+                    {
+                        hotelIds.Add(apartmentHotelId);
+                    }
+                }
+
+                var lookups = await _context.Apartments
+                    .AsNoTracking()
+                    .Where(a => hotelIds.Contains(a.HotelId))
+                    .OrderBy(a => a.ApartmentCode)
+                    .Select(a => new ApartmentLookupDto
+                    {
+                        ApartmentId = a.ApartmentId,
+                        ZaaerId = a.ZaaerId,
+                        ApartmentCode = a.ApartmentCode,
+                        ApartmentName = a.ApartmentName,
+                        HotelId = a.HotelId,
+                        Status = a.Status
+                    })
+                    .ToListAsync();
+
+                _logger.LogInformation("✅ [GetApartmentLookupAsync] Returned {Count} apartments for HotelCode '{HotelCode}' (Tenant: {TenantCode})",
+                    lookups.Count, hotelCode, tenantCode);
+
+                return lookups;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ [GetApartmentLookupAsync] Error retrieving apartment lookup list: {Message}", ex.Message);
+                throw new InvalidOperationException($"Error retrieving apartment lookup list: {ex.Message}", ex);
+            }
+        }
+
         public async Task<ApartmentResponseDto?> GetApartmentByIdAsync(int id)
         {
             try

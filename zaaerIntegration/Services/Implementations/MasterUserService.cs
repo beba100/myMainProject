@@ -171,6 +171,403 @@ namespace zaaerIntegration.Services.Implementations
         }
 
         /// <summary>
+        /// إنشاء مستخدم جديد مع الحقول الإضافية
+        /// </summary>
+        public async Task<MasterUser> CreateUserAsync(string username, string password, int tenantId, IEnumerable<int> roleIds, 
+            string? phoneNumber, string? email, string? employeeNumber, string? fullName, 
+            IEnumerable<int>? additionalTenantIds = null)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+                throw new ArgumentException("Username cannot be empty", nameof(username));
+
+            if (string.IsNullOrWhiteSpace(password))
+                throw new ArgumentException("Password cannot be empty", nameof(password));
+
+            // التحقق من وجود Tenant
+            var tenant = await _masterDbContext.Tenants.FindAsync(tenantId);
+            if (tenant == null)
+                throw new KeyNotFoundException($"Tenant with id {tenantId} not found");
+
+            // التحقق من عدم وجود مستخدم بنفس Username
+            var existingUser = await GetByUsernameAsync(username);
+            if (existingUser != null)
+                throw new InvalidOperationException($"User with username '{username}' already exists");
+
+            // إنشاء المستخدم
+            var user = new MasterUser
+            {
+                Username = username,
+                PasswordHash = HashPassword(password),
+                TenantId = tenantId,
+                PhoneNumber = phoneNumber,
+                Email = email,
+                EmployeeNumber = employeeNumber,
+                FullName = fullName,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _masterDbContext.MasterUsers.Add(user);
+            await _masterDbContext.SaveChangesAsync();
+
+            // إضافة الأدوار
+            var userRoles = new List<Role>();
+            if (roleIds != null && roleIds.Any())
+            {
+                foreach (var roleId in roleIds)
+                {
+                    var role = await _masterDbContext.Roles.FindAsync(roleId);
+                    if (role != null)
+                    {
+                        userRoles.Add(role);
+                        var userRole = new UserRole
+                        {
+                            UserId = user.Id,
+                            RoleId = roleId
+                        };
+                        _masterDbContext.UserRoles.Add(userRole);
+                    }
+                }
+                await _masterDbContext.SaveChangesAsync();
+            }
+
+            // إضافة UserTenants بناءً على الأدوار
+            // القواعد:
+            // - Supervisor: جميع الفنادق ما عدا الفندق الأساسي
+            // - Manager, Accountant, Admin, Staff: الفندق الأساسي فقط
+            var hasSupervisorRole = userRoles.Any(r => r.Code.Equals("Supervisor", StringComparison.OrdinalIgnoreCase));
+            var hasManagerRole = userRoles.Any(r => r.Code.Equals("Manager", StringComparison.OrdinalIgnoreCase));
+            var hasAccountantRole = userRoles.Any(r => r.Code.Equals("Accountant", StringComparison.OrdinalIgnoreCase));
+            var hasAdminRole = userRoles.Any(r => r.Code.Equals("Admin", StringComparison.OrdinalIgnoreCase));
+            var hasStaffRole = userRoles.Any(r => r.Code.Equals("Staff", StringComparison.OrdinalIgnoreCase));
+
+            if (hasSupervisorRole)
+            {
+                // Supervisor: إضافة جميع الفنادق ما عدا الفندق الأساسي
+                var allTenants = await _masterDbContext.Tenants
+                    .Where(t => t.Id != tenantId)
+                    .ToListAsync();
+
+                foreach (var supervisorTenant in allTenants)
+                {
+                    var existingUserTenant = await _masterDbContext.UserTenants
+                        .FirstOrDefaultAsync(ut => ut.UserId == user.Id && ut.TenantId == supervisorTenant.Id);
+                    
+                    if (existingUserTenant == null)
+                    {
+                        var userTenant = new UserTenant
+                        {
+                            UserId = user.Id,
+                            TenantId = supervisorTenant.Id,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        _masterDbContext.UserTenants.Add(userTenant);
+                    }
+                }
+                
+                _logger.LogInformation("✅ Added all tenants (except primary) for Supervisor user: UserId={UserId}, TenantCount={Count}", 
+                    user.Id, allTenants.Count);
+            }
+            else if (hasManagerRole || hasAccountantRole || hasAdminRole || hasStaffRole)
+            {
+                // Manager, Accountant, Admin, Staff: إضافة الفندق الأساسي فقط
+                var existingUserTenant = await _masterDbContext.UserTenants
+                    .FirstOrDefaultAsync(ut => ut.UserId == user.Id && ut.TenantId == tenantId);
+                
+                if (existingUserTenant == null)
+                {
+                    var userTenant = new UserTenant
+                    {
+                        UserId = user.Id,
+                        TenantId = tenantId,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _masterDbContext.UserTenants.Add(userTenant);
+                    
+                    var roleName = hasManagerRole ? "Manager" : hasAccountantRole ? "Accountant" : hasAdminRole ? "Admin" : "Staff";
+                    _logger.LogInformation("✅ Added primary tenant for {Role} user: UserId={UserId}, TenantId={TenantId}", 
+                        roleName, user.Id, tenantId);
+                }
+            }
+
+            // إضافة الفنادق الإضافية المحددة يدوياً (إذا كانت موجودة)
+            // هذه ستضاف بالإضافة إلى الفنادق المضافة بناءً على الأدوار
+            if (additionalTenantIds != null && additionalTenantIds.Any())
+            {
+                foreach (var additionalTenantId in additionalTenantIds)
+                {
+                    // التحقق من وجود Tenant والتأكد من أنه ليس الفندق الأساسي
+                    var additionalTenant = await _masterDbContext.Tenants.FindAsync(additionalTenantId);
+                    if (additionalTenant != null && additionalTenantId != tenantId)
+                    {
+                        // التحقق من عدم وجود سجل مكرر
+                        var existingUserTenant = await _masterDbContext.UserTenants
+                            .FirstOrDefaultAsync(ut => ut.UserId == user.Id && ut.TenantId == additionalTenantId);
+                        
+                        if (existingUserTenant == null)
+                        {
+                            var userTenant = new UserTenant
+                            {
+                                UserId = user.Id,
+                                TenantId = additionalTenantId,
+                                CreatedAt = DateTime.UtcNow
+                            };
+                            _masterDbContext.UserTenants.Add(userTenant);
+                        }
+                    }
+                }
+            }
+
+            // حفظ جميع التغييرات في UserTenants
+            if (_masterDbContext.ChangeTracker.HasChanges())
+            {
+                await _masterDbContext.SaveChangesAsync();
+            }
+
+            _logger.LogInformation("✅ User created successfully with additional fields: Username={Username}, TenantId={TenantId}, Email={Email}", 
+                username, tenantId, email);
+
+            return user;
+        }
+
+        /// <summary>
+        /// الحصول على جميع المستخدمين
+        /// </summary>
+        public async Task<IEnumerable<MasterUser>> GetAllUsersAsync()
+        {
+            return await _masterDbContext.MasterUsers
+                .AsNoTracking()
+                .Include(u => u.Tenant)
+                .Include(u => u.UserRoles)
+                    .ThenInclude(ur => ur.Role)
+                .OrderBy(u => u.Username)
+                .ToListAsync();
+        }
+
+        /// <summary>
+        /// تحديث مستخدم
+        /// </summary>
+        public async Task<MasterUser> UpdateUserAsync(int userId, string? username, string? password, int? tenantId, 
+            string? phoneNumber, string? email, string? employeeNumber, string? fullName, 
+            bool? isActive, IEnumerable<int>? roleIds, IEnumerable<int>? additionalTenantIds)
+        {
+            var user = await _masterDbContext.MasterUsers
+                .Include(u => u.UserRoles)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (user == null)
+                throw new KeyNotFoundException($"User with id {userId} not found");
+
+            // تحديث الحقول
+            if (!string.IsNullOrWhiteSpace(username) && username != user.Username)
+            {
+                // التحقق من عدم وجود مستخدم آخر بنفس Username
+                var existingUser = await GetByUsernameAsync(username);
+                if (existingUser != null && existingUser.Id != userId)
+                    throw new InvalidOperationException($"User with username '{username}' already exists");
+                
+                user.Username = username;
+            }
+
+            if (!string.IsNullOrWhiteSpace(password))
+                user.PasswordHash = HashPassword(password);
+
+            if (tenantId.HasValue)
+            {
+                var tenant = await _masterDbContext.Tenants.FindAsync(tenantId.Value);
+                if (tenant == null)
+                    throw new KeyNotFoundException($"Tenant with id {tenantId.Value} not found");
+                user.TenantId = tenantId.Value;
+            }
+
+            if (phoneNumber != null)
+                user.PhoneNumber = phoneNumber;
+
+            if (email != null)
+                user.Email = email;
+
+            if (employeeNumber != null)
+                user.EmployeeNumber = employeeNumber;
+
+            if (fullName != null)
+                user.FullName = fullName;
+
+            if (isActive.HasValue)
+                user.IsActive = isActive.Value;
+
+            user.UpdatedAt = DateTime.UtcNow;
+
+            // تحديث الأدوار
+            var updatedRoles = new List<Role>();
+            if (roleIds != null)
+            {
+                // حذف الأدوار الحالية
+                var existingRoles = _masterDbContext.UserRoles.Where(ur => ur.UserId == userId);
+                _masterDbContext.UserRoles.RemoveRange(existingRoles);
+
+                // إضافة الأدوار الجديدة
+                foreach (var roleId in roleIds)
+                {
+                    var role = await _masterDbContext.Roles.FindAsync(roleId);
+                    if (role != null)
+                    {
+                        updatedRoles.Add(role);
+                        var userRole = new UserRole
+                        {
+                            UserId = user.Id,
+                            RoleId = roleId
+                        };
+                        _masterDbContext.UserRoles.Add(userRole);
+                    }
+                }
+            }
+
+            // تحديث UserTenants بناءً على الأدوار الجديدة
+            // القواعد:
+            // - Supervisor: جميع الفنادق ما عدا الفندق الأساسي
+            // - Manager, Accountant, Admin: الفندق الأساسي فقط
+            // إذا تم تحديث الأدوار، نحتاج إلى إعادة بناء UserTenants
+            if (roleIds != null)
+            {
+                // حذف جميع UserTenants الحالية (سنعيد بناؤها بناءً على الأدوار)
+                var existingUserTenants = _masterDbContext.UserTenants
+                    .Where(ut => ut.UserId == userId);
+                _masterDbContext.UserTenants.RemoveRange(existingUserTenants);
+
+                var hasSupervisorRole = updatedRoles.Any(r => r.Code.Equals("Supervisor", StringComparison.OrdinalIgnoreCase));
+                var hasManagerRole = updatedRoles.Any(r => r.Code.Equals("Manager", StringComparison.OrdinalIgnoreCase));
+                var hasAccountantRole = updatedRoles.Any(r => r.Code.Equals("Accountant", StringComparison.OrdinalIgnoreCase));
+                var hasAdminRole = updatedRoles.Any(r => r.Code.Equals("Admin", StringComparison.OrdinalIgnoreCase));
+                var hasStaffRole = updatedRoles.Any(r => r.Code.Equals("Staff", StringComparison.OrdinalIgnoreCase));
+
+                var currentTenantId = tenantId ?? user.TenantId;
+
+                if (hasSupervisorRole)
+                {
+                    // Supervisor: إضافة جميع الفنادق ما عدا الفندق الأساسي
+                    var allTenants = await _masterDbContext.Tenants
+                        .Where(t => t.Id != currentTenantId)
+                        .ToListAsync();
+
+                    foreach (var supervisorTenant in allTenants)
+                    {
+                        var userTenant = new UserTenant
+                        {
+                            UserId = user.Id,
+                            TenantId = supervisorTenant.Id,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        _masterDbContext.UserTenants.Add(userTenant);
+                    }
+                    
+                    _logger.LogInformation("✅ Updated UserTenants for Supervisor user: UserId={UserId}, TenantCount={Count}", 
+                        user.Id, allTenants.Count);
+                }
+                else if (hasManagerRole || hasAccountantRole || hasAdminRole || hasStaffRole)
+                {
+                    // Manager, Accountant, Admin, Staff: إضافة الفندق الأساسي فقط
+                    var userTenant = new UserTenant
+                    {
+                        UserId = user.Id,
+                        TenantId = currentTenantId,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _masterDbContext.UserTenants.Add(userTenant);
+                    
+                    var roleName = hasManagerRole ? "Manager" : hasAccountantRole ? "Accountant" : hasAdminRole ? "Admin" : "Staff";
+                    _logger.LogInformation("✅ Updated UserTenants for {Role} user: UserId={UserId}, TenantId={TenantId}", 
+                        roleName, user.Id, currentTenantId);
+                }
+
+                // إضافة الفنادق الإضافية المحددة يدوياً (إذا كانت موجودة)
+                if (additionalTenantIds != null && additionalTenantIds.Any())
+                {
+                    foreach (var additionalTenantId in additionalTenantIds)
+                    {
+                        if (additionalTenantId != currentTenantId)
+                        {
+                            var additionalTenant = await _masterDbContext.Tenants.FindAsync(additionalTenantId);
+                            if (additionalTenant != null)
+                            {
+                                // التحقق من عدم وجود سجل مكرر
+                                var existingUserTenant = await _masterDbContext.UserTenants
+                                    .FirstOrDefaultAsync(ut => ut.UserId == user.Id && ut.TenantId == additionalTenantId);
+                                
+                                if (existingUserTenant == null)
+                                {
+                                    var userTenant = new UserTenant
+                                    {
+                                        UserId = user.Id,
+                                        TenantId = additionalTenantId,
+                                        CreatedAt = DateTime.UtcNow
+                                    };
+                                    _masterDbContext.UserTenants.Add(userTenant);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // إذا لم يتم تحديث الأدوار، فقط تحديث الفنادق الإضافية المحددة يدوياً
+                if (additionalTenantIds != null)
+                {
+                    // حذف الفنادق الإضافية الحالية (وليس الفندق الأساسي)
+                    var existingTenants = _masterDbContext.UserTenants
+                        .Where(ut => ut.UserId == userId);
+                    _masterDbContext.UserTenants.RemoveRange(existingTenants);
+
+                    // إضافة الفنادق الجديدة
+                    if (additionalTenantIds.Any())
+                    {
+                        var currentTenantId = tenantId ?? user.TenantId;
+                        foreach (var additionalTenantId in additionalTenantIds)
+                        {
+                            if (additionalTenantId != currentTenantId)
+                            {
+                                var additionalTenant = await _masterDbContext.Tenants.FindAsync(additionalTenantId);
+                                if (additionalTenant != null)
+                                {
+                                    var userTenant = new UserTenant
+                                    {
+                                        UserId = user.Id,
+                                        TenantId = additionalTenantId,
+                                        CreatedAt = DateTime.UtcNow
+                                    };
+                                    _masterDbContext.UserTenants.Add(userTenant);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            await _masterDbContext.SaveChangesAsync();
+
+            _logger.LogInformation("✅ User updated successfully: UserId={UserId}, Username={Username}", userId, user.Username);
+
+            return user;
+        }
+
+        /// <summary>
+        /// حذف مستخدم
+        /// </summary>
+        public async Task<bool> DeleteUserAsync(int userId)
+        {
+            var user = await _masterDbContext.MasterUsers.FindAsync(userId);
+            if (user == null)
+                return false;
+
+            _masterDbContext.MasterUsers.Remove(user);
+            await _masterDbContext.SaveChangesAsync();
+
+            _logger.LogInformation("✅ User deleted successfully: UserId={UserId}, Username={Username}", userId, user.Username);
+
+            return true;
+        }
+
+        /// <summary>
         /// التحقق من صحة بيانات تسجيل الدخول
         /// </summary>
         public async Task<MasterUser?> ValidateLoginAsync(string username, string password)

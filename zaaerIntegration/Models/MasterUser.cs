@@ -41,6 +41,26 @@ namespace FinanceLedgerAPI.Models
         public DateTime? UpdatedAt { get; set; }
 
         /// <summary>
+        /// رقم الجوال
+        /// </summary>
+        public string? PhoneNumber { get; set; }
+
+        /// <summary>
+        /// البريد الإلكتروني
+        /// </summary>
+        public string? Email { get; set; }
+
+        /// <summary>
+        /// الرقم الوظيفي
+        /// </summary>
+        public string? EmployeeNumber { get; set; }
+
+        /// <summary>
+        /// الاسم الكامل
+        /// </summary>
+        public string? FullName { get; set; }
+
+        /// <summary>
         /// Navigation Property - الفندق المرتبط
         /// </summary>
         public Tenant? Tenant { get; set; }

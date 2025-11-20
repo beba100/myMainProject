@@ -474,13 +474,16 @@ namespace zaaerIntegration.Data
                 .HasConstraintName("FK_ExpenseImages_Expenses")
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // ExpenseRoom -> Apartment
+            // ExpenseRoom -> Apartment (optional - nullable for room categories)
+            // Foreign Key: expense_rooms.zaaer_id -> apartments.zaaer_id
             modelBuilder.Entity<ExpenseRoom>()
                 .HasOne(er => er.Apartment)
                 .WithMany()
-                .HasForeignKey(er => er.ApartmentId)
-                .HasConstraintName("FK_ExpenseRooms_Apartments")
-                .OnDelete(DeleteBehavior.Restrict);
+                .HasForeignKey(er => er.ZaaerId)
+                .HasPrincipalKey(a => a.ZaaerId) // ✅ Use zaaer_id as principal key instead of apartment_id
+                .HasConstraintName("FK_ExpenseRooms_Apartments_ZaaerId")
+                .OnDelete(DeleteBehavior.NoAction) // ✅ SQL Server uses NO ACTION instead of RESTRICT
+                .IsRequired(false); // ✅ Allow null for room categories
 
             // ExpenseCategory -> HotelSettings
             modelBuilder.Entity<ExpenseCategory>()

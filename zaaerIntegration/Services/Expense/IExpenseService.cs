@@ -21,7 +21,7 @@ namespace zaaerIntegration.Services.Expense
         Task<bool> DeleteExpenseRoomAsync(int expenseRoomId);
 
         // Approval Operations
-        Task<ExpenseResponseDto?> ApproveExpenseAsync(int id, string status, int approvedBy);
+        Task<ExpenseResponseDto?> ApproveExpenseAsync(int id, string status, int approvedBy, string? rejectionReason = null);
     }
 }
 

@@ -96,6 +96,34 @@ namespace zaaerIntegration.Controllers
         }
 
         /// <summary>
+        /// Lightweight lookup endpoint used by the expenses form.
+        /// </summary>
+        [HttpGet("lookup")]
+        public async Task<IActionResult> GetApartmentLookup()
+        {
+            try
+            {
+                var apartments = await _apartmentService.GetApartmentLookupAsync();
+                return Ok(apartments);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "⚠️ [GetApartmentLookup] Unauthorized: {Message}", ex.Message);
+                return Unauthorized(new { error = "Unauthorized", message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "❌ [GetApartmentLookup] Invalid operation: {Message}", ex.Message);
+                return BadRequest(new { error = "Invalid Operation", message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ [GetApartmentLookup] Unexpected error: {Message}", ex.Message);
+                return StatusCode(500, new { error = "Internal Server Error", message = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// Get apartment by ID
         /// </summary>
         /// <param name="id">Apartment ID</param>

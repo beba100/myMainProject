@@ -17,6 +17,9 @@ namespace FinanceLedgerAPI.Models
 	[Column("date_time")]
 	public DateTime DateTime { get; set; }
 
+	[Column("due_date")]
+	public DateTime? DueDate { get; set; }
+
 	[Column("comment")]
 	[MaxLength(500)]
 	public string? Comment { get; set; }
@@ -45,10 +48,10 @@ namespace FinanceLedgerAPI.Models
 
         /// <summary>
         /// حالة الموافقة على المصروف
-        /// Approval status: auto-approved, pending, accepted, rejected
+        /// Approval status: auto-approved, pending, accepted, rejected, awaiting-manager
         /// </summary>
         [Column("approval_status")]
-        [MaxLength(20)]
+        [MaxLength(30)]
         public string ApprovalStatus { get; set; } = "auto-approved";
 
         /// <summary>
@@ -64,6 +67,14 @@ namespace FinanceLedgerAPI.Models
         /// </summary>
         [Column("approved_at")]
         public DateTime? ApprovedAt { get; set; }
+
+        /// <summary>
+        /// سبب الرفض (في حالة رفض المصروف)
+        /// Rejection reason (if expense is rejected)
+        /// </summary>
+        [Column("rejection_reason")]
+        [MaxLength(500)]
+        public string? RejectionReason { get; set; }
 
         // Navigation properties
         [ForeignKey("HotelId")]

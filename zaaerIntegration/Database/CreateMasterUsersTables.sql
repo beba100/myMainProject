@@ -76,6 +76,9 @@ BEGIN
         [Username] NVARCHAR(100) NOT NULL UNIQUE,
         [PasswordHash] NVARCHAR(500) NOT NULL,
         [TenantId] INT NOT NULL,
+        [PhoneNumber] NVARCHAR(50) NULL, -- رقم الجوال
+        [Email] NVARCHAR(200) NULL, -- الايميل
+        [EmployeeNumber] NVARCHAR(50) NULL, -- الرقم الوظيفي
         [IsActive] BIT NOT NULL DEFAULT 1,
         [CreatedAt] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
         [UpdatedAt] DATETIME2 NULL,

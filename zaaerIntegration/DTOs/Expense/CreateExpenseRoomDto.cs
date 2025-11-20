@@ -19,6 +19,12 @@ namespace zaaerIntegration.DTOs.Expense
         public int? ZaaerId { get; set; }
 
         /// <summary>
+        /// Category Code (مثل CAT_BUILDING, CAT_RECEPTION, CAT_CORRIDORS)
+        /// يتم استخدامه للفئات الخاصة بدلاً من ZaaerId
+        /// </summary>
+        public string? CategoryCode { get; set; }
+
+        /// <summary>
         /// Purpose - الغرض من ربط النفقة بالغرفة
         /// يتم ملؤه عندما يختار المستخدم غرفة من dropdown
         /// </summary>

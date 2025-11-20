@@ -64,6 +64,9 @@ namespace zaaerIntegration.Controllers
                 // ✅ 4. الحصول على أدوار المستخدم (لا يمنع الدخول إذا كان فارغاً)
                 var roles = await _masterUserService.GetUserRolesAsync(user.Id);
                 var rolesList = roles.ToList();
+                
+                _logger.LogInformation("📋 [Login] UserId {UserId} ({Username}) - Roles from database: {Roles}", 
+                    user.Id, user.Username, string.Join(", ", rolesList));
 
                 // ✅ 5. إنشاء JWT Token مع TenantId (مطلوب)
                 var token = _jwtService.GenerateToken(
@@ -72,6 +75,9 @@ namespace zaaerIntegration.Controllers
                     user.TenantId, // ✅ TenantId من المستخدم نفسه (مطلوب)
                     rolesList
                 );
+                
+                _logger.LogInformation("✅ [Login] JWT Token generated for UserId {UserId} with roles: {Roles}", 
+                    user.Id, string.Join(", ", rolesList));
 
                 // إعادة البيانات
                 var response = new LoginResponseDto
@@ -79,6 +85,10 @@ namespace zaaerIntegration.Controllers
                     Token = token,
                     UserId = user.Id,
                     Username = user.Username,
+                    FullName = user.FullName,
+                    Email = user.Email,
+                    PhoneNumber = user.PhoneNumber,
+                    EmployeeNumber = user.EmployeeNumber,
                     TenantId = user.TenantId,
                     TenantCode = user.Tenant?.Code ?? "",
                     TenantName = user.Tenant?.Name ?? "",

@@ -18,9 +18,8 @@ namespace FinanceLedgerAPI.Models
         [Required]
         public int ExpenseId { get; set; }
 
-        [Column("apartment_id")]
-        [Required]
-        public int ApartmentId { get; set; }
+        [Column("zaaer_id")]
+        public int? ZaaerId { get; set; } // ✅ Foreign Key to apartments.zaaer_id (nullable for room categories)
 
         /// <summary>
         /// Purpose - الغرض من ربط النفقة بالغرفة
@@ -44,8 +43,8 @@ namespace FinanceLedgerAPI.Models
         [ForeignKey("ExpenseId")]
         public Expense Expense { get; set; }
 
-        [ForeignKey("ApartmentId")]
-        public Apartment Apartment { get; set; }
+        [ForeignKey("ZaaerId")]
+        public Apartment? Apartment { get; set; } // ✅ Nullable for room categories - Foreign Key to apartments.zaaer_id
     }
 }
 

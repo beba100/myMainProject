@@ -22,6 +22,11 @@ CREATE INDEX IX_Expenses_ApprovalStatus ON dbo.expenses(approval_status);
 -- إضافة فهرس لتحسين الأداء عند البحث حسب المشرف
 CREATE INDEX IX_Expenses_ApprovedBy ON dbo.expenses(approved_by);
 
+-- إضافة عمود تاريخ الاستحقاق
+-- Due Date column
+ALTER TABLE dbo.expenses
+ADD DueDate DATE NULL;
+
 -- =============================================
 -- ملاحظات:
 -- Notes:

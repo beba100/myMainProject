@@ -1,0 +1,2084 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة المستخدمين - Developer Users Management</title>
+    
+    <!-- Google Fonts - Cairo -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <style>
+        :root {
+            --primary-blue: #007ACC;
+            --dark-blue: #005A9E;
+            --light-blue: #E3F2FD;
+            --success-green: #28A745;
+            --warning-orange: #FF9800;
+            --danger-red: #DC3545;
+            --gray-bg: #F5F5F5;
+            --dark-gray: #333333;
+            --light-gray: #E0E0E0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 8px;
+            direction: rtl;
+            font-size: 13px;
+        }
+
+        /* Header */
+        .page-header {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 122, 204, 0.3);
+            margin-bottom: 15px;
+            animation: slideDown 0.6s ease-out;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .page-header h1 {
+            font-family: 'Cairo', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Main Container */
+        .main-container {
+            max-width: 100%;
+            margin: 0 auto;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Tabs Navigation */
+        .tabs-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 15px;
+            overflow: hidden;
+            border: 1px solid #f0f0f0;
+        }
+
+        .tabs-nav {
+            display: flex;
+            background: #fafbfc;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+
+        .tabs-nav li {
+            flex: 1;
+        }
+
+        .tabs-nav button {
+            width: 100%;
+            padding: 15px 20px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: 'Cairo', sans-serif;
+            color: #6b7280;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .tabs-nav button:hover {
+            background: rgba(0, 122, 204, 0.05);
+            color: var(--primary-blue);
+        }
+
+        .tabs-nav button.active {
+            background: white;
+            color: var(--primary-blue);
+            border-bottom-color: var(--primary-blue);
+            font-weight: 700;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 0;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeInTab 0.3s ease-out;
+        }
+
+        @keyframes fadeInTab {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Users Table */
+        .users-table-container {
+            padding: 25px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .users-table-wrapper {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            background: white;
+        }
+
+        .users-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: white;
+            font-family: 'Cairo', sans-serif;
+            font-size: 13px;
+            min-width: 1200px;
+        }
+
+        .users-table thead {
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .users-table th {
+            padding: 12px 15px;
+            text-align: right;
+            font-weight: 600;
+            font-size: 13px;
+            white-space: nowrap;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .users-table th:last-child {
+            border-right: none;
+        }
+
+        .users-table tbody tr {
+            border-bottom: 1px solid #e5e7eb;
+            transition: all 0.2s ease;
+            background: white;
+        }
+
+        .users-table tbody tr:hover {
+            background-color: #f0f9ff;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+        }
+
+        .users-table td {
+            padding: 12px 15px;
+            text-align: right;
+            vertical-align: middle;
+            border-right: 1px solid #f3f4f6;
+            color: #374151;
+            font-family: 'Cairo', sans-serif;
+            font-size: 13px;
+        }
+
+        .users-table td:last-child {
+            border-right: none;
+        }
+
+        .users-table tbody tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        .status-active {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .status-inactive {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        /* Role Tags */
+        .role-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .role-tag {
+            display: inline-block;
+            padding: 4px 10px;
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: white;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        /* Tenant Tags */
+        .tenant-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .tenant-tag {
+            display: inline-block;
+            padding: 4px 10px;
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        .tenant-tag.tenant-primary {
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            color: #8B4513;
+            font-weight: 700;
+            border: 1px solid #FFA500;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-action {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        .btn-edit {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+
+        .btn-edit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-delete {
+            background: linear-gradient(135deg, var(--danger-red) 0%, #C82333 100%);
+            color: white;
+        }
+
+        .btn-delete:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+        }
+
+        /* Form Card */
+        .form-card {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 15px;
+            border: 1px solid #f0f0f0;
+        }
+
+        .section-title {
+            font-family: 'Cairo', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--primary-blue);
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e8f0fe;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #374151;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: 'Cairo', sans-serif;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        /* Select2 Custom Styling */
+        .select2-container {
+            width: 100% !important;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        .select2-container--default .select2-selection--multiple,
+        .select2-container--bootstrap-5 .select2-selection--multiple {
+            min-height: 48px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 5px;
+            background: white;
+        }
+
+        .select2-container--default.select2-container--focus .select2-selection--multiple,
+        .select2-container--bootstrap-5.select2-container--focus .select2-selection--multiple {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
+        }
+
+        .select2-container--default .select2-selection--multiple .select2-selection__choice {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border: none;
+            color: white;
+            border-radius: 6px;
+            padding: 4px 10px;
+            margin: 3px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+            color: white;
+            margin-left: 5px;
+        }
+
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+            color: #fbbf24;
+        }
+
+        /* Submit Button */
+        .btn-submit {
+            background: linear-gradient(135deg, var(--success-green) 0%, #218838 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Cairo', sans-serif;
+            margin-top: 20px;
+        }
+
+        .btn-submit:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
+        }
+
+        .empty-state i {
+            font-size: 64px;
+            color: #d1d5db;
+            margin-bottom: 16px;
+        }
+
+        .empty-state h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+            color: #374151;
+        }
+
+        /* Checkbox */
+        .form-check {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .form-check input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .form-check label {
+            margin: 0;
+            cursor: pointer;
+        }
+
+        /* Edit Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .modal-container {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%);
+            color: white;
+            padding: 20px 25px;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal-close {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            font-size: 18px;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(90deg);
+        }
+
+        .modal-body {
+            padding: 30px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .btn-cancel {
+            background: #6b7280;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        .btn-cancel:hover {
+            background: #4b5563;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="page-header">
+        <h1>
+            <i class="fas fa-users-cog"></i>
+            إدارة المستخدمين - Developer Users Management
+        </h1>
+        <button class="logout-btn" onclick="logout()" title="تسجيل الخروج">
+            <i class="fas fa-sign-out-alt"></i>
+        </button>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Tabs -->
+        <div class="tabs-container">
+            <ul class="tabs-nav">
+                <li>
+                    <button class="active" onclick="switchTab('view-users')">
+                        <i class="fas fa-list"></i>
+                        عرض جميع المستخدمين
+                    </button>
+                </li>
+                <li>
+                    <button onclick="switchTab('add-user')">
+                        <i class="fas fa-user-plus"></i>
+                        إضافة مستخدم جديد
+                    </button>
+                </li>
+            </ul>
+
+            <!-- View Users Tab -->
+            <div id="view-users" class="tab-content active">
+                <div class="users-table-container">
+                    <div class="users-table-wrapper">
+                        <table class="users-table">
+                            <thead>
+                                <tr>
+                                    <th>المعرف</th>
+                                    <th>اسم المستخدم</th>
+                                    <th>الاسم الكامل</th>
+                                    <th>البريد الإلكتروني</th>
+                                    <th>رقم الجوال</th>
+                                    <th>الرقم الوظيفي</th>
+                                    <th>الفندق الأساسي</th>
+                                    <th>الأدوار</th>
+                                    <th>الفنادق المتاحة</th>
+                                    <th>الحالة</th>
+                                    <th>تاريخ الإنشاء</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody">
+                                <tr>
+                                    <td colspan="12" class="empty-state">
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                        <h3>جاري التحميل...</h3>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add User Tab -->
+            <div id="add-user" class="tab-content">
+                <div class="form-card">
+                    <h2 class="section-title">
+                        <i class="fas fa-user-plus"></i>
+                        إضافة مستخدم جديد
+                    </h2>
+                    <form id="addUserForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="username">اسم المستخدم <span style="color: red;">*</span></label>
+                                <input type="text" id="username" name="username" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="password">كلمة المرور <span style="color: red;">*</span></label>
+                                <input type="password" id="password" name="password" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="fullName">الاسم الكامل</label>
+                                <input type="text" id="fullName" name="fullName">
+                            </div>
+                            <div class="form-group">
+                                <label for="email">البريد الإلكتروني</label>
+                                <input type="email" id="email" name="email">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="phoneNumber">رقم الجوال</label>
+                                <input type="text" id="phoneNumber" name="phoneNumber" 
+                                       placeholder="مثال: 0548245840 أو 966548245840"
+                                       onblur="formatPhoneInput(this)">
+                                <small style="color: #6b7280; font-size: 11px; margin-top: 5px; display: block;">
+                                    سيتم إضافة بادئة 966 تلقائياً
+                                </small>
+                            </div>
+                            <div class="form-group">
+                                <label for="employeeNumber">الرقم الوظيفي</label>
+                                <input type="text" id="employeeNumber" name="employeeNumber">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="primaryTenant">الفندق الأساسي <span style="color: red;">*</span></label>
+                                <select id="primaryTenant" name="primaryTenant" required>
+                                    <option value="">اختر الفندق...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="roles">الأدوار</label>
+                                <select id="roles" name="roles" multiple>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="additionalTenants">فنادق إضافية (يمكن الوصول إليها)</label>
+                            <select id="additionalTenants" name="additionalTenants" multiple>
+                            </select>
+                        </div>
+
+                        <div class="form-check">
+                            <input type="checkbox" id="isActive" name="isActive" checked>
+                            <label for="isActive">المستخدم نشط</label>
+                        </div>
+
+                        <button type="submit" class="btn-submit">
+                            <i class="fas fa-save"></i>
+                            حفظ المستخدم
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div class="modal-overlay" id="editUserModal" style="display: none;">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>
+                    <i class="fas fa-user-edit"></i>
+                    تعديل مستخدم
+                </h2>
+                <button class="modal-close" onclick="closeEditModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="editUserForm">
+                    <input type="hidden" id="editUserId" name="userId">
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="editUsername">اسم المستخدم <span style="color: red;">*</span></label>
+                            <input type="text" id="editUsername" name="username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editPassword">كلمة المرور (اتركه فارغاً إذا لم تريد تغييره)</label>
+                            <input type="password" id="editPassword" name="password" placeholder="اتركه فارغاً للحفاظ على كلمة المرور الحالية">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="editFullName">الاسم الكامل</label>
+                            <input type="text" id="editFullName" name="fullName">
+                        </div>
+                        <div class="form-group">
+                            <label for="editEmail">البريد الإلكتروني</label>
+                            <input type="email" id="editEmail" name="email">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                            <div class="form-group">
+                                <label for="editPhoneNumber">رقم الجوال</label>
+                                <input type="text" id="editPhoneNumber" name="phoneNumber"
+                                       placeholder="مثال: 0548245840 أو 966548245840"
+                                       onblur="formatPhoneInput(this)">
+                                <small style="color: #6b7280; font-size: 11px; margin-top: 5px; display: block;">
+                                    سيتم إضافة بادئة 966 تلقائياً
+                                </small>
+                            </div>
+                        <div class="form-group">
+                            <label for="editEmployeeNumber">الرقم الوظيفي</label>
+                            <input type="text" id="editEmployeeNumber" name="employeeNumber">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="editPrimaryTenant">الفندق الأساسي</label>
+                            <select id="editPrimaryTenant" name="primaryTenant">
+                                <option value="">اختر الفندق...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="editRoles">الأدوار</label>
+                            <select id="editRoles" name="roles" multiple>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editAdditionalTenants">فنادق إضافية (يمكن الوصول إليها)</label>
+                        <select id="editAdditionalTenants" name="additionalTenants" multiple>
+                        </select>
+                        <small style="color: #6b7280; font-size: 11px; margin-top: 5px; display: block;">
+                            يمكن اختيار عدة فنادق. الفندق الأساسي سيُستبعد تلقائياً من هذه القائمة.
+                        </small>
+                    </div>
+
+                    <div class="form-check">
+                        <input type="checkbox" id="editIsActive" name="isActive">
+                        <label for="editIsActive">المستخدم نشط</label>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" onclick="closeEditModal()">
+                            <i class="fas fa-times"></i>
+                            إلغاء
+                        </button>
+                        <button type="submit" class="btn-submit">
+                            <i class="fas fa-save"></i>
+                            حفظ التغييرات
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Select2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    <script>
+        // Initialize Select2 for RTL
+        if (typeof $.fn.select2 !== 'undefined') {
+            $.fn.select2.defaults.set('dir', 'rtl');
+            $.fn.select2.defaults.set('language', {
+                noResults: function() { return "لا توجد نتائج"; },
+                searching: function() { return "جاري البحث..."; }
+            });
+        }
+
+        // Format phone number - Add 966 prefix if needed
+        function formatPhoneNumber(phoneNumber) {
+            if (!phoneNumber || phoneNumber.trim() === '') {
+                return null;
+            }
+            
+            // Remove all non-numeric characters (spaces, dashes, etc.)
+            let cleaned = phoneNumber.replace(/\D/g, '');
+            
+            // If empty after cleaning, return null
+            if (cleaned === '') {
+                return null;
+            }
+            
+            // If already starts with 966, return as is
+            if (cleaned.startsWith('966')) {
+                return cleaned;
+            }
+            
+            // If starts with 0, replace 0 with 966
+            if (cleaned.startsWith('0')) {
+                return '966' + cleaned.substring(1);
+            }
+            
+            // Otherwise, add 966 prefix
+            return '966' + cleaned;
+        }
+
+        // Get JWT Token
+        function getToken() {
+            return localStorage.getItem('authToken');
+        }
+
+        // Get User Info
+        function getUserInfo() {
+            const userInfoStr = localStorage.getItem('userInfo');
+            if (userInfoStr) {
+                try {
+                    return JSON.parse(userInfoStr);
+                } catch (e) {
+                    return {};
+                }
+            }
+            return {};
+        }
+
+        // Parse JWT Token to get roles
+        function parseJwt(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                console.error('Error parsing JWT:', e);
+                return null;
+            }
+        }
+
+        // Get roles from token or userInfo
+        function getUserRoles() {
+            // First, try to get from userInfo (most reliable)
+            const userInfo = getUserInfo();
+            if (userInfo.roles) {
+                if (Array.isArray(userInfo.roles)) {
+                    console.log('Roles from userInfo (array):', userInfo.roles);
+                    return userInfo.roles;
+                }
+                if (typeof userInfo.roles === 'string') {
+                    const roles = userInfo.roles.split(',').map(r => r.trim());
+                    console.log('Roles from userInfo (string):', roles);
+                    return roles;
+                }
+            }
+            
+            // Fallback to JWT token
+            const token = getToken();
+            if (token) {
+                const decoded = parseJwt(token);
+                console.log('Decoded JWT:', decoded);
+                
+                if (decoded) {
+                    // Try different possible claim names
+                    let roles = null;
+                    
+                    // Try "roles" claim (custom claim)
+                    if (decoded.roles) {
+                        roles = decoded.roles;
+                    }
+                    // Try "http://schemas.microsoft.com/ws/2008/06/identity/claims/role" (ClaimTypes.Role)
+                    else if (decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role']) {
+                        roles = decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'];
+                    }
+                    // Try "role" claim
+                    else if (decoded.role) {
+                        roles = decoded.role;
+                    }
+                    
+                    if (roles) {
+                        // roles can be a comma-separated string or array
+                        if (typeof roles === 'string') {
+                            const roleArray = roles.split(',').map(r => r.trim());
+                            console.log('Roles from JWT (string):', roleArray);
+                            return roleArray;
+                        }
+                        if (Array.isArray(roles)) {
+                            console.log('Roles from JWT (array):', roles);
+                            return roles;
+                        }
+                    }
+                }
+            }
+            
+            console.warn('No roles found in token or userInfo');
+            return [];
+        }
+
+        // API Base URL
+        const API_BASE = '/api/MasterUser';
+
+        // Check if user is authenticated (optional - page works without login)
+        function isAuthenticated() {
+            const token = getToken();
+            return !!token;
+        }
+
+        // Check if user has Developer role (optional check)
+        async function checkDeveloperRole() {
+            const token = getToken();
+            if (!token) {
+                return false;
+            }
+
+            // First, try to validate token and get fresh roles from server
+            try {
+                const validateResponse = await fetch('/api/auth/validate', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (validateResponse.ok) {
+                    const validateData = await validateResponse.json();
+                    if (validateData.roles && validateData.roles.length > 0) {
+                        // Update userInfo with fresh roles
+                        const userInfo = getUserInfo();
+                        userInfo.roles = validateData.roles;
+                        localStorage.setItem('userInfo', JSON.stringify(userInfo));
+                        console.log('Updated roles from server:', validateData.roles);
+                    }
+                }
+            } catch (error) {
+                console.warn('Could not validate token, using cached roles:', error);
+            }
+
+            // Check if user has Developer role
+            const roles = getUserRoles();
+            console.log('Checking roles for Developer access. Current roles:', roles);
+            
+            const hasDeveloperRole = roles.some(role => {
+                const roleStr = typeof role === 'object' && role.code ? role.code : role;
+                const normalizedRole = roleStr ? roleStr.toString().toLowerCase().trim() : '';
+                const isDeveloper = normalizedRole === 'developer';
+                console.log(`Checking role: "${roleStr}" -> normalized: "${normalizedRole}" -> isDeveloper: ${isDeveloper}`);
+                return isDeveloper;
+            });
+
+            console.log('Has Developer role:', hasDeveloperRole);
+            return hasDeveloperRole;
+        }
+
+        // Show login prompt if not authenticated
+        function showLoginPrompt() {
+            const loginPrompt = `
+                <div style="text-align: center; padding: 40px; background: white; border-radius: 8px; margin: 20px;">
+                    <i class="fas fa-lock" style="font-size: 64px; color: #007ACC; margin-bottom: 20px;"></i>
+                    <h2 style="color: #333; margin-bottom: 15px;">تسجيل الدخول مطلوب</h2>
+                    <p style="color: #666; margin-bottom: 25px;">يجب تسجيل الدخول بحساب مطور للوصول إلى هذه الصفحة</p>
+                    <button onclick="window.location.href='/login.html'" 
+                            style="background: linear-gradient(135deg, #007ACC 0%, #005A9E 100%); 
+                                   color: white; 
+                                   border: none; 
+                                   padding: 12px 30px; 
+                                   border-radius: 8px; 
+                                   font-size: 16px; 
+                                   font-weight: 600; 
+                                   cursor: pointer;
+                                   font-family: 'Cairo', sans-serif;">
+                        <i class="fas fa-sign-in-alt"></i> تسجيل الدخول
+                    </button>
+                </div>
+            `;
+            $('#view-users .users-table-container').html(loginPrompt);
+            $('#add-user .form-card').html(loginPrompt);
+        }
+
+        // Load data on page load
+        $(document).ready(async function() {
+            // Initialize Select2 first (always)
+            initializeSelect2();
+            initializeEditModalSelect2();
+            
+            // Check if user is authenticated
+            if (!isAuthenticated()) {
+                showLoginPrompt();
+                return;
+            }
+            
+            // Check if user has Developer role
+            const hasDeveloperRole = await checkDeveloperRole();
+            if (!hasDeveloperRole) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'تنبيه',
+                    html: `هذه الصفحة مخصصة للمطورين فقط.<br><br>
+                           <small>يمكنك عرض الصفحة، لكن لن تتمكن من الوصول إلى البيانات.</small>`,
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#007ACC'
+                });
+                showLoginPrompt();
+                return;
+            }
+            
+            // User is authenticated and has Developer role - load data
+            loadUsers();
+            loadTenants();
+            loadRoles();
+        });
+
+        // Switch tabs
+        function switchTab(tabName) {
+            $('.tab-content').removeClass('active');
+            $('.tabs-nav button').removeClass('active');
+            $(`#${tabName}`).addClass('active');
+            $(`.tabs-nav button[onclick="switchTab('${tabName}')"]`).addClass('active');
+        }
+
+        // Initialize Select2
+        function initializeSelect2() {
+            // Initialize primary tenant select
+            $('#primaryTenant').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'اختر الفندق...',
+                allowClear: true,
+                dir: 'rtl'
+            });
+
+            // Initialize roles multiselect
+            $('#roles').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'اختر الأدوار...',
+                allowClear: true,
+                dir: 'rtl'
+            });
+
+            // Initialize additional tenants multiselect
+            $('#additionalTenants').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'اختر الفنادق الإضافية...',
+                allowClear: true,
+                dir: 'rtl'
+            });
+        }
+
+        // Load Users
+        async function loadUsers() {
+            try {
+                const token = getToken();
+                if (!token) {
+                    showLoginPrompt();
+                    return;
+                }
+                
+                showLoading();
+
+                const response = await fetch(`${API_BASE}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        localStorage.removeItem('authToken');
+                        localStorage.removeItem('userInfo');
+                        showLoginPrompt();
+                        return;
+                    }
+                    
+                    const errorData = await response.json().catch(() => ({ error: 'فشل تحميل المستخدمين' }));
+                    throw new Error(errorData.error || 'فشل تحميل المستخدمين');
+                }
+
+                const users = await response.json();
+                displayUsers(users);
+            } catch (error) {
+                console.error('Error loading users:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: error.message || 'فشل تحميل المستخدمين',
+                    confirmButtonText: 'موافق'
+                });
+                $('#usersTableBody').html('<tr><td colspan="12" class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>فشل تحميل البيانات</h3><p>' + (error.message || '') + '</p></td></tr>');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Display Users
+        function displayUsers(users) {
+            const tbody = $('#usersTableBody');
+            
+            if (!users || users.length === 0) {
+                tbody.html('<tr><td colspan="12" class="empty-state"><i class="fas fa-users"></i><h3>لا توجد مستخدمين</h3></td></tr>');
+                return;
+            }
+
+            tbody.html(users.map(user => `
+                <tr>
+                    <td>${user.id}</td>
+                    <td><strong>${user.username}</strong></td>
+                    <td>${user.fullName || '-'}</td>
+                    <td>${user.email || '-'}</td>
+                    <td>${user.phoneNumber || '-'}</td>
+                    <td>${user.employeeNumber || '-'}</td>
+                    <td><strong>${user.tenantName || user.tenantCode || '-'}</strong></td>
+                    <td>
+                        <div class="role-tags">
+                            ${user.roles.map(role => `<span class="role-tag">${role.name}</span>`).join('')}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="tenant-tags">
+                            ${user.accessibleTenants && user.accessibleTenants.length > 0 
+                                ? user.accessibleTenants.map(tenant => {
+                                    const isPrimary = tenant.id === user.tenantId;
+                                    return `<span class="tenant-tag ${isPrimary ? 'tenant-primary' : ''}" title="${isPrimary ? 'الفندق الأساسي' : 'فندق إضافي'}">${tenant.name || tenant.code}${isPrimary ? ' <i class="fas fa-star" style="font-size: 10px;"></i>' : ''}</span>`;
+                                }).join('')
+                                : '<span class="text-muted">-</span>'}
+                        </div>
+                    </td>
+                    <td>
+                        <span class="status-badge ${user.isActive ? 'status-active' : 'status-inactive'}">
+                            ${user.isActive ? 'نشط' : 'غير نشط'}
+                        </span>
+                    </td>
+                    <td>${new Date(user.createdAt).toLocaleDateString('ar-SA')}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-action btn-edit" onclick="editUser(${user.id})">
+                                <i class="fas fa-edit"></i> تعديل
+                            </button>
+                            <button class="btn-action btn-delete" onclick="deleteUser(${user.id})">
+                                <i class="fas fa-trash"></i> حذف
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join(''));
+        }
+
+        // Load Tenants
+        async function loadTenants() {
+            try {
+                const token = getToken();
+                if (!token) {
+                    return; // Silently fail - page works without this
+                }
+
+                const response = await fetch(`${API_BASE}/tenants`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        // Silently fail - page works without this data
+                        return;
+                    }
+                    const errorData = await response.json().catch(() => ({ error: 'فشل تحميل الفنادق' }));
+                    console.error('Error loading tenants:', errorData.error || 'فشل تحميل الفنادق');
+                    return; // Don't show error - page works without this
+                }
+
+                const tenants = await response.json();
+                const primaryTenantSelect = $('#primaryTenant');
+                
+                // Destroy Select2 if already initialized
+                if (primaryTenantSelect.hasClass('select2-hidden-accessible')) {
+                    primaryTenantSelect.select2('destroy');
+                }
+                
+                primaryTenantSelect.html('<option value="">اختر الفندق...</option>');
+                if (tenants && tenants.length > 0) {
+                    tenants.forEach(tenant => {
+                        primaryTenantSelect.append(`<option value="${tenant.id}">${tenant.name} (${tenant.code})</option>`);
+                    });
+                }
+                
+                // Re-initialize Select2
+                primaryTenantSelect.select2({
+                    theme: 'bootstrap-5',
+                    placeholder: 'اختر الفندق...',
+                    allowClear: true,
+                    dir: 'rtl'
+                });
+
+                // Also populate additional tenants select
+                const additionalTenantsSelect = $('#additionalTenants');
+                
+                // Destroy Select2 if already initialized
+                if (additionalTenantsSelect.hasClass('select2-hidden-accessible')) {
+                    additionalTenantsSelect.select2('destroy');
+                }
+                
+                additionalTenantsSelect.html('');
+                if (tenants && tenants.length > 0) {
+                    tenants.forEach(tenant => {
+                        additionalTenantsSelect.append(`<option value="${tenant.id}">${tenant.name} (${tenant.code})</option>`);
+                    });
+                }
+                
+                // Re-initialize Select2
+                additionalTenantsSelect.select2({
+                    theme: 'bootstrap-5',
+                    placeholder: 'اختر الفنادق الإضافية...',
+                    allowClear: true,
+                    dir: 'rtl'
+                });
+                
+                // Exclude primary tenant from additional tenants dropdown when primary tenant changes
+                $('#primaryTenant').off('change.excludePrimary').on('change.excludePrimary', function() {
+                    const primaryId = $(this).val();
+                    if (primaryId) {
+                        // Remove primary tenant from additional tenants selection if selected
+                        const currentValues = additionalTenantsSelect.val() || [];
+                        const filteredValues = currentValues.filter(id => id.toString() !== primaryId.toString());
+                        if (filteredValues.length !== currentValues.length) {
+                            additionalTenantsSelect.val(filteredValues).trigger('change');
+                        }
+                    }
+                });
+
+                // Populate edit modal selects with tenants
+                if (typeof populateEditModalSelects === 'function') {
+                    // Try to get roles if available
+                    const roles = await fetch(`${API_BASE}/roles`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    }).then(r => r.ok ? r.json() : []).catch(() => []);
+                    populateEditModalSelects(tenants, roles);
+                }
+            } catch (error) {
+                console.error('Error loading tenants:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: error.message || 'فشل تحميل الفنادق',
+                    confirmButtonText: 'موافق'
+                });
+            }
+        }
+
+        // Load Roles
+        async function loadRoles() {
+            try {
+                const token = getToken();
+                if (!token) {
+                    return; // Silently fail - page works without this
+                }
+
+                const response = await fetch(`${API_BASE}/roles`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        // Silently fail - page works without this data
+                        return;
+                    }
+                    const errorData = await response.json().catch(() => ({ error: 'فشل تحميل الأدوار' }));
+                    console.error('Error loading roles:', errorData.error || 'فشل تحميل الأدوار');
+                    return; // Don't show error - page works without this
+                }
+
+                const roles = await response.json();
+                const rolesSelect = $('#roles');
+                
+                // Destroy Select2 if already initialized
+                if (rolesSelect.hasClass('select2-hidden-accessible')) {
+                    rolesSelect.select2('destroy');
+                }
+                
+                rolesSelect.html('');
+                if (roles && roles.length > 0) {
+                    roles.forEach(role => {
+                        rolesSelect.append(`<option value="${role.id}">${role.name} (${role.code})</option>`);
+                    });
+                }
+                
+                // Re-initialize Select2
+                rolesSelect.select2({
+                    theme: 'bootstrap-5',
+                    placeholder: 'اختر الأدوار...',
+                    allowClear: true,
+                    dir: 'rtl'
+                });
+
+                // Populate edit modal selects
+                const tenants = await fetch(`${API_BASE}/tenants`, {
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`,
+                        'Content-Type': 'application/json'
+                    }
+                }).then(r => r.ok ? r.json() : []).catch(() => []);
+                populateEditModalSelects(tenants, roles);
+            } catch (error) {
+                console.error('Error loading roles:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: error.message || 'فشل تحميل الأدوار',
+                    confirmButtonText: 'موافق'
+                });
+            }
+        }
+
+        // Format phone input on blur
+        function formatPhoneInput(input) {
+            const value = input.value;
+            if (value && value.trim() !== '') {
+                const formatted = formatPhoneNumber(value);
+                if (formatted) {
+                    input.value = formatted;
+                }
+            }
+        }
+
+        // Submit Form
+        $('#addUserForm').on('submit', async function(e) {
+            e.preventDefault();
+            
+            // Format phone number before submission
+            const phoneNumber = $('#phoneNumber').val();
+            const formattedPhone = formatPhoneNumber(phoneNumber);
+            
+            // Get additional tenants and exclude primary tenant
+            const primaryTenantId = parseInt($('#primaryTenant').val());
+            const selectedAdditionalTenants = $('#additionalTenants').val() ? $('#additionalTenants').val().map(id => parseInt(id)) : [];
+            // Filter out primary tenant from additional tenants (shouldn't be in both)
+            const additionalTenantIds = selectedAdditionalTenants.filter(id => id !== primaryTenantId);
+            
+            const formData = {
+                username: $('#username').val(),
+                password: $('#password').val(),
+                fullName: $('#fullName').val() || null,
+                email: $('#email').val() || null,
+                phoneNumber: formattedPhone,
+                employeeNumber: $('#employeeNumber').val() || null,
+                tenantId: primaryTenantId,
+                roleIds: $('#roles').val() ? $('#roles').val().map(id => parseInt(id)) : [],
+                additionalTenantIds: additionalTenantIds, // Always send array (empty if none selected)
+                isActive: $('#isActive').is(':checked')
+            };
+            
+            console.log('Creating user with data:', {
+                ...formData,
+                password: '***' // Don't log password
+            });
+
+            try {
+                const token = getToken();
+                if (!token) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'تسجيل الدخول مطلوب',
+                        text: 'يجب تسجيل الدخول لإضافة مستخدم جديد',
+                        confirmButtonText: 'تسجيل الدخول',
+                        confirmButtonColor: '#007ACC'
+                    }).then(() => {
+                        window.location.href = '/login.html';
+                    });
+                    return;
+                }
+
+                showLoading();
+                const response = await fetch(`${API_BASE}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        localStorage.removeItem('authToken');
+                        localStorage.removeItem('userInfo');
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'انتهت الجلسة',
+                            text: 'يرجى تسجيل الدخول مرة أخرى',
+                            confirmButtonText: 'تسجيل الدخول',
+                            confirmButtonColor: '#007ACC'
+                        }).then(() => {
+                            window.location.href = '/login.html';
+                        });
+                        return;
+                    }
+                    const error = await response.json().catch(() => ({ error: 'فشل إنشاء المستخدم' }));
+                    throw new Error(error.error || 'فشل إنشاء المستخدم');
+                }
+
+                const result = await response.json();
+                Swal.fire({
+                    icon: 'success',
+                    title: 'نجح!',
+                    text: 'تم إنشاء المستخدم بنجاح',
+                    confirmButtonText: 'موافق'
+                });
+
+                // Reset form
+                $('#addUserForm')[0].reset();
+                $('#roles').val(null).trigger('change');
+                $('#additionalTenants').val(null).trigger('change');
+
+                // Reload users
+                loadUsers();
+            } catch (error) {
+                console.error('Error creating user:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: error.message || 'فشل إنشاء المستخدم',
+                    confirmButtonText: 'موافق'
+                });
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Edit User - Load user data and show modal
+        async function editUser(userId) {
+            try {
+                const token = getToken();
+                if (!token) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'تسجيل الدخول مطلوب',
+                        text: 'يجب تسجيل الدخول لتعديل المستخدم',
+                        confirmButtonText: 'تسجيل الدخول',
+                        confirmButtonColor: '#007ACC'
+                    }).then(() => {
+                        window.location.href = '/login.html';
+                    });
+                    return;
+                }
+
+                showLoading();
+                
+                // Fetch user data
+                const response = await fetch(`${API_BASE}/${userId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        localStorage.removeItem('authToken');
+                        localStorage.removeItem('userInfo');
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'انتهت الجلسة',
+                            text: 'يرجى تسجيل الدخول مرة أخرى',
+                            confirmButtonText: 'تسجيل الدخول',
+                            confirmButtonColor: '#007ACC'
+                        }).then(() => {
+                            window.location.href = '/login.html';
+                        });
+                        return;
+                    }
+                    throw new Error('فشل تحميل بيانات المستخدم');
+                }
+
+                const user = await response.json();
+                
+                // Ensure selects are populated before setting values
+                // Load tenants and roles if not already loaded
+                let tenants = [];
+                let roles = [];
+                
+                try {
+                    const tenantsResponse = await fetch(`${API_BASE}/tenants`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    if (tenantsResponse.ok) {
+                        tenants = await tenantsResponse.json();
+                    }
+                } catch (e) {
+                    console.warn('Could not load tenants for edit modal:', e);
+                }
+                
+                try {
+                    const rolesResponse = await fetch(`${API_BASE}/roles`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    if (rolesResponse.ok) {
+                        roles = await rolesResponse.json();
+                    }
+                } catch (e) {
+                    console.warn('Could not load roles for edit modal:', e);
+                }
+                
+                // Populate selects
+                if (typeof populateEditModalSelects === 'function') {
+                    populateEditModalSelects(tenants, roles);
+                }
+                
+                // Wait a bit for Select2 to initialize
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Populate form with user data
+                $('#editUserId').val(user.id);
+                $('#editUsername').val(user.username);
+                $('#editPassword').val(''); // Clear password field
+                $('#editFullName').val(user.fullName || '');
+                $('#editEmail').val(user.email || '');
+                // Display phone number as stored (might already have 966)
+                // But format it for display if it doesn't have 966
+                let displayPhone = user.phoneNumber || '';
+                if (displayPhone && !displayPhone.startsWith('966') && !displayPhone.startsWith('0')) {
+                    // If it's a number without prefix, show it as is
+                    displayPhone = displayPhone;
+                }
+                $('#editPhoneNumber').val(displayPhone);
+                $('#editEmployeeNumber').val(user.employeeNumber || '');
+                $('#editIsActive').prop('checked', user.isActive);
+
+                // Set primary tenant
+                if (user.tenantId) {
+                    $('#editPrimaryTenant').val(user.tenantId).trigger('change');
+                }
+
+                // Set roles
+                if (user.roles && user.roles.length > 0) {
+                    const roleIds = user.roles.map(role => role.id);
+                    $('#editRoles').val(roleIds).trigger('change');
+                }
+
+                // Set additional tenants (exclude primary tenant)
+                if (user.accessibleTenants && user.accessibleTenants.length > 0) {
+                    const additionalTenantIds = user.accessibleTenants
+                        .filter(tenant => tenant.id !== user.tenantId)
+                        .map(tenant => tenant.id);
+                    if (additionalTenantIds.length > 0) {
+                        $('#editAdditionalTenants').val(additionalTenantIds).trigger('change');
+                    }
+                }
+
+                // Show modal
+                $('#editUserModal').fadeIn(300);
+                
+            } catch (error) {
+                console.error('Error loading user data:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: error.message || 'فشل تحميل بيانات المستخدم',
+                    confirmButtonText: 'موافق'
+                });
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Close Edit Modal
+        function closeEditModal() {
+            $('#editUserModal').fadeOut(300);
+            $('#editUserForm')[0].reset();
+            $('#editRoles').val(null).trigger('change');
+            $('#editAdditionalTenants').val(null).trigger('change');
+        }
+
+        // Initialize Select2 for edit modal
+        function initializeEditModalSelect2() {
+            // Initialize primary tenant select
+            $('#editPrimaryTenant').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'اختر الفندق...',
+                allowClear: true,
+                dir: 'rtl',
+                dropdownParent: $('#editUserModal')
+            });
+
+            // Initialize roles multiselect
+            $('#editRoles').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'اختر الأدوار...',
+                allowClear: true,
+                dir: 'rtl',
+                dropdownParent: $('#editUserModal')
+            });
+
+            // Initialize additional tenants multiselect
+            $('#editAdditionalTenants').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'اختر الفنادق الإضافية...',
+                allowClear: true,
+                dir: 'rtl',
+                dropdownParent: $('#editUserModal')
+            });
+        }
+
+        // Populate edit modal selects when tenants/roles are loaded
+        function populateEditModalSelects(tenants, roles) {
+            // Populate primary tenant
+            const editPrimaryTenant = $('#editPrimaryTenant');
+            const isPrimaryTenantSelect2 = editPrimaryTenant.hasClass('select2-hidden-accessible');
+            
+            if (isPrimaryTenantSelect2) {
+                editPrimaryTenant.select2('destroy');
+            }
+            
+            editPrimaryTenant.html('<option value="">اختر الفندق...</option>');
+            if (tenants && tenants.length > 0) {
+                tenants.forEach(tenant => {
+                    editPrimaryTenant.append(`<option value="${tenant.id}">${tenant.name} (${tenant.code})</option>`);
+                });
+            }
+            
+            if (isPrimaryTenantSelect2) {
+                editPrimaryTenant.select2({
+                    theme: 'bootstrap-5',
+                    placeholder: 'اختر الفندق...',
+                    allowClear: true,
+                    dir: 'rtl',
+                    dropdownParent: $('#editUserModal')
+                });
+            }
+
+            // Populate roles
+            const editRoles = $('#editRoles');
+            const isRolesSelect2 = editRoles.hasClass('select2-hidden-accessible');
+            
+            if (isRolesSelect2) {
+                editRoles.select2('destroy');
+            }
+            
+            editRoles.html('');
+            if (roles && roles.length > 0) {
+                roles.forEach(role => {
+                    editRoles.append(`<option value="${role.id}">${role.name} (${role.code})</option>`);
+                });
+            }
+            
+            if (isRolesSelect2) {
+                editRoles.select2({
+                    theme: 'bootstrap-5',
+                    placeholder: 'اختر الأدوار...',
+                    allowClear: true,
+                    dir: 'rtl',
+                    dropdownParent: $('#editUserModal')
+                });
+            }
+
+            // Populate additional tenants
+            const editAdditionalTenants = $('#editAdditionalTenants');
+            const isAdditionalTenantsSelect2 = editAdditionalTenants.hasClass('select2-hidden-accessible');
+            
+            if (isAdditionalTenantsSelect2) {
+                editAdditionalTenants.select2('destroy');
+            }
+            
+            editAdditionalTenants.html('');
+            if (tenants && tenants.length > 0) {
+                tenants.forEach(tenant => {
+                    editAdditionalTenants.append(`<option value="${tenant.id}">${tenant.name} (${tenant.code})</option>`);
+                });
+            }
+            
+            if (isAdditionalTenantsSelect2) {
+                editAdditionalTenants.select2({
+                    theme: 'bootstrap-5',
+                    placeholder: 'اختر الفنادق الإضافية...',
+                    allowClear: true,
+                    dir: 'rtl',
+                    dropdownParent: $('#editUserModal')
+                });
+            }
+            
+            // Exclude primary tenant from additional tenants dropdown when primary tenant changes in edit modal
+            $('#editPrimaryTenant').off('change.excludePrimaryEdit').on('change.excludePrimaryEdit', function() {
+                const primaryId = $(this).val();
+                if (primaryId) {
+                    // Remove primary tenant from additional tenants selection if selected
+                    const currentValues = editAdditionalTenants.val() || [];
+                    const filteredValues = currentValues.filter(id => id.toString() !== primaryId.toString());
+                    if (filteredValues.length !== currentValues.length) {
+                        editAdditionalTenants.val(filteredValues).trigger('change');
+                    }
+                }
+            });
+        }
+
+        // Submit Edit Form
+        $('#editUserForm').on('submit', async function(e) {
+            e.preventDefault();
+            
+            const userId = $('#editUserId').val();
+            if (!userId) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: 'معرف المستخدم غير موجود',
+                    confirmButtonText: 'موافق'
+                });
+                return;
+            }
+
+            // Format phone number before submission
+            const editPhoneNumber = $('#editPhoneNumber').val();
+            const formattedEditPhone = formatPhoneNumber(editPhoneNumber);
+            
+            // Get additional tenants and exclude primary tenant
+            const editPrimaryTenantId = $('#editPrimaryTenant').val() ? parseInt($('#editPrimaryTenant').val()) : null;
+            const selectedEditAdditionalTenants = $('#editAdditionalTenants').val() ? $('#editAdditionalTenants').val().map(id => parseInt(id)) : [];
+            // Filter out primary tenant from additional tenants (shouldn't be in both)
+            const editAdditionalTenantIds = editPrimaryTenantId 
+                ? selectedEditAdditionalTenants.filter(id => id !== editPrimaryTenantId)
+                : selectedEditAdditionalTenants;
+            
+            const formData = {
+                username: $('#editUsername').val(),
+                password: $('#editPassword').val() || null, // Only send if provided
+                fullName: $('#editFullName').val() || null,
+                email: $('#editEmail').val() || null,
+                phoneNumber: formattedEditPhone,
+                employeeNumber: $('#editEmployeeNumber').val() || null,
+                tenantId: editPrimaryTenantId,
+                roleIds: $('#editRoles').val() ? $('#editRoles').val().map(id => parseInt(id)) : [],
+                additionalTenantIds: editAdditionalTenantIds, // Always send array (empty if none selected)
+                isActive: $('#editIsActive').is(':checked')
+            };
+            
+            console.log('Updating user with data:', {
+                ...formData,
+                password: formData.password ? '***' : null // Don't log password
+            });
+
+            try {
+                const token = getToken();
+                if (!token) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'تسجيل الدخول مطلوب',
+                        text: 'يجب تسجيل الدخول لتحديث المستخدم',
+                        confirmButtonText: 'تسجيل الدخول',
+                        confirmButtonColor: '#007ACC'
+                    }).then(() => {
+                        window.location.href = '/login.html';
+                    });
+                    return;
+                }
+
+                showLoading();
+                const response = await fetch(`${API_BASE}/${userId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        localStorage.removeItem('authToken');
+                        localStorage.removeItem('userInfo');
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'انتهت الجلسة',
+                            text: 'يرجى تسجيل الدخول مرة أخرى',
+                            confirmButtonText: 'تسجيل الدخول',
+                            confirmButtonColor: '#007ACC'
+                        }).then(() => {
+                            window.location.href = '/login.html';
+                        });
+                        return;
+                    }
+                    const error = await response.json().catch(() => ({ error: 'فشل تحديث المستخدم' }));
+                    throw new Error(error.error || 'فشل تحديث المستخدم');
+                }
+
+                const result = await response.json();
+                Swal.fire({
+                    icon: 'success',
+                    title: 'نجح!',
+                    text: 'تم تحديث المستخدم بنجاح',
+                    confirmButtonText: 'موافق'
+                });
+
+                // Close modal
+                closeEditModal();
+
+                // Reload users
+                loadUsers();
+            } catch (error) {
+                console.error('Error updating user:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: error.message || 'فشل تحديث المستخدم',
+                    confirmButtonText: 'موافق'
+                });
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Delete User
+        async function deleteUser(userId) {
+            const result = await Swal.fire({
+                icon: 'warning',
+                title: 'هل أنت متأكد؟',
+                text: 'سيتم حذف المستخدم نهائياً',
+                showCancelButton: true,
+                confirmButtonText: 'نعم، احذف',
+                cancelButtonText: 'إلغاء',
+                confirmButtonColor: '#dc3545'
+            });
+
+            if (result.isConfirmed) {
+                try {
+                    const token = getToken();
+                    if (!token) {
+                        window.location.href = '/login.html';
+                        return;
+                    }
+
+                    showLoading();
+                    const response = await fetch(`${API_BASE}/${userId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        if (response.status === 401 || response.status === 403) {
+                            localStorage.removeItem('authToken');
+                            localStorage.removeItem('userInfo');
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'انتهت الجلسة',
+                                text: 'يرجى تسجيل الدخول مرة أخرى',
+                                confirmButtonText: 'تسجيل الدخول',
+                                confirmButtonColor: '#007ACC'
+                            }).then(() => {
+                                window.location.href = '/login.html';
+                            });
+                            return;
+                        }
+                        const errorData = await response.json().catch(() => ({ error: 'فشل حذف المستخدم' }));
+                        throw new Error(errorData.error || 'فشل حذف المستخدم');
+                    }
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'نجح!',
+                        text: 'تم حذف المستخدم بنجاح',
+                        confirmButtonText: 'موافق'
+                    });
+
+                    loadUsers();
+                } catch (error) {
+                    console.error('Error deleting user:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ',
+                        text: 'فشل حذف المستخدم',
+                        confirmButtonText: 'موافق'
+                    });
+                } finally {
+                    hideLoading();
+                }
+            }
+        }
+
+        // Logout
+        function logout() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userInfo');
+            window.location.href = '/login.html';
+        }
+
+        // Loading functions
+        function showLoading() {
+            $('#loadingOverlay').addClass('active');
+        }
+
+        function hideLoading() {
+            $('#loadingOverlay').removeClass('active');
+        }
+    </script>
+</body>
+</html>
+

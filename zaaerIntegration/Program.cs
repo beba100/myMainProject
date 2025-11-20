@@ -35,6 +35,9 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
     });
 
+// Add Memory Cache for static data (e.g., expense categories)
+builder.Services.AddMemoryCache();
+
 // ? ===== Multi-Tenant Configuration =====
 // Configure Master Database Context (قاعدة البيانات المركزية)
 builder.Services.AddDbContext<MasterDbContext>(options =>

@@ -21,6 +21,26 @@ namespace zaaerIntegration.DTOs.Auth
         public string Username { get; set; } = string.Empty;
 
         /// <summary>
+        /// الاسم الكامل للمستخدم
+        /// </summary>
+        public string? FullName { get; set; }
+
+        /// <summary>
+        /// البريد الإلكتروني
+        /// </summary>
+        public string? Email { get; set; }
+
+        /// <summary>
+        /// رقم الجوال
+        /// </summary>
+        public string? PhoneNumber { get; set; }
+
+        /// <summary>
+        /// الرقم الوظيفي
+        /// </summary>
+        public string? EmployeeNumber { get; set; }
+
+        /// <summary>
         /// معرف الفندق (Tenant)
         /// </summary>
         public int TenantId { get; set; }

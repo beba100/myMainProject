@@ -1,0 +1,3880 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة مدير العمليات - Manager Dashboard</title>
+    
+    <!-- Google Fonts - Cairo -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- jQuery Calendars (Local Files) - Load in correct order -->
+    <script src="js/jquery.plugin.js"></script>
+    <script src="js/jquery.calendars.js"></script>
+    <script src="js/jquery.calendars.plus.js"></script>
+    <script src="js/jquery.calendars.picker.js"></script>
+    <script src="js/jquery.calendars.ummalqura.js"></script>
+    
+    <!-- Calendar CSS -->
+    <link rel="stylesheet" href="css/ummalqura.calendars.picker.css" />
+    
+    <!-- Local Calendar Convert JS -->
+    <script src="js/calendar-convert.js"></script>
+    
+    <!-- SheetJS (xlsx) for Excel Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- jsPDF and jsPDF-AutoTable for PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <!-- html2canvas for better Arabic support -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <style>
+        :root {
+            --primary-blue: #007ACC;
+            --dark-blue: #005A9E;
+            --light-blue: #E3F2FD;
+            --success-green: #28A745;
+            --warning-orange: #FF9800;
+            --danger-red: #DC3545;
+            --gray-bg: #F5F5F5;
+            --dark-gray: #333333;
+            --light-gray: #E0E0E0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 8px;
+            direction: rtl;
+            font-size: 13px;
+        }
+
+        /* Header */
+        .page-header {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 122, 204, 0.3);
+            margin-bottom: 10px;
+            animation: slideDown 0.6s ease-out;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        
+        .page-header-content {
+            text-align: center;
+            flex: 1;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .page-header h1 {
+            font-family: 'Cairo', sans-serif;
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 3px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .page-header p {
+            font-family: 'Cairo', sans-serif;
+            opacity: 0.9;
+            font-size: 11px;
+            margin: 0;
+        }
+
+        /* Logout Button */
+        .logout-btn {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-50%) scale(1.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Main Container */
+        .main-container {
+            max-width: 100%;
+            margin: 0 auto;
+            animation: fadeIn 0.8s ease-out;
+            padding: 0 8px;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Form Card */
+        .form-card {
+            background: white;
+            border-radius: 8px;
+            padding: 18px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 10px;
+            border: 1px solid #f0f0f0;
+        }
+
+        #all-expenses-tab .form-card,
+        #pending-approvals-tab .form-card {
+            padding: 24px 28px;
+        }
+
+        .section-title {
+            font-family: 'Cairo', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary-blue);
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e8f0fe;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Tabs Navigation */
+        .tabs-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+            margin-bottom: 10px;
+            overflow: hidden;
+            border: 1px solid #f0f0f0;
+        }
+
+        .tabs-nav {
+            display: flex;
+            background: #fafbfc;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+
+        .tabs-nav li {
+            flex: 1;
+        }
+
+        .tabs-nav button {
+            width: 100%;
+            padding: 10px 16px;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: 'Cairo', sans-serif;
+            color: #6b7280;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            position: relative;
+        }
+
+        .tabs-nav button:hover {
+            background: rgba(0, 122, 204, 0.04);
+            color: var(--primary-blue);
+        }
+
+        .tabs-nav button.active {
+            background: white;
+            color: var(--primary-blue);
+            border-bottom-color: var(--primary-blue);
+            font-weight: 700;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 0;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeInTab 0.3s ease-out;
+        }
+
+        @keyframes fadeInTab {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Expenses Table */
+        .expenses-table-container {
+            padding: 24px 28px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .expenses-table-wrapper {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            position: relative;
+            z-index: 1;
+        }
+
+        .expenses-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: white;
+            font-family: 'Cairo', sans-serif;
+            font-size: 12px;
+            min-width: 1400px;
+        }
+
+        .expenses-table thead {
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .expenses-table th {
+            padding: 10px 12px;
+            text-align: right;
+            font-weight: 600;
+            font-size: 12px;
+            white-space: nowrap;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .expenses-table th:last-child {
+            border-right: none;
+        }
+
+        .expenses-table tbody tr {
+            border-bottom: 1px solid #e5e7eb;
+            transition: all 0.2s ease;
+            background: white;
+        }
+
+        .expenses-table tbody tr:hover {
+            background-color: #f0f9ff;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+        }
+
+        .expenses-table td {
+            padding: 10px 12px;
+            text-align: right;
+            vertical-align: middle;
+            border-right: 1px solid #f3f4f6;
+            color: #374151;
+            font-family: 'Cairo', sans-serif;
+            font-size: 12px;
+        }
+
+        .expenses-table td:last-child {
+            border-right: none;
+        }
+
+        .expenses-table tbody tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+
+        /* Approval Status Badge */
+        .approval-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border-radius: 18px;
+            font-size: 11px;
+            font-weight: 600;
+            font-family: 'Cairo', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-auto-approved {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .status-pending {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+
+        .status-awaiting-manager {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+        }
+
+        .status-awaiting-accountant {
+            background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+            color: white;
+        }
+
+        .status-awaiting-admin {
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+            color: white;
+        }
+
+        .status-accepted {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+
+        .status-rejected {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        /* Action Buttons */
+        .action-buttons-cell {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-approve, .btn-reject {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        .btn-approve {
+            background: linear-gradient(135deg, var(--success-green) 0%, #218838 100%);
+            color: white;
+        }
+
+        .btn-approve:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+        }
+
+        .btn-reject {
+            background: linear-gradient(135deg, var(--danger-red) 0%, #C82333 100%);
+            color: white;
+        }
+
+        .btn-reject:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+        }
+
+        .btn-approve:disabled, .btn-reject:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Image Link */
+        .image-link-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 8px;
+            color: #3b82f6;
+            border: none;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            font-family: 'Cairo', sans-serif;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        .image-link-label:hover {
+            color: #2563eb;
+        }
+
+        /* Rejection Reason */
+        .rejection-reason-input {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 11px;
+            font-family: 'Cairo', sans-serif;
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .rejection-reason-cell {
+            min-width: 200px;
+            max-width: 300px;
+        }
+
+        /* Empty State */
+        .empty-expenses {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
+        }
+
+        .empty-expenses i {
+            font-size: 64px;
+            color: #d1d5db;
+            margin-bottom: 16px;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* View Details Button */
+        .btn-view-details {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%);
+            color: white;
+        }
+
+        .btn-view-details:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 122, 204, 0.4);
+        }
+
+        /* Images Modal */
+        .images-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 10000;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .images-modal.active {
+            display: block;
+        }
+
+        .images-modal-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+        }
+
+        .images-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .images-modal-header h3 {
+            margin: 0;
+            color: var(--dark-gray);
+            font-size: 20px;
+        }
+
+        .images-modal-close {
+            background: var(--danger-red);
+            color: white;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s ease;
+        }
+
+        .images-modal-close:hover {
+            transform: rotate(90deg);
+            background: #b91c1c;
+        }
+
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .image-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            aspect-ratio: 1;
+        }
+
+        .image-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .image-item img:hover {
+            transform: scale(1.05);
+        }
+
+        .no-images-message {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        /* Warning Message */
+        .warning-message {
+            background: #fff3cd;
+            color: #856404;
+            padding: 10px 15px;
+            border-radius: 6px;
+            border: 1px solid #ffeaa7;
+            margin-bottom: 15px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Hotel Name Column */
+        .hotel-name-cell {
+            font-weight: 600;
+            color: var(--primary-blue);
+        }
+
+        /* SweetAlert2 RTL */
+        .swal2-rtl {
+            direction: rtl;
+            text-align: right;
+        }
+
+        /* Expense Details Modal */
+        .expense-details-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10001;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .expense-details-modal.active {
+            display: block;
+        }
+
+        .expense-details-content {
+            max-width: 900px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            position: relative;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .expense-details-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .expense-details-header h3 {
+            margin: 0;
+            color: var(--dark-gray);
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .expense-details-close {
+            background: var(--danger-red);
+            color: white;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s ease;
+        }
+
+        .expense-details-close:hover {
+            transform: rotate(90deg);
+            background: #b91c1c;
+        }
+
+        .expense-details-section {
+            margin-bottom: 25px;
+        }
+
+        .expense-details-section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--primary-blue);
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e8f0fe;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .expense-details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .expense-detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .expense-detail-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .expense-detail-value {
+            font-size: 14px;
+            color: var(--dark-gray);
+            font-weight: 500;
+        }
+
+        .expense-rooms-list, .expense-images-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .expense-room-item, .expense-image-item {
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .expense-image-item img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .expense-image-item img:hover {
+            transform: scale(1.05);
+        }
+
+        .approval-status-badge.clickable {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .approval-status-badge.clickable:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Notification Badge */
+        .notification-badge {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: inline-block;
+            cursor: pointer;
+            z-index: 1000;
+        }
+
+        .notification-icon {
+            font-size: 24px;
+            color: white;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .notification-badge:hover .notification-icon {
+            transform: scale(1.1);
+        }
+
+        .notification-count {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: var(--danger-red);
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            border: 2px solid white;
+            transition: all 0.3s ease;
+        }
+
+        .notification-count.read {
+            background: var(--success-green);
+        }
+
+        /* Notifications Dropdown */
+        .notifications-dropdown {
+            position: fixed;
+            top: 70px;
+            right: 15px;
+            width: 350px;
+            max-height: 500px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 10000;
+            display: none;
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
+        }
+
+        .notifications-dropdown.active {
+            display: block;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .notifications-header {
+            padding: 15px;
+            background: var(--primary-blue);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .notifications-header h4 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .notifications-close {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+
+        .notifications-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .notifications-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .notification-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid #f3f4f6;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .notification-item:hover {
+            background: #f9fafb;
+        }
+
+        .notification-item.read {
+            background: #f9fafb;
+            opacity: 0.7;
+        }
+
+        .notification-item-title {
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--dark-gray);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .notification-item-title i {
+            color: var(--primary-blue);
+        }
+
+        .notification-item-content {
+            font-size: 12px;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        .notification-item-date {
+            font-size: 11px;
+            color: #9ca3af;
+            margin-top: 4px;
+        }
+
+        .notifications-empty {
+            padding: 40px 20px;
+            text-align: center;
+            color: #9ca3af;
+        }
+
+        .notifications-empty i {
+            font-size: 48px;
+            margin-bottom: 10px;
+            color: #d1d5db;
+        }
+
+        /* Status Filter */
+        .status-filter-group {
+            min-width: 150px;
+        }
+
+        .status-filter-select {
+            font-family: 'Cairo', sans-serif;
+            font-size: 11px;
+            padding: 5px 8px;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+            width: 100%;
+            background: white;
+            cursor: pointer;
+        }
+
+        /* Expenses Filter Section */
+        .expenses-filter-section {
+            margin-bottom: 20px;
+            padding: 20px 24px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .filter-dates-row {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .filter-date-group {
+            min-width: 120px;
+            max-width: 140px;
+        }
+
+        .filter-date-group label {
+            display: block;
+            font-family: 'Cairo', sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--dark-gray);
+            margin-bottom: 3px;
+        }
+
+        .filter-date-input {
+            font-family: 'Cairo', sans-serif;
+            font-size: 11px;
+            padding: 5px 8px;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+            width: 100%;
+        }
+
+        .btn-filter {
+            font-family: 'Cairo', sans-serif;
+            padding: 6px 14px;
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0, 122, 204, 0.2);
+            white-space: nowrap;
+            height: 32px;
+        }
+
+        .btn-filter:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0, 122, 204, 0.3);
+        }
+
+        .btn-filter svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Pagination */
+        .expenses-pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding: 15px 0;
+            border-top: 1px solid #e5e7eb;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        .pagination-info {
+            font-size: 13px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .pagination-btn {
+            min-width: 36px;
+            height: 36px;
+            padding: 0 12px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            color: #374151;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: 'Cairo', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background: #f3f4f6;
+            border-color: #d1d5db;
+            color: var(--primary-blue);
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination-btn.active {
+            background: var(--primary-blue);
+            color: white;
+            border-color: var(--primary-blue);
+        }
+
+        .pagination-btn.active:hover {
+            background: var(--dark-blue);
+            border-color: var(--dark-blue);
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <button class="logout-btn" onclick="handleLogout()" title="تسجيل الخروج">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+            </button>
+            <div class="page-header-content">
+                <h1>
+                    <i class="fas fa-user-tie"></i>
+                    <span id="managerTitle">مدير العمليات</span>
+                </h1>
+                <p>مراجعة وموافقة على المصروفات</p>
+            </div>
+            <div class="notification-badge" onclick="toggleNotifications()" title="الإشعارات">
+                <i class="fas fa-bell notification-icon"></i>
+                <span class="notification-count" id="notificationCount">0</span>
+                <!-- Notifications Dropdown -->
+                <div class="notifications-dropdown" id="notificationsDropdown" onclick="event.stopPropagation()">
+                    <div class="notifications-header">
+                        <h4><i class="fas fa-bell"></i> الإشعارات</h4>
+                        <button class="notifications-close" onclick="closeNotifications(event)">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="notifications-list" id="notificationsList">
+                        <!-- Notifications will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div class="tabs-container">
+            <ul class="tabs-nav">
+                <li>
+                    <button class="tab-btn active" data-tab="pending-approvals">
+                        <i class="fas fa-clock"></i>
+                        طلبات الموافقة
+                    </button>
+                </li>
+                <li>
+                    <button class="tab-btn" data-tab="all-expenses">
+                        <i class="fas fa-list"></i>
+                        جميع المصروفات
+                    </button>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Tab Content: Pending Approvals -->
+        <div class="tab-content active" id="pending-approvals-tab">
+            <div class="form-card">
+                <div class="section-title">
+                    <i class="fas fa-clock"></i>
+                    طلبات الموافقة
+                </div>
+                
+                <!-- Filter Section for Pending Approvals -->
+                <div class="expenses-filter-section">
+                    <div class="filter-dates-row">
+                        <div class="filter-date-group">
+                            <label>من:</label>
+                            <input type="text" id="pendingFilterDateFrom" class="form-control filter-date-input" placeholder="اختر التاريخ" />
+                        </div>
+                        <div class="filter-date-group">
+                            <label>إلى:</label>
+                            <input type="text" id="pendingFilterDateTo" class="form-control filter-date-input" placeholder="اختر التاريخ" />
+                        </div>
+                        <div class="status-filter-group">
+                            <label>حالة الطلب:</label>
+                            <select id="pendingStatusFilter" class="status-filter-select">
+                                <option value="all">جميع الحالات</option>
+                                <option value="awaiting-manager">في انتظار مدير العمليات</option>
+                                <option value="awaiting-accountant">في انتظار المحاسب</option>
+                                <option value="rejected">مرفوض</option>
+                            </select>
+                        </div>
+                        <button type="button" class="btn-filter" onclick="applyPendingFilters()" title="تصفية النتائج">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                            </svg>
+                            تصفية
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="expenses-table-wrapper">
+                    <table class="expenses-table" id="pendingApprovalsTable">
+                        <thead>
+                            <tr>
+                                <th>رقم المصروف</th>
+                                <th>الفندق</th>
+                                <th>التاريخ</th>
+                                <th>فئة المصروف</th>
+                                <th>المبلغ الإجمالي</th>
+                                <th>الملاحظات</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingApprovalsTableBody">
+                            <tr>
+                                <td colspan="7" class="empty-expenses">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                    <p>جاري التحميل...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination for Pending Approvals -->
+                <div class="expenses-pagination" id="pendingApprovalsPagination" style="display: none;">
+                    <div class="pagination-info">
+                        <span id="pendingApprovalsPaginationInfo">عرض 0 إلى 0 من 0 نتيجة</span>
+                    </div>
+                    <div class="pagination-controls" id="pendingApprovalsPaginationControls">
+                        <!-- Pagination buttons will be added dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: All Expenses -->
+        <div class="tab-content" id="all-expenses-tab">
+            <div class="form-card">
+                <div class="section-title">
+                    <i class="fas fa-list"></i>
+                    جميع المصروفات (قراءة فقط)
+                </div>
+                
+                <!-- Filter Section -->
+                <div class="expenses-filter-section">
+                    <div class="filter-dates-row">
+                        <div class="filter-date-group">
+                            <label>من:</label>
+                            <input type="text" id="filterDateFrom" class="form-control filter-date-input" placeholder="اختر التاريخ" />
+                        </div>
+                        <div class="filter-date-group">
+                            <label>إلى:</label>
+                            <input type="text" id="filterDateTo" class="form-control filter-date-input" placeholder="اختر التاريخ" />
+                        </div>
+                        <button type="button" class="btn-filter" onclick="applyDateFilter()" title="تصفية النتائج">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                            </svg>
+                            تصفية
+                        </button>
+                        <button type="button" class="btn-filter" onclick="printExpenses()" title="طباعة">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                                <rect x="6" y="14" width="12" height="8"></rect>
+                            </svg>
+                            طباعة
+                        </button>
+                        <button type="button" class="btn-filter" onclick="exportToExcel()" title="تصدير Excel">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            Excel
+                        </button>
+                        <button type="button" class="btn-filter" onclick="exportToPDF()" title="تصدير PDF">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                <polyline points="10 9 9 9 8 9"></polyline>
+                            </svg>
+                            PDF
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="expenses-table-wrapper">
+                    <table class="expenses-table" id="allExpensesTable">
+                        <thead>
+                            <tr>
+                                <th>رقم المصروف</th>
+                                <th>الفندق</th>
+                                <th>التاريخ</th>
+                                <th>فئة المصروف</th>
+                                <th>المبلغ الإجمالي</th>
+                                <th>حالة الموافقة</th>
+                                <th>الملاحظات</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="allExpensesTableBody">
+                            <tr>
+                                <td colspan="8" class="empty-expenses">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                    <p>جاري التحميل...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                <div class="expenses-pagination" id="allExpensesPagination" style="display: none;">
+                    <div class="pagination-info">
+                        <span id="allExpensesPaginationInfo">عرض 0 إلى 0 من 0 نتيجة</span>
+                    </div>
+                    <div class="pagination-controls" id="allExpensesPaginationControls">
+                        <!-- Pagination buttons will be added dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Images Modal -->
+    <div class="images-modal" id="imagesModal">
+        <div class="images-modal-content">
+            <div class="images-modal-header">
+                <h3><i class="fas fa-images"></i> صور المصروف</h3>
+                <button class="images-modal-close" onclick="closeImagesModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="images-grid" id="imagesGrid">
+                <!-- Images will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Expense Details Modal -->
+    <div class="expense-details-modal" id="expenseDetailsModal">
+        <div class="expense-details-content">
+            <div class="expense-details-header">
+                <h3><i class="fas fa-file-invoice"></i> تفاصيل المصروف</h3>
+                <button class="expense-details-close" onclick="closeExpenseDetailsModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="expenseDetailsContent">
+                <!-- Expense details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const API_BASE_URL = window.location.origin;
+        let allExpenses = [];
+        let pendingExpenses = [];
+        
+        // Pagination variables
+        let currentPage = 1;
+        const itemsPerPage = 25;
+        let allExpensesData = [];
+        
+        // Pending Approvals Pagination variables
+        let pendingCurrentPage = 1;
+        const pendingItemsPerPage = 25;
+        let pendingExpensesData = [];
+        
+        // Date filter variables
+        let dateFilterFrom = null;
+        let dateFilterTo = null;
+        
+        // Pending Approvals filter variables
+        let pendingDateFilterFrom = null;
+        let pendingDateFilterTo = null;
+        let pendingStatusFilter = 'all';
+        
+        // Performance optimization: Track if all expenses have been loaded
+        let allExpensesLoaded = false;
+
+        // Check authentication
+        function checkAuth() {
+            const authToken = localStorage.getItem('authToken');
+            const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+            
+            if (!authToken || !userInfo.roles) {
+                window.location.href = 'login.html';
+                return false;
+            }
+
+            // Check if user has Manager role
+            const roles = Array.isArray(userInfo.roles) ? userInfo.roles : (userInfo.roles ? [userInfo.roles] : []);
+            const hasManagerRole = roles.some(role => 
+                role.toLowerCase() === 'manager' || 
+                (typeof role === 'object' && role.code && role.code.toLowerCase() === 'manager')
+            );
+
+            if (!hasManagerRole) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'غير مصرح',
+                    text: 'هذه الصفحة مخصصة لمديري العمليات فقط',
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#007ACC'
+                }).then(() => {
+                    window.location.href = 'expenses.html';
+                });
+                return false;
+            }
+
+            return true;
+        }
+
+        // Get API Headers
+        function getApiHeaders() {
+            const authToken = localStorage.getItem('authToken');
+            const headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            };
+            
+            if (authToken) {
+                headers['Authorization'] = `Bearer ${authToken}`;
+            }
+            
+            return headers;
+        }
+
+        // Show/Hide Loading
+        function showLoading() {
+            document.getElementById('loadingOverlay').classList.add('show');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('show');
+        }
+
+        // Tab Switching
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const tabId = this.getAttribute('data-tab');
+                
+                // Remove active from all tabs
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                // Add active to clicked tab
+                this.classList.add('active');
+                document.getElementById(tabId + '-tab').classList.add('active');
+                
+                // Load data for the tab
+                if (tabId === 'pending-approvals') {
+                    // Initialize pending date filters if not already initialized
+                    if (!$('#pendingFilterDateFrom').hasClass('calendar-initialized')) {
+                        initializePendingDateFilters();
+                    }
+                    loadPendingApprovals();
+                } else if (tabId === 'all-expenses') {
+                    // Only load all expenses when tab is clicked (lazy loading for performance)
+                    if (!allExpensesLoaded) {
+                        // Initialize filter datepickers if not already initialized
+                        if (!$('#filterDateFrom').hasClass('calendar-initialized')) {
+                            waitForCalendars(function() {
+                                initializeFilterDatePickers();
+                            });
+                        }
+                        loadAllExpenses();
+                    }
+                }
+            });
+        });
+
+        // Load All Expenses (Read-only)
+        async function loadAllExpenses() {
+            const tbody = document.getElementById('allExpensesTableBody');
+            
+            try {
+                tbody.innerHTML = '<tr><td colspan="9" class="empty-expenses"><i class="fas fa-spinner fa-spin"></i><p>جاري التحميل...</p></td></tr>';
+                
+                const headers = getApiHeaders();
+                // Manager can see all expenses from all hotels - use supervisor endpoint which returns all hotels
+                const response = await fetch(`${API_BASE_URL}/api/Expense/supervisor/all`, {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load expenses');
+                }
+                
+                let expenses = await response.json();
+                
+                // Apply date filter if set
+                if (dateFilterFrom && dateFilterTo && expenses && Array.isArray(expenses)) {
+                    const from = new Date(dateFilterFrom + 'T00:00:00');
+                    const to = new Date(dateFilterTo + 'T23:59:59');
+                    
+                    expenses = expenses.filter(expense => {
+                        const expenseDate = new Date(expense.dateTime || expense.DateTime || expense.date_time);
+                        return expenseDate >= from && expenseDate <= to;
+                    });
+                }
+                
+                // Store all expenses data
+                allExpensesData = expenses || [];
+                allExpenses = allExpensesData;
+                allExpensesLoaded = true; // Mark as loaded
+                
+                if (!allExpensesData || allExpensesData.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="empty-expenses">
+                                <i class="fas fa-inbox"></i>
+                                <p>لا توجد مصروفات</p>
+                            </td>
+                        </tr>
+                    `;
+                    document.getElementById('allExpensesPagination').style.display = 'none';
+                    return;
+                }
+                
+                // Reset to first page when loading new data
+                currentPage = 1;
+                
+                // Render expenses with pagination
+                renderAllExpensesWithPagination();
+                
+            } catch (error) {
+                console.error('Error loading expenses:', error);
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="empty-expenses">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p>خطأ في التحميل: ${error.message}</p>
+                        </td>
+                    </tr>
+                `;
+                document.getElementById('allExpensesPagination').style.display = 'none';
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: `فشل تحميل المصروفات: ${error.message}`,
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#007ACC'
+                });
+            }
+        }
+
+        // Render All Expenses Table with Pagination (Read-only)
+        function renderAllExpensesWithPagination() {
+            const tbody = document.getElementById('allExpensesTableBody');
+            tbody.innerHTML = '';
+            
+            // Sort expenses by expenseId descending (newest first)
+            const sortedExpenses = [...allExpensesData].sort((a, b) => {
+                const idA = a.expenseId || a.ExpenseId || 0;
+                const idB = b.expenseId || b.ExpenseId || 0;
+                return idB - idA;
+            });
+            
+            // Calculate pagination
+            const totalItems = sortedExpenses.length;
+            const totalPages = Math.ceil(totalItems / itemsPerPage);
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+            const currentPageExpenses = sortedExpenses.slice(startIndex, endIndex);
+            
+            // Render current page expenses
+            if (currentPageExpenses.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="empty-expenses">
+                            <i class="fas fa-inbox"></i>
+                            <p>لا توجد مصروفات</p>
+                        </td>
+                    </tr>
+                `;
+                document.getElementById('allExpensesPagination').style.display = 'none';
+                return;
+            }
+            
+            currentPageExpenses.forEach(expense => {
+                const expenseId = expense.expenseId || expense.ExpenseId;
+                const date = new Date(expense.dateTime || expense.DateTime);
+                const formattedDate = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+                const amount = (expense.totalAmount || expense.TotalAmount || 0).toFixed(2);
+                const status = (expense.approvalStatus || expense.ApprovalStatus || '').toLowerCase();
+                const rejectionReason = expense.rejectionReason || expense.RejectionReason || null;
+                const statusBadge = getApprovalStatusBadge(status, rejectionReason, expenseId);
+                const comment = (expense.comment || expense.Comment || '').substring(0, 50);
+                const hotelName = expense.hotelName || expense.HotelName || 'غير محدد';
+                const hotelCode = expense.hotelCode || expense.HotelCode || '';
+                
+                // Escape hotelCode for use in onclick
+                const hotelCodeEscaped = hotelCode.replace(/'/g, "\\'");
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>#${expenseId}</strong></td>
+                    <td class="hotel-name-cell">${hotelName}</td>
+                    <td>${formattedDate}</td>
+                    <td>${expense.expenseCategoryName || expense.ExpenseCategoryName || 'غير محدد'}</td>
+                    <td><strong style="color: var(--primary-blue);">${amount} <img src="logo/sar-symbol.svg" style="width: 14px; height: 14px; vertical-align: middle;" alt="SAR" /></strong></td>
+                    <td>${statusBadge}</td>
+                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${expense.comment || expense.Comment || '-'}">${comment || '-'}</td>
+                    <td class="action-buttons-cell">
+                        <button class="btn-view-details" onclick="viewExpenseDetails(${expenseId}, '${hotelCodeEscaped}')" title="عرض التفاصيل">
+                            <i class="fas fa-eye"></i> عرض التفاصيل
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            // Update pagination UI
+            updateAllExpensesPaginationUI(totalItems, totalPages, startIndex, endIndex);
+        }
+        
+        // Update Pagination UI for All Expenses
+        function updateAllExpensesPaginationUI(totalItems, totalPages, startIndex, endIndex) {
+            const pagination = document.getElementById('allExpensesPagination');
+            const paginationInfo = document.getElementById('allExpensesPaginationInfo');
+            const paginationControls = document.getElementById('allExpensesPaginationControls');
+            
+            if (totalItems === 0) {
+                pagination.style.display = 'none';
+                return;
+            }
+            
+            pagination.style.display = 'flex';
+            
+            // Update info text
+            paginationInfo.textContent = `عرض ${startIndex + 1} إلى ${endIndex} من ${totalItems} نتيجة`;
+            
+            // Clear previous controls
+            paginationControls.innerHTML = '';
+            
+            // Previous button
+            const prevBtn = document.createElement('button');
+            prevBtn.className = 'pagination-btn';
+            prevBtn.innerHTML = '&lt;';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    renderAllExpensesWithPagination();
+                }
+            };
+            paginationControls.appendChild(prevBtn);
+            
+            // Page number buttons
+            const maxVisiblePages = 7;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+            
+            if (endPage - startPage < maxVisiblePages - 1) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+            
+            if (startPage > 1) {
+                const firstBtn = document.createElement('button');
+                firstBtn.className = 'pagination-btn';
+                firstBtn.textContent = '1';
+                firstBtn.onclick = () => {
+                    currentPage = 1;
+                    renderAllExpensesWithPagination();
+                };
+                paginationControls.appendChild(firstBtn);
+                
+                if (startPage > 2) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.className = 'pagination-btn';
+                    ellipsis.textContent = '...';
+                    ellipsis.style.cursor = 'default';
+                    ellipsis.style.pointerEvents = 'none';
+                    paginationControls.appendChild(ellipsis);
+                }
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.className = 'pagination-btn';
+                if (i === currentPage) {
+                    pageBtn.classList.add('active');
+                }
+                pageBtn.textContent = i.toString();
+                pageBtn.onclick = () => {
+                    currentPage = i;
+                    renderAllExpensesWithPagination();
+                };
+                paginationControls.appendChild(pageBtn);
+            }
+            
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.className = 'pagination-btn';
+                    ellipsis.textContent = '...';
+                    ellipsis.style.cursor = 'default';
+                    ellipsis.style.pointerEvents = 'none';
+                    paginationControls.appendChild(ellipsis);
+                }
+                
+                const lastBtn = document.createElement('button');
+                lastBtn.className = 'pagination-btn';
+                lastBtn.textContent = totalPages.toString();
+                lastBtn.onclick = () => {
+                    currentPage = totalPages;
+                    renderAllExpensesWithPagination();
+                };
+                paginationControls.appendChild(lastBtn);
+            }
+            
+            // Next button
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'pagination-btn';
+            nextBtn.innerHTML = '&gt;';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    renderAllExpensesWithPagination();
+                }
+            };
+            paginationControls.appendChild(nextBtn);
+        }
+        
+        // Wait for jQuery Calendars to Load
+        function waitForCalendars(callback, maxAttempts = 100) {
+            console.log('⏳ [waitForCalendars] Waiting for jQuery calendars to load...');
+            let attempts = 0;
+            const checkCalendars = setInterval(function() {
+                attempts++;
+                
+                // Detailed checks
+                const jqueryLoaded = typeof $ !== 'undefined' || typeof jQuery !== 'undefined';
+                const calendarsLoaded = typeof $.calendars !== 'undefined';
+                const instanceLoaded = typeof $.calendars !== 'undefined' && typeof $.calendars.instance !== 'undefined';
+                const pickerLoaded = typeof $.fn !== 'undefined' && typeof $.fn.calendarsPicker !== 'undefined';
+                
+                if (attempts % 20 === 0) {
+                    console.log(`⏳ [waitForCalendars] Attempt ${attempts}/${maxAttempts}: jQuery=${jqueryLoaded}, Calendars=${calendarsLoaded}, Instance=${instanceLoaded}, Picker=${pickerLoaded}`);
+                }
+                
+                if (jqueryLoaded && calendarsLoaded && instanceLoaded && pickerLoaded) {
+                    clearInterval(checkCalendars);
+                    console.log(`✅ [waitForCalendars] jQuery calendars loaded successfully after ${attempts} attempts`);
+                    // Wait a bit more to ensure everything is ready
+                    setTimeout(callback, 100);
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(checkCalendars);
+                    console.error(`❌ [waitForCalendars] Failed to load after ${maxAttempts} attempts`);
+                    console.error(`❌ [waitForCalendars] Final status: jQuery=${jqueryLoaded}, Calendars=${calendarsLoaded}, Instance=${instanceLoaded}, Picker=${pickerLoaded}`);
+                    // Try to continue anyway with fallback
+                    if (jqueryLoaded) {
+                        console.warn('⚠️ [waitForCalendars] Attempting to initialize calendar anyway...');
+                        setTimeout(callback, 100);
+                    } else {
+                        console.error('❌ [waitForCalendars] jQuery not loaded, cannot proceed');
+                    }
+                }
+            }, 50);
+        }
+        
+        // Initialize Filter Date Pickers
+        function initializeFilterDatePickers() {
+            try {
+                if (typeof $.calendars === 'undefined' || typeof $.calendars.instance === 'undefined') {
+                    console.warn('⚠️ Calendars not loaded, using HTML5 date inputs');
+                    $('#filterDateFrom').attr('type', 'date');
+                    $('#filterDateTo').attr('type', 'date');
+                    // Set default dates (first and last day of current month)
+                    const now = new Date();
+                    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+                    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                    $('#filterDateFrom').val(firstDay.toISOString().split('T')[0]);
+                    $('#filterDateTo').val(lastDay.toISOString().split('T')[0]);
+                    // Set initial filter values
+                    dateFilterFrom = $('#filterDateFrom').val();
+                    dateFilterTo = $('#filterDateTo').val();
+                    return;
+                }
+                
+                const gregorianCalendar = $.calendars.instance();
+                
+                // Get first and last day of current month
+                const now = new Date();
+                const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+                const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                
+                const firstDayCal = gregorianCalendar.fromJSDate(firstDay);
+                const lastDayCal = gregorianCalendar.fromJSDate(lastDay);
+                
+                const firstDayFormatted = firstDayCal.formatDate('yyyy-mm-dd');
+                const lastDayFormatted = lastDayCal.formatDate('yyyy-mm-dd');
+                
+                // Initialize date picker for "From" date
+                $('#filterDateFrom').calendarsPicker({
+                    calendar: gregorianCalendar,
+                    dateFormat: 'yyyy-mm-dd',
+                    showOnFocus: true,
+                    defaultDate: firstDayCal,
+                    onSelect: function(dates) {
+                        if (dates && dates.length > 0 && dates[0]) {
+                            const selectedDate = dates[0].formatDate('yyyy-mm-dd');
+                            $('#filterDateFrom').val(selectedDate);
+                        }
+                    }
+                });
+                $('#filterDateFrom').val(firstDayFormatted);
+                $('#filterDateFrom').addClass('calendar-initialized');
+                
+                // Initialize date picker for "To" date
+                $('#filterDateTo').calendarsPicker({
+                    calendar: gregorianCalendar,
+                    dateFormat: 'yyyy-mm-dd',
+                    showOnFocus: true,
+                    defaultDate: lastDayCal,
+                    onSelect: function(dates) {
+                        if (dates && dates.length > 0 && dates[0]) {
+                            const selectedDate = dates[0].formatDate('yyyy-mm-dd');
+                            $('#filterDateTo').val(selectedDate);
+                        }
+                    }
+                });
+                $('#filterDateTo').val(lastDayFormatted);
+                $('#filterDateTo').addClass('calendar-initialized');
+                
+                // Set initial filter values
+                dateFilterFrom = firstDayFormatted;
+                dateFilterTo = lastDayFormatted;
+                
+                console.log('✅ Filter date pickers initialized');
+            } catch (error) {
+                console.error('❌ Error initializing filter date pickers:', error);
+                // Fallback to HTML5 date inputs
+                $('#filterDateFrom').attr('type', 'date');
+                $('#filterDateTo').attr('type', 'date');
+                const now = new Date();
+                const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+                const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                $('#filterDateFrom').val(firstDay.toISOString().split('T')[0]);
+                $('#filterDateTo').val(lastDay.toISOString().split('T')[0]);
+                // Set initial filter values
+                dateFilterFrom = $('#filterDateFrom').val();
+                dateFilterTo = $('#filterDateTo').val();
+            }
+        }
+        
+        // Apply Date Filter
+        function applyDateFilter() {
+            const fromDate = $('#filterDateFrom').val();
+            const toDate = $('#filterDateTo').val();
+            
+            if (!fromDate || !toDate) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'تنبيه',
+                    text: 'يرجى اختيار تاريخ البداية والنهاية',
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#007ACC',
+                    customClass: {
+                        popup: 'swal2-rtl'
+                    }
+                });
+                return;
+            }
+            
+            // Convert dates to Date objects for comparison
+            const from = new Date(fromDate + 'T00:00:00');
+            const to = new Date(toDate + 'T23:59:59');
+            
+            if (from > to) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'تنبيه',
+                    text: 'تاريخ البداية يجب أن يكون قبل تاريخ النهاية',
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#007ACC',
+                    customClass: {
+                        popup: 'swal2-rtl'
+                    }
+                });
+                return;
+            }
+            
+            dateFilterFrom = fromDate;
+            dateFilterTo = toDate;
+            
+            // Reload expenses with filter
+            loadAllExpenses();
+        }
+        
+        // Initialize Date Filters (Set to first and last day of current month)
+        function initializeDateFilters() {
+            // Initialize filter datepickers if not already initialized
+            if (!$('#filterDateFrom').hasClass('calendar-initialized')) {
+                waitForCalendars(function() {
+                    initializeFilterDatePickers();
+                });
+            }
+        }
+
+        // Load Pending Approvals
+        async function loadPendingApprovals() {
+            try {
+                showLoading();
+                
+                const headers = getApiHeaders();
+                // Manager needs to see expenses with status "awaiting-manager" - use supervisor/all endpoint and filter
+                const response = await fetch(`${API_BASE_URL}/api/Expense/supervisor/all`, {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load pending approvals');
+                }
+                
+                let expenses = await response.json();
+                
+                // Filter by last 3 days by default
+                if (!pendingDateFilterFrom || !pendingDateFilterTo) {
+                    const now = new Date();
+                    const threeDaysAgo = new Date(now);
+                    threeDaysAgo.setDate(now.getDate() - 3);
+                    threeDaysAgo.setHours(0, 0, 0, 0);
+                    now.setHours(23, 59, 59, 999);
+                    
+                    expenses = expenses.filter(expense => {
+                        const expenseDate = new Date(expense.dateTime || expense.DateTime || expense.date_time);
+                        return expenseDate >= threeDaysAgo && expenseDate <= now;
+                    });
+                } else {
+                    // Apply date filter if set
+                    const from = new Date(pendingDateFilterFrom + 'T00:00:00');
+                    const to = new Date(pendingDateFilterTo + 'T23:59:59');
+                    
+                    expenses = expenses.filter(expense => {
+                        const expenseDate = new Date(expense.dateTime || expense.DateTime || expense.date_time);
+                        return expenseDate >= from && expenseDate <= to;
+                    });
+                }
+                
+                // Apply status filter
+                if (pendingStatusFilter !== 'all') {
+                    expenses = expenses.filter(expense => {
+                        const status = (expense.approvalStatus || expense.ApprovalStatus || '').toLowerCase();
+                        return status === pendingStatusFilter;
+                    });
+                }
+                
+                // ✅ Filter out expenses that have already been acted upon by manager
+                // Only show expenses with status "awaiting-manager" that need manager approval
+                // Hide "pending" since they're waiting for supervisor approval
+                // Hide "accepted", "rejected", and "awaiting-accountant" since they're already processed
+                expenses = expenses.filter(expense => {
+                    const status = (expense.approvalStatus || expense.ApprovalStatus || '').toLowerCase();
+                    const approvedBy = expense.approvedBy || expense.ApprovedBy;
+                    
+                    // Only show expenses with status "awaiting-manager" that haven't been acted upon
+                    return status === 'awaiting-manager' && !approvedBy;
+                });
+                
+                // Store filtered data
+                pendingExpensesData = expenses || [];
+                pendingExpenses = pendingExpensesData;
+                
+                // Update notification count
+                updateNotificationCount();
+                
+                // Reset to first page
+                pendingCurrentPage = 1;
+                
+                // Render with pagination
+                renderPendingApprovalsTableWithPagination();
+                
+            } catch (error) {
+                console.error('Error loading pending approvals:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: `فشل تحميل طلبات الموافقة: ${error.message}`,
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#007ACC'
+                });
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // Track read notifications
+        let readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
+        
+        // Update Notification Count
+        function updateNotificationCount() {
+            // Only count expenses with status "awaiting-manager" that need manager approval
+            const pendingExpenses = pendingExpensesData.filter(expense => {
+                const status = (expense.approvalStatus || expense.ApprovalStatus || '').toLowerCase();
+                const approvedBy = expense.approvedBy || expense.ApprovedBy;
+                return status === 'awaiting-manager' && !approvedBy;
+            });
+            
+            // Filter out read notifications
+            const unreadCount = pendingExpenses.filter(expense => {
+                const expenseId = expense.expenseId || expense.ExpenseId;
+                return !readNotifications.includes(expenseId);
+            }).length;
+            
+            const notificationCount = document.getElementById('notificationCount');
+            if (notificationCount) {
+                notificationCount.textContent = unreadCount;
+                notificationCount.style.display = unreadCount > 0 ? 'flex' : 'none';
+                
+                // Change color to green if all read
+                if (unreadCount === 0 && pendingExpenses.length > 0) {
+                    notificationCount.classList.add('read');
+                    notificationCount.textContent = '0';
+                    notificationCount.style.display = 'flex';
+                } else {
+                    notificationCount.classList.remove('read');
+                }
+            }
+        }
+        
+        // Load and Display Notifications
+        function loadNotifications() {
+            const notificationsList = document.getElementById('notificationsList');
+            // Only show expenses with status "awaiting-manager" that need manager approval
+            const pendingExpenses = pendingExpensesData.filter(expense => {
+                const status = (expense.approvalStatus || expense.ApprovalStatus || '').toLowerCase();
+                const approvedBy = expense.approvedBy || expense.ApprovedBy;
+                return status === 'awaiting-manager' && !approvedBy;
+            });
+            
+            if (!pendingExpenses || pendingExpenses.length === 0) {
+                notificationsList.innerHTML = `
+                    <div class="notifications-empty">
+                        <i class="fas fa-check-circle"></i>
+                        <p>لا توجد إشعارات</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Sort by date (newest first)
+            const sortedExpenses = [...pendingExpenses].sort((a, b) => {
+                const dateA = new Date(a.dateTime || a.DateTime || a.date_time);
+                const dateB = new Date(b.dateTime || b.DateTime || b.date_time);
+                return dateB - dateA;
+            });
+            
+            notificationsList.innerHTML = sortedExpenses.map(expense => {
+                const expenseId = expense.expenseId || expense.ExpenseId;
+                const hotelName = expense.hotelName || expense.HotelName || 'غير محدد';
+                const amount = (expense.totalAmount || expense.TotalAmount || 0).toFixed(2);
+                const date = new Date(expense.dateTime || expense.DateTime);
+                const formattedDate = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+                const formattedTime = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                const isRead = readNotifications.includes(expenseId);
+                
+                return `
+                    <div class="notification-item ${isRead ? 'read' : ''}" onclick="markNotificationAsRead(${expenseId})">
+                        <div class="notification-item-title">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                            طلب مصروف #${expenseId}
+                        </div>
+                        <div class="notification-item-content">
+                            طلب من <strong>${hotelName}</strong> يحتوي على مبلغ <strong>${amount} <img src="logo/sar-symbol.svg" style="width: 14px; height: 14px; vertical-align: middle;" alt="SAR" /></strong>
+                        </div>
+                        <div class="notification-item-date">
+                            ${formattedDate} ${formattedTime}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Toggle Notifications Dropdown
+        function toggleNotifications() {
+            const dropdown = document.getElementById('notificationsDropdown');
+            if (dropdown.classList.contains('active')) {
+                closeNotifications();
+            } else {
+                loadNotifications();
+                dropdown.classList.add('active');
+                // Mark all as read when opened
+                markAllNotificationsAsRead();
+            }
+        }
+        
+        // Close Notifications Dropdown
+        function closeNotifications(event) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
+            const dropdown = document.getElementById('notificationsDropdown');
+            if (dropdown) {
+                dropdown.classList.remove('active');
+            }
+        }
+        
+        // Mark Notification as Read
+        function markNotificationAsRead(expenseId) {
+            if (!readNotifications.includes(expenseId)) {
+                readNotifications.push(expenseId);
+                localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
+                updateNotificationCount();
+                loadNotifications();
+                
+                // Navigate to pending approvals tab
+                document.querySelector('[data-tab="pending-approvals"]').click();
+            }
+        }
+        
+        // Mark All Notifications as Read
+        function markAllNotificationsAsRead() {
+            // Only mark expenses with status "awaiting-manager" that need manager approval
+            const pendingExpenses = pendingExpensesData.filter(expense => {
+                const status = (expense.approvalStatus || expense.ApprovalStatus || '').toLowerCase();
+                const approvedBy = expense.approvedBy || expense.ApprovedBy;
+                return status === 'awaiting-manager' && !approvedBy;
+            });
+            
+            pendingExpenses.forEach(expense => {
+                const expenseId = expense.expenseId || expense.ExpenseId;
+                if (!readNotifications.includes(expenseId)) {
+                    readNotifications.push(expenseId);
+                }
+            });
+            
+            localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
+            updateNotificationCount();
+            loadNotifications();
+        }
+        
+        // Close notifications when clicking outside
+        document.addEventListener('click', function(event) {
+            const notificationBadge = document.querySelector('.notification-badge');
+            const dropdown = document.getElementById('notificationsDropdown');
+            const closeButton = document.querySelector('.notifications-close');
+            
+            // Don't close if clicking on the notification badge itself (to toggle)
+            // Don't close if clicking on the close button (it handles its own close)
+            if (dropdown && notificationBadge && 
+                !notificationBadge.contains(event.target) && 
+                !(closeButton && closeButton.contains(event.target))) {
+                closeNotifications();
+            }
+        });
+        
+        // Apply Pending Filters
+        function applyPendingFilters() {
+            const fromDate = $('#pendingFilterDateFrom').val();
+            const toDate = $('#pendingFilterDateTo').val();
+            const status = $('#pendingStatusFilter').val();
+            
+            if (fromDate && toDate) {
+                const from = new Date(fromDate + 'T00:00:00');
+                const to = new Date(toDate + 'T23:59:59');
+                
+                if (from > to) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'تنبيه',
+                        text: 'تاريخ البداية يجب أن يكون قبل تاريخ النهاية',
+                        confirmButtonText: 'حسناً',
+                        confirmButtonColor: '#007ACC',
+                        customClass: {
+                            popup: 'swal2-rtl'
+                        }
+                    });
+                    return;
+                }
+                
+                pendingDateFilterFrom = fromDate;
+                pendingDateFilterTo = toDate;
+            } else {
+                pendingDateFilterFrom = null;
+                pendingDateFilterTo = null;
+            }
+            
+            pendingStatusFilter = status;
+            
+            // Reload with filters
+            loadPendingApprovals();
+        }
+        
+        // Initialize Pending Approvals Date Filters
+        function initializePendingDateFilters() {
+            if (!$('#pendingFilterDateFrom').hasClass('calendar-initialized')) {
+                waitForCalendars(function() {
+                    try {
+                        if (typeof $.calendars === 'undefined' || typeof $.calendars.instance === 'undefined') {
+                            $('#pendingFilterDateFrom').attr('type', 'date');
+                            $('#pendingFilterDateTo').attr('type', 'date');
+                            // Set default to 3 days ago
+                            const now = new Date();
+                            const threeDaysAgo = new Date(now);
+                            threeDaysAgo.setDate(now.getDate() - 3);
+                            $('#pendingFilterDateFrom').val(threeDaysAgo.toISOString().split('T')[0]);
+                            $('#pendingFilterDateTo').val(now.toISOString().split('T')[0]);
+                            pendingDateFilterFrom = $('#pendingFilterDateFrom').val();
+                            pendingDateFilterTo = $('#pendingFilterDateTo').val();
+                            return;
+                        }
+                        
+                        const gregorianCalendar = $.calendars.instance();
+                        
+                        // Set default to 3 days ago
+                        const now = new Date();
+                        const threeDaysAgo = new Date(now);
+                        threeDaysAgo.setDate(now.getDate() - 3);
+                        
+                        const threeDaysAgoCal = gregorianCalendar.fromJSDate(threeDaysAgo);
+                        const nowCal = gregorianCalendar.fromJSDate(now);
+                        
+                        const threeDaysAgoFormatted = threeDaysAgoCal.formatDate('yyyy-mm-dd');
+                        const nowFormatted = nowCal.formatDate('yyyy-mm-dd');
+                        
+                        // Initialize date picker for "From" date
+                        $('#pendingFilterDateFrom').calendarsPicker({
+                            calendar: gregorianCalendar,
+                            dateFormat: 'yyyy-mm-dd',
+                            showOnFocus: true,
+                            defaultDate: threeDaysAgoCal,
+                            onSelect: function(dates) {
+                                if (dates && dates.length > 0 && dates[0]) {
+                                    const selectedDate = dates[0].formatDate('yyyy-mm-dd');
+                                    $('#pendingFilterDateFrom').val(selectedDate);
+                                }
+                            }
+                        });
+                        $('#pendingFilterDateFrom').val(threeDaysAgoFormatted);
+                        $('#pendingFilterDateFrom').addClass('calendar-initialized');
+                        
+                        // Initialize date picker for "To" date
+                        $('#pendingFilterDateTo').calendarsPicker({
+                            calendar: gregorianCalendar,
+                            dateFormat: 'yyyy-mm-dd',
+                            showOnFocus: true,
+                            defaultDate: nowCal,
+                            onSelect: function(dates) {
+                                if (dates && dates.length > 0 && dates[0]) {
+                                    const selectedDate = dates[0].formatDate('yyyy-mm-dd');
+                                    $('#pendingFilterDateTo').val(selectedDate);
+                                }
+                            }
+                        });
+                        $('#pendingFilterDateTo').val(nowFormatted);
+                        $('#pendingFilterDateTo').addClass('calendar-initialized');
+                        
+                        // Set initial filter values
+                        pendingDateFilterFrom = threeDaysAgoFormatted;
+                        pendingDateFilterTo = nowFormatted;
+                        
+                    } catch (error) {
+                        console.error('Error initializing pending date filters:', error);
+                        $('#pendingFilterDateFrom').attr('type', 'date');
+                        $('#pendingFilterDateTo').attr('type', 'date');
+                        const now = new Date();
+                        const threeDaysAgo = new Date(now);
+                        threeDaysAgo.setDate(now.getDate() - 3);
+                        $('#pendingFilterDateFrom').val(threeDaysAgo.toISOString().split('T')[0]);
+                        $('#pendingFilterDateTo').val(now.toISOString().split('T')[0]);
+                        pendingDateFilterFrom = $('#pendingFilterDateFrom').val();
+                        pendingDateFilterTo = $('#pendingFilterDateTo').val();
+                    }
+                });
+            }
+        }
+
+        // Render Pending Approvals Table with Pagination
+        function renderPendingApprovalsTableWithPagination() {
+            const tbody = document.getElementById('pendingApprovalsTableBody');
+            tbody.innerHTML = '';
+            
+            // Sort expenses by expenseId descending (newest first)
+            const sortedExpenses = [...pendingExpensesData].sort((a, b) => {
+                const idA = a.expenseId || a.ExpenseId || 0;
+                const idB = b.expenseId || b.ExpenseId || 0;
+                return idB - idA;
+            });
+            
+            // Calculate pagination
+            const totalItems = sortedExpenses.length;
+            const totalPages = Math.ceil(totalItems / pendingItemsPerPage);
+            const startIndex = (pendingCurrentPage - 1) * pendingItemsPerPage;
+            const endIndex = Math.min(startIndex + pendingItemsPerPage, totalItems);
+            const currentPageExpenses = sortedExpenses.slice(startIndex, endIndex);
+            
+            // Render current page expenses
+            if (currentPageExpenses.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="empty-expenses">
+                            <i class="fas fa-check-circle"></i>
+                            <p>لا توجد طلبات موافقة معلقة</p>
+                        </td>
+                    </tr>
+                `;
+                document.getElementById('pendingApprovalsPagination').style.display = 'none';
+                return;
+            }
+            
+            tbody.innerHTML = currentPageExpenses.map(expense => {
+                const expenseId = expense.expenseId || expense.ExpenseId;
+                const date = new Date(expense.dateTime || expense.DateTime);
+                const formattedDate = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+                const amount = (expense.totalAmount || expense.TotalAmount || 0).toFixed(2);
+                const comment = (expense.comment || expense.Comment || '').substring(0, 50);
+                const hotelName = expense.hotelName || expense.HotelName || 'غير محدد';
+                const hotelCode = expense.hotelCode || expense.HotelCode || '';
+                const totalAmount = parseFloat(amount);
+                const isSmallAmount = totalAmount >= 1 && totalAmount <= 50;
+                
+                // Check if expense has already been acted upon by manager
+                const approvedBy = expense.approvedBy || expense.ApprovedBy;
+                const status = (expense.approvalStatus || expense.ApprovalStatus || '').toLowerCase();
+                // Manager can act on awaiting-manager expenses, so only check if already accepted/rejected/awaiting-accountant
+                const hasBeenActedUpon = approvedBy || status === 'accepted' || status === 'rejected' || status === 'awaiting-accountant';
+                
+                // Escape hotelCode for use in onclick (handle quotes)
+                const hotelCodeEscaped = hotelCode.replace(/'/g, "\\'");
+                const hotelNameEscaped = hotelName.replace(/'/g, "\\'");
+                
+                // Build action buttons - disable if already acted upon
+                const approveButtonDisabled = hasBeenActedUpon ? 'disabled' : '';
+                const rejectButtonDisabled = hasBeenActedUpon ? 'disabled' : '';
+                const approveButtonStyle = hasBeenActedUpon ? 'opacity: 0.5; cursor: not-allowed;' : '';
+                const rejectButtonStyle = hasBeenActedUpon ? 'opacity: 0.5; cursor: not-allowed;' : '';
+                const approveOnclick = hasBeenActedUpon ? '' : `onclick="approveExpense(${expenseId}, '${hotelNameEscaped}', '${hotelCodeEscaped}', ${isSmallAmount})"`;
+                const rejectOnclick = hasBeenActedUpon ? '' : `onclick="showRejectModal(${expenseId}, '${hotelNameEscaped}', '${hotelCodeEscaped}')"`;
+                
+                return `
+                    <tr>
+                        <td><strong>#${expenseId}</strong></td>
+                        <td class="hotel-name-cell">${hotelName}</td>
+                        <td>${formattedDate}</td>
+                        <td>${expense.expenseCategoryName || expense.ExpenseCategoryName || 'غير محدد'}</td>
+                        <td><strong style="color: var(--primary-blue);">${amount} <img src="logo/sar-symbol.svg" style="width: 14px; height: 14px; vertical-align: middle;" alt="SAR" /></strong></td>
+                        <td title="${expense.comment || expense.Comment || '-'}">${comment || '-'}</td>
+                        <td class="action-buttons-cell">
+                            <button 
+                                class="btn-view-details" 
+                                onclick="viewExpenseDetails(${expenseId}, '${hotelCodeEscaped}')" 
+                                title="عرض التفاصيل"
+                                style="margin-bottom: 5px;">
+                                <i class="fas fa-eye"></i> عرض التفاصيل
+                            </button>
+                            <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                                <button 
+                                    class="btn-approve" 
+                                    ${approveOnclick}
+                                    ${approveButtonDisabled}
+                                    style="${approveButtonStyle}"
+                                    title="${hasBeenActedUpon ? 'تم اتخاذ إجراء على هذا المصروف' : (totalAmount >= 51 && totalAmount <= 500 ? 'موافقة مباشرة' : totalAmount > 500 ? 'موافقة (سيتم إرسال الطلب إلى المحاسب)' : 'موافقة مباشرة')}">
+                                    <i class="fas fa-check"></i> موافقة
+                                </button>
+                                <button 
+                                    class="btn-reject" 
+                                    ${rejectOnclick}
+                                    ${rejectButtonDisabled}
+                                    style="${rejectButtonStyle}"
+                                    title="${hasBeenActedUpon ? 'تم اتخاذ إجراء على هذا المصروف' : 'رفض'}">
+                                    <i class="fas fa-times"></i> رفض
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            
+            // Update pagination UI
+            updatePendingApprovalsPaginationUI(totalItems, totalPages, startIndex, endIndex);
+        }
+        
+        // Update Pagination UI for Pending Approvals
+        function updatePendingApprovalsPaginationUI(totalItems, totalPages, startIndex, endIndex) {
+            const pagination = document.getElementById('pendingApprovalsPagination');
+            const paginationInfo = document.getElementById('pendingApprovalsPaginationInfo');
+            const paginationControls = document.getElementById('pendingApprovalsPaginationControls');
+            
+            if (totalItems === 0) {
+                pagination.style.display = 'none';
+                return;
+            }
+            
+            pagination.style.display = 'flex';
+            
+            // Update info text
+            paginationInfo.textContent = `عرض ${startIndex + 1} إلى ${endIndex} من ${totalItems} نتيجة`;
+            
+            // Clear previous controls
+            paginationControls.innerHTML = '';
+            
+            // Previous button
+            const prevBtn = document.createElement('button');
+            prevBtn.className = 'pagination-btn';
+            prevBtn.innerHTML = '&lt;';
+            prevBtn.disabled = pendingCurrentPage === 1;
+            prevBtn.onclick = () => {
+                if (pendingCurrentPage > 1) {
+                    pendingCurrentPage--;
+                    renderPendingApprovalsTableWithPagination();
+                }
+            };
+            paginationControls.appendChild(prevBtn);
+            
+            // Page number buttons
+            const maxVisiblePages = 7;
+            let startPage = Math.max(1, pendingCurrentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+            
+            if (endPage - startPage < maxVisiblePages - 1) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+            
+            if (startPage > 1) {
+                const firstBtn = document.createElement('button');
+                firstBtn.className = 'pagination-btn';
+                firstBtn.textContent = '1';
+                firstBtn.onclick = () => {
+                    pendingCurrentPage = 1;
+                    renderPendingApprovalsTableWithPagination();
+                };
+                paginationControls.appendChild(firstBtn);
+                
+                if (startPage > 2) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.className = 'pagination-btn';
+                    ellipsis.textContent = '...';
+                    ellipsis.style.cursor = 'default';
+                    ellipsis.style.pointerEvents = 'none';
+                    paginationControls.appendChild(ellipsis);
+                }
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.className = 'pagination-btn';
+                if (i === pendingCurrentPage) {
+                    pageBtn.classList.add('active');
+                }
+                pageBtn.textContent = i.toString();
+                pageBtn.onclick = () => {
+                    pendingCurrentPage = i;
+                    renderPendingApprovalsTableWithPagination();
+                };
+                paginationControls.appendChild(pageBtn);
+            }
+            
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.className = 'pagination-btn';
+                    ellipsis.textContent = '...';
+                    ellipsis.style.cursor = 'default';
+                    ellipsis.style.pointerEvents = 'none';
+                    paginationControls.appendChild(ellipsis);
+                }
+                
+                const lastBtn = document.createElement('button');
+                lastBtn.className = 'pagination-btn';
+                lastBtn.textContent = totalPages.toString();
+                lastBtn.onclick = () => {
+                    pendingCurrentPage = totalPages;
+                    renderPendingApprovalsTableWithPagination();
+                };
+                paginationControls.appendChild(lastBtn);
+            }
+            
+            // Next button
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'pagination-btn';
+            nextBtn.innerHTML = '&gt;';
+            nextBtn.disabled = pendingCurrentPage === totalPages;
+            nextBtn.onclick = () => {
+                if (pendingCurrentPage < totalPages) {
+                    pendingCurrentPage++;
+                    renderPendingApprovalsTableWithPagination();
+                }
+            };
+            paginationControls.appendChild(nextBtn);
+        }
+
+        // Get Approval Status Badge
+        function getApprovalStatusBadge(status, rejectionReason = null, expenseId = null) {
+            const statusLower = (status || '').toLowerCase();
+            let badgeClass = '';
+            let icon = '';
+            let text = '';
+            let clickable = '';
+            let onclickAttr = '';
+            
+            switch(statusLower) {
+                case 'auto-approved':
+                    badgeClass = 'status-auto-approved';
+                    icon = '<i class="fas fa-check-circle"></i>';
+                    text = 'موافقة تلقائية';
+                    break;
+                case 'pending':
+                    badgeClass = 'status-pending';
+                    icon = '<i class="fas fa-clock"></i>';
+                    text = 'في انتظار المشرف';
+                    break;
+                case 'awaiting-manager':
+                    badgeClass = 'status-awaiting-manager';
+                    icon = '<i class="fas fa-user-tie"></i>';
+                    text = 'في انتظار مدير العمليات';
+                    break;
+                case 'awaiting-accountant':
+                    badgeClass = 'status-awaiting-accountant';
+                    icon = '<i class="fas fa-calculator"></i>';
+                    text = 'في انتظار المحاسب';
+                    break;
+                case 'awaiting-admin':
+                    badgeClass = 'status-awaiting-admin';
+                    icon = '<i class="fas fa-user-shield"></i>';
+                    text = 'في انتظار المدير العام';
+                    break;
+                case 'accepted':
+                    badgeClass = 'status-accepted';
+                    icon = '<i class="fas fa-check"></i>';
+                    text = 'مقبول';
+                    break;
+                case 'rejected':
+                    badgeClass = 'status-rejected';
+                    icon = '<i class="fas fa-times-circle"></i>';
+                    text = 'مرفوض';
+                    // Make badge clickable if there's a rejection reason
+                    if (rejectionReason && rejectionReason !== '-' && rejectionReason.trim() !== '') {
+                        clickable = 'clickable';
+                        onclickAttr = `onclick="showRejectionReason('${rejectionReason.replace(/'/g, "\\'")}')"`;
+                    }
+                    break;
+                default:
+                    badgeClass = 'status-pending';
+                    icon = '<i class="fas fa-question-circle"></i>';
+                    text = status || 'غير محدد';
+            }
+            
+            return `<span class="approval-status-badge ${badgeClass} ${clickable}" ${onclickAttr} title="${statusLower === 'rejected' && rejectionReason ? 'انقر لعرض سبب الرفض' : ''}">${icon} ${text}</span>`;
+        }
+
+        // Show Rejection Reason
+        function showRejectionReason(reason) {
+            Swal.fire({
+                icon: 'error',
+                title: 'سبب الرفض',
+                html: `<div style="text-align: right; padding: 10px; font-size: 14px;">${reason}</div>`,
+                confirmButtonText: 'حسناً',
+                confirmButtonColor: '#DC3545',
+                customClass: {
+                    popup: 'swal2-rtl'
+                }
+            });
+        }
+
+        // Approve Expense
+        async function approveExpense(expenseId, hotelName, hotelCode, isSmallAmount) {
+            const amount = pendingExpenses.find(e => (e.expenseId || e.ExpenseId) === expenseId);
+            const totalAmount = amount ? parseFloat(amount.totalAmount || amount.TotalAmount || 0) : 0;
+            
+            if (totalAmount < 1) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'تحذير',
+                    html: `
+                        <div style="text-align: right; direction: rtl;">
+                            <p>لا يمكن الموافقة على مصروف بقيمة أقل من 1 <img src="logo/sar-symbol.svg" style="width: 16px; height: 16px; vertical-align: middle;" alt="SAR" /></p>
+                        </div>
+                    `,
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#007ACC'
+                });
+                return;
+            }
+            
+            // Determine status based on amount
+            // 51-500: accepted directly
+            // Over 500: awaiting-accountant
+            let status, statusText, warningMessage;
+            if (totalAmount >= 51 && totalAmount <= 500) {
+                status = 'accepted';
+                statusText = 'موافقة مباشرة';
+                warningMessage = '';
+            } else if (totalAmount > 500) {
+                status = 'awaiting-accountant';
+                statusText = 'موافقة (سيتم إرسال الطلب إلى المحاسب)';
+                warningMessage = `<p style="color: #ec4899; font-weight: 600; margin-top: 10px;">⚠️ المبلغ أكبر من 500 <img src="logo/sar-symbol.svg" style="width: 16px; height: 16px; vertical-align: middle;" alt="SAR" /> - سيتم إرسال الطلب إلى المحاسب للموافقة النهائية</p>`;
+            } else {
+                // Less than 51 - should not happen as supervisor should have handled it
+                status = 'accepted';
+                statusText = 'موافقة مباشرة';
+                warningMessage = '';
+            }
+            
+            const result = await Swal.fire({
+                title: 'تأكيد الموافقة',
+                html: `
+                    <div style="text-align: right; direction: rtl;">
+                        <p>هل أنت متأكد من الموافقة على المصروف #${expenseId} من ${hotelName}؟</p>
+                        ${warningMessage}
+                    </div>
+                `,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'نعم، موافقة',
+                cancelButtonText: 'إلغاء',
+                confirmButtonColor: '#28A745',
+                cancelButtonColor: '#6c757d',
+                reverseButtons: true,
+                customClass: {
+                    popup: 'swal2-rtl'
+                }
+            });
+            
+            if (!result.isConfirmed) {
+                return;
+            }
+            
+            try {
+                showLoading();
+                
+                const headers = getApiHeaders();
+                // ✅ إضافة X-Hotel-Code header لتحديد قاعدة البيانات الصحيحة
+                if (hotelCode) {
+                    headers['X-Hotel-Code'] = hotelCode;
+                    console.log('✅ Sending X-Hotel-Code header:', hotelCode);
+                } else {
+                    console.warn('⚠️ No hotelCode provided for expense:', expenseId);
+                }
+                
+                const response = await fetch(`${API_BASE_URL}/api/Expense/approve/${expenseId}?status=${status}`, {
+                    method: 'PUT',
+                    headers: headers
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.message || errorData.error || 'Failed to approve expense');
+                }
+                
+                // Hide loading before showing success message
+                hideLoading();
+                
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'نجح',
+                    html: `
+                        <div style="text-align: right; direction: rtl;">
+                            <p>${status === 'accepted' ? 'تم الموافقة على المصروف بنجاح!' : 'تم الموافقة على المصروف! سيتم إرسال الطلب إلى المحاسب للموافقة النهائية'}</p>
+                        </div>
+                    `,
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#28A745',
+                    customClass: {
+                        popup: 'swal2-rtl'
+                    }
+                });
+                
+                // Reload pending approvals (it will show its own loading)
+                await loadPendingApprovals();
+                
+            } catch (error) {
+                console.error('Error approving expense:', error);
+                hideLoading();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: `فشل الموافقة على المصروف: ${error.message}`,
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#DC3545',
+                    customClass: {
+                        popup: 'swal2-rtl'
+                    }
+                });
+            }
+        }
+
+        // Show Reject Modal
+        async function showRejectModal(expenseId, hotelName, hotelCode) {
+            const amount = pendingExpenses.find(e => (e.expenseId || e.ExpenseId) === expenseId);
+            const totalAmount = amount ? parseFloat(amount.totalAmount || amount.TotalAmount || 0) : 0;
+            
+            if (totalAmount < 1) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'تحذير',
+                    html: `
+                        <div style="text-align: right; direction: rtl;">
+                            <p>لا يمكن الرفض على مصروف بقيمة أقل من 1 <img src="logo/sar-symbol.svg" style="width: 16px; height: 16px; vertical-align: middle;" alt="SAR" /></p>
+                        </div>
+                    `,
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#007ACC',
+                    customClass: {
+                        popup: 'swal2-rtl'
+                    }
+                });
+                return;
+            }
+            
+            const { value: rejectionReason } = await Swal.fire({
+                title: 'رفض المصروف',
+                html: `
+                    <div style="text-align: right; direction: rtl; width: 100%; max-width: 100%;">
+                        <p style="margin-bottom: 15px; font-size: 14px;">المصروف #${expenseId} من ${hotelName}</p>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">سبب الرفض (اختياري):</label>
+                        <textarea 
+                            id="swal-rejection-reason" 
+                            class="swal2-textarea" 
+                            placeholder="أدخل سبب الرفض (اختياري)"
+                            style="width: 100%; max-width: 100%; box-sizing: border-box; min-height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: 'Cairo', sans-serif; direction: rtl; text-align: right; resize: vertical;"
+                        ></textarea>
+                    </div>
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'رفض',
+                cancelButtonText: 'إلغاء',
+                confirmButtonColor: '#DC3545',
+                cancelButtonColor: '#6c757d',
+                reverseButtons: true,
+                customClass: {
+                    popup: 'swal2-rtl'
+                },
+                width: '500px',
+                didOpen: () => {
+                    const textarea = document.getElementById('swal-rejection-reason');
+                    if (textarea) {
+                        textarea.focus();
+                    }
+                },
+                preConfirm: () => {
+                    const textarea = document.getElementById('swal-rejection-reason');
+                    const reason = textarea ? textarea.value.trim() : '';
+                    // سبب الرفض اختياري الآن
+                    return reason || '';
+                }
+            });
+            
+            // If user cancelled, return
+            if (rejectionReason === undefined || rejectionReason === null) {
+                return;
+            }
+            
+            // Confirm rejection
+            const result = await Swal.fire({
+                title: 'تأكيد الرفض',
+                text: `هل أنت متأكد من رفض المصروف #${expenseId} من ${hotelName}؟`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'نعم، رفض',
+                cancelButtonText: 'إلغاء',
+                confirmButtonColor: '#DC3545',
+                cancelButtonColor: '#6c757d',
+                reverseButtons: true,
+                customClass: {
+                    popup: 'swal2-rtl'
+                }
+            });
+            
+            if (!result.isConfirmed) {
+                return;
+            }
+            
+            // Proceed with rejection (rejectionReason can be empty string now)
+            await rejectExpense(expenseId, hotelName, hotelCode, rejectionReason || '');
+        }
+
+        // Reject Expense
+        async function rejectExpense(expenseId, hotelName, hotelCode, rejectionReason) {
+            try {
+                showLoading();
+                
+                const headers = getApiHeaders();
+                // ✅ إضافة X-Hotel-Code header لتحديد قاعدة البيانات الصحيحة
+                if (hotelCode) {
+                    headers['X-Hotel-Code'] = hotelCode;
+                    console.log('✅ Sending X-Hotel-Code header:', hotelCode);
+                } else {
+                    console.warn('⚠️ No hotelCode provided for expense:', expenseId);
+                }
+                
+                const response = await fetch(`${API_BASE_URL}/api/Expense/approve/${expenseId}?status=rejected&rejectionReason=${encodeURIComponent(rejectionReason)}`, {
+                    method: 'PUT',
+                    headers: headers
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.message || errorData.error || 'Failed to reject expense');
+                }
+                
+                // Hide loading before showing success message
+                hideLoading();
+                
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'نجح',
+                    text: 'تم رفض المصروف بنجاح!',
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#DC3545',
+                    customClass: {
+                        popup: 'swal2-rtl'
+                    }
+                });
+                
+                // Reload pending approvals (it will show its own loading)
+                await loadPendingApprovals();
+                
+            } catch (error) {
+                console.error('Error rejecting expense:', error);
+                hideLoading();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: `فشل رفض المصروف: ${error.message}`,
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#DC3545',
+                    customClass: {
+                        popup: 'swal2-rtl'
+                    }
+                });
+            }
+        }
+
+        // View Expense Images
+        async function viewExpenseImages(expenseId, hotelCode) {
+            try {
+                showLoading();
+                
+                const headers = getApiHeaders();
+                // ✅ إضافة X-Hotel-Code header لتحديد قاعدة البيانات الصحيحة
+                if (hotelCode) {
+                    headers['X-Hotel-Code'] = hotelCode;
+                    console.log('✅ [viewExpenseImages] Sending X-Hotel-Code header:', hotelCode);
+                } else {
+                    // Fallback: Try to get hotel code from expense data
+                    const expense = [...allExpenses, ...pendingExpenses].find(e => 
+                        (e.expenseId || e.ExpenseId) === expenseId
+                    );
+                    if (expense) {
+                        const expenseHotelCode = expense.hotelCode || expense.HotelCode;
+                        if (expenseHotelCode) {
+                            headers['X-Hotel-Code'] = expenseHotelCode;
+                            console.log('✅ [viewExpenseImages] Using hotelCode from expense data:', expenseHotelCode);
+                        } else {
+                            console.warn('⚠️ [viewExpenseImages] No hotelCode found for expense:', expenseId);
+                        }
+                    }
+                }
+                
+                const response = await fetch(`${API_BASE_URL}/api/Expense/${expenseId}/images`, {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load images');
+                }
+                
+                const images = await response.json();
+                const imagesGrid = document.getElementById('imagesGrid');
+                
+                if (!images || images.length === 0) {
+                    imagesGrid.innerHTML = `
+                        <div class="no-images-message">
+                            <i class="fas fa-image" style="font-size: 48px; color: #d1d5db; margin-bottom: 16px;"></i>
+                            <p>لا توجد صور لهذا المصروف</p>
+                        </div>
+                    `;
+                } else {
+                    imagesGrid.innerHTML = '';
+                    images.forEach(image => {
+                        const imageUrl = image.imageUrl || image.ImageUrl || image.image_path || image.url || image.Url;
+                        if (imageUrl) {
+                            const imageItem = document.createElement('div');
+                            imageItem.className = 'image-item';
+                            const fullImageUrl = imageUrl.startsWith('http') ? imageUrl : `${API_BASE_URL}${imageUrl}`;
+                            imageItem.innerHTML = `<img src="${fullImageUrl}" alt="Expense Image" onclick="window.open('${fullImageUrl}', '_blank')">`;
+                            imagesGrid.appendChild(imageItem);
+                        }
+                    });
+                }
+                
+                document.getElementById('imagesModal').classList.add('active');
+                
+            } catch (error) {
+                console.error('Error loading images:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: `فشل تحميل الصور: ${error.message}`,
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#007ACC',
+                    customClass: {
+                        popup: 'swal2-rtl'
+                    }
+                });
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Close Images Modal
+        function closeImagesModal() {
+            document.getElementById('imagesModal').classList.remove('active');
+        }
+
+        // Close modal when clicking outside
+        document.addEventListener('click', function(event) {
+            const imagesModal = document.getElementById('imagesModal');
+            if (event.target === imagesModal) {
+                closeImagesModal();
+            }
+            
+            const detailsModal = document.getElementById('expenseDetailsModal');
+            if (event.target === detailsModal) {
+                closeExpenseDetailsModal();
+            }
+        });
+
+        // View Expense Details
+        async function viewExpenseDetails(expenseId, hotelCode) {
+            try {
+                showLoading();
+                
+                const headers = getApiHeaders();
+                // ✅ إضافة X-Hotel-Code header لتحديد قاعدة البيانات الصحيحة
+                if (hotelCode) {
+                    headers['X-Hotel-Code'] = hotelCode;
+                    console.log('✅ [viewExpenseDetails] Sending X-Hotel-Code header:', hotelCode);
+                }
+                
+                const response = await fetch(`${API_BASE_URL}/api/Expense/${expenseId}`, {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load expense details');
+                }
+                
+                const expense = await response.json();
+                
+                // Load images
+                const imagesResponse = await fetch(`${API_BASE_URL}/api/Expense/${expenseId}/images`, {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                let images = [];
+                if (imagesResponse.ok) {
+                    images = await imagesResponse.json();
+                }
+                
+                // Render expense details
+                renderExpenseDetails(expense, images);
+                
+                // Show modal
+                document.getElementById('expenseDetailsModal').classList.add('active');
+                
+            } catch (error) {
+                console.error('Error loading expense details:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: `فشل تحميل تفاصيل المصروف: ${error.message}`,
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#007ACC',
+                    customClass: {
+                        popup: 'swal2-rtl'
+                    }
+                });
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Render Expense Details
+        function renderExpenseDetails(expense, images) {
+            const content = document.getElementById('expenseDetailsContent');
+            
+            const expenseId = expense.expenseId || expense.ExpenseId;
+            const date = new Date(expense.dateTime || expense.DateTime);
+            // Format date in Gregorian (DD/MM/YYYY)
+            const formattedDate = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+            const formattedTime = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+            const dueDate = expense.dueDate || expense.DueDate;
+            // Format due date in Gregorian (DD/MM/YYYY)
+            const formattedDueDate = dueDate ? (() => {
+                const d = new Date(dueDate);
+                return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+            })() : '-';
+            const amount = (expense.totalAmount || expense.TotalAmount || 0).toFixed(2);
+            const taxAmount = (expense.taxAmount || expense.TaxAmount || 0).toFixed(2);
+            const taxRate = (expense.taxRate || expense.TaxRate || 0).toFixed(2);
+            const status = (expense.approvalStatus || expense.ApprovalStatus || '').toLowerCase();
+            const rejectionReason = expense.rejectionReason || expense.RejectionReason || null;
+            const statusBadge = getApprovalStatusBadge(status, rejectionReason, expenseId);
+            const approvedBy = expense.approvedBy || expense.ApprovedBy;
+            const approvedAt = expense.approvedAt || expense.ApprovedAt;
+            // Format approved date in Gregorian (DD/MM/YYYY HH:MM:SS)
+            const formattedApprovedAt = approvedAt ? (() => {
+                const d = new Date(approvedAt);
+                const dateStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+                return `${dateStr} ${timeStr}`;
+            })() : '-';
+            const expenseRooms = expense.expenseRooms || expense.ExpenseRooms || [];
+            
+            content.innerHTML = `
+                <!-- Basic Information -->
+                <div class="expense-details-section">
+                    <div class="expense-details-section-title">
+                        <i class="fas fa-info-circle"></i>
+                        المعلومات الأساسية
+                    </div>
+                    <div class="expense-details-grid">
+                        <div class="expense-detail-item">
+                            <span class="expense-detail-label">رقم المصروف</span>
+                            <span class="expense-detail-value"><strong>#${expenseId}</strong></span>
+                        </div>
+                        <div class="expense-detail-item">
+                            <span class="expense-detail-label">الفندق</span>
+                            <span class="expense-detail-value">${expense.hotelName || expense.HotelName || 'غير محدد'}</span>
+                        </div>
+                        <div class="expense-detail-item">
+                            <span class="expense-detail-label">التاريخ</span>
+                            <span class="expense-detail-value">${formattedDate} ${formattedTime}</span>
+                        </div>
+                        <div class="expense-detail-item">
+                            <span class="expense-detail-label">تاريخ الاستحقاق</span>
+                            <span class="expense-detail-value">${formattedDueDate}</span>
+                        </div>
+                        <div class="expense-detail-item">
+                            <span class="expense-detail-label">فئة المصروف</span>
+                            <span class="expense-detail-value">${expense.expenseCategoryName || expense.ExpenseCategoryName || 'غير محدد'}</span>
+                        </div>
+                        <div class="expense-detail-item">
+                            <span class="expense-detail-label">حالة الموافقة</span>
+                            <span class="expense-detail-value">${statusBadge}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Financial Information -->
+                <div class="expense-details-section">
+                    <div class="expense-details-section-title">
+                        <i class="fas fa-money-bill-wave"></i>
+                        المعلومات المالية
+                    </div>
+                    <div class="expense-details-grid">
+                        <div class="expense-detail-item">
+                            <span class="expense-detail-label">المبلغ الإجمالي</span>
+                            <span class="expense-detail-value" style="font-size: 18px; font-weight: 700; color: var(--primary-blue);">${amount} <img src="logo/sar-symbol.svg" style="width: 18px; height: 18px; vertical-align: middle;" alt="SAR" /></span>
+                        </div>
+                        <div class="expense-detail-item">
+                            <span class="expense-detail-label">نسبة الضريبة</span>
+                            <span class="expense-detail-value">${taxRate}%</span>
+                        </div>
+                        <div class="expense-detail-item">
+                            <span class="expense-detail-label">مبلغ الضريبة</span>
+                            <span class="expense-detail-value">${taxAmount} <img src="logo/sar-symbol.svg" style="width: 14px; height: 14px; vertical-align: middle;" alt="SAR" /></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                ${expense.comment || expense.Comment ? `
+                <div class="expense-details-section">
+                    <div class="expense-details-section-title">
+                        <i class="fas fa-sticky-note"></i>
+                        الملاحظات
+                    </div>
+                    <div class="expense-detail-value" style="padding: 12px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                        ${expense.comment || expense.Comment}
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Approval Information -->
+                ${status === 'rejected' || status === 'accepted' ? `
+                <div class="expense-details-section">
+                    <div class="expense-details-section-title">
+                        <i class="fas fa-check-circle"></i>
+                        معلومات الموافقة/الرفض
+                    </div>
+                    <div class="expense-details-grid">
+                        <div class="expense-detail-item">
+                            <span class="expense-detail-label">تمت الموافقة/الرفض بواسطة</span>
+                            <span class="expense-detail-value">${approvedBy || '-'}</span>
+                        </div>
+                        <div class="expense-detail-item">
+                            <span class="expense-detail-label">تاريخ الموافقة/الرفض</span>
+                            <span class="expense-detail-value">${formattedApprovedAt}</span>
+                        </div>
+                        ${status === 'rejected' && rejectionReason ? `
+                        <div class="expense-detail-item" style="grid-column: 1 / -1;">
+                            <span class="expense-detail-label">سبب الرفض</span>
+                            <span class="expense-detail-value" style="padding: 12px; background: #fee; border-radius: 8px; border: 1px solid #fcc; color: var(--danger-red);">
+                                ${rejectionReason}
+                            </span>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Expense Rooms -->
+                ${expenseRooms && expenseRooms.length > 0 ? `
+                <div class="expense-details-section">
+                    <div class="expense-details-section-title">
+                        <i class="fas fa-door-open"></i>
+                        الغرف المرتبطة (${expenseRooms.length})
+                    </div>
+                    <div class="expense-rooms-list">
+                        ${expenseRooms.map((room, index) => `
+                            <div class="expense-room-item">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <strong>#${index + 1}</strong>
+                                        ${room.apartmentName || room.ApartmentName ? `
+                                            <span style="margin: 0 10px; color: var(--primary-blue);">
+                                                <i class="fas fa-door-open"></i> ${room.apartmentName || room.ApartmentName}
+                                                ${room.apartmentCode || room.ApartmentCode ? `(${room.apartmentCode || room.ApartmentCode})` : ''}
+                                            </span>
+                                        ` : ''}
+                                    </div>
+                                    <span style="font-weight: 700; color: var(--primary-blue);">${(room.amount || room.Amount || 0).toFixed(2)} <img src="logo/sar-symbol.svg" style="width: 14px; height: 14px; vertical-align: middle;" alt="SAR" /></span>
+                                </div>
+                                ${room.purpose || room.Purpose ? `
+                                    <div style="margin-top: 8px; color: #6b7280; font-size: 13px;">
+                                        ${room.purpose || room.Purpose}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Images -->
+                ${images && images.length > 0 ? `
+                <div class="expense-details-section">
+                    <div class="expense-details-section-title">
+                        <i class="fas fa-images"></i>
+                        الصور (${images.length})
+                    </div>
+                    <div class="expense-images-list">
+                        ${images.map((image, index) => {
+                            const imageUrl = image.imageUrl || image.ImageUrl || image.image_path || image.url || image.Url;
+                            const fullImageUrl = imageUrl.startsWith('http') ? imageUrl : `${API_BASE_URL}${imageUrl}`;
+                            return `
+                                <div class="expense-image-item">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                        <strong>صورة #${index + 1}</strong>
+                                        ${image.originalFilename || image.OriginalFilename ? `
+                                            <span style="color: #6b7280; font-size: 12px;">${image.originalFilename || image.OriginalFilename}</span>
+                                        ` : ''}
+                                    </div>
+                                    <img src="${fullImageUrl}" alt="Expense Image ${index + 1}" onclick="window.open('${fullImageUrl}', '_blank')" />
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+                ` : `
+                <div class="expense-details-section">
+                    <div class="expense-details-section-title">
+                        <i class="fas fa-images"></i>
+                        الصور
+                    </div>
+                    <div style="text-align: center; padding: 20px; color: #6b7280;">
+                        <i class="fas fa-image" style="font-size: 48px; color: #d1d5db; margin-bottom: 10px;"></i>
+                        <p>لا توجد صور لهذا المصروف</p>
+                    </div>
+                </div>
+                `}
+            `;
+        }
+
+        // Close Expense Details Modal
+        function closeExpenseDetailsModal() {
+            document.getElementById('expenseDetailsModal').classList.remove('active');
+        }
+
+        // Logout
+        async function handleLogout() {
+            const result = await Swal.fire({
+                title: 'هل أنت متأكد؟',
+                text: 'هل أنت متأكد من تسجيل الخروج؟',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'نعم، سجل الخروج',
+                cancelButtonText: 'إلغاء',
+                reverseButtons: true,
+                customClass: {
+                    popup: 'swal2-rtl'
+                }
+            });
+            
+            if (result.isConfirmed) {
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('userInfo');
+                localStorage.removeItem('sessionStartTime');
+                localStorage.removeItem('sessionValid');
+                sessionStorage.clear();
+                window.location.href = 'login.html';
+            }
+        }
+
+        // Get Branch Name from Tenant Code or Name
+        function getBranchName() {
+            const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+            let branchName = '';
+            
+            // Try to get from tenantName first
+            if (userInfo.tenantName) {
+                branchName = userInfo.tenantName;
+            } else if (userInfo.tenantCode) {
+                // Extract branch name from tenantCode (e.g., "Dammam2" -> "الدمام", "الدمام 2" -> "الدمام")
+                const tenantCode = userInfo.tenantCode;
+                
+                // Check if tenantCode is already in Arabic (contains Arabic characters)
+                const hasArabic = /[\u0600-\u06FF]/.test(tenantCode);
+                
+                if (hasArabic) {
+                    // If it's in Arabic, remove numbers and extra spaces
+                    branchName = tenantCode.replace(/\d+/g, '').replace(/\s+/g, ' ').trim();
+                } else {
+                    // If it's in English, extract the name part
+                    // Remove numbers and common suffixes
+                    let name = tenantCode.replace(/\d+/g, '').trim();
+                    
+                    // Convert common English names to Arabic
+                    const nameMap = {
+                        'Dammam': 'الدمام',
+                        'Riyadh': 'الرياض',
+                        'Jeddah': 'جدة',
+                        'Khobar': 'الخبر',
+                        'Abha': 'أبها',
+                        'Taif': 'الطائف',
+                        'Makkah': 'مكة',
+                        'Medina': 'المدينة',
+                        'Qassim': 'القصيم',
+                        'Hail': 'حائل',
+                        'Najran': 'نجران',
+                        'Jazan': 'جازان',
+                        'Tabuk': 'تبوك',
+                        'Buraidah': 'بريدة',
+                        'Khamis': 'خميس',
+                        'Mushait': 'مشيط'
+                    };
+                    
+                    // Check if name exists in map
+                    if (nameMap[name]) {
+                        branchName = nameMap[name];
+                    } else {
+                        // If not found, use the code as is
+                        branchName = tenantCode;
+                    }
+                }
+            }
+            
+            // Clean up the branch name (remove extra spaces, numbers at the end)
+            if (branchName) {
+                branchName = branchName.replace(/\s+/g, ' ').trim();
+                // Remove trailing numbers if any
+                branchName = branchName.replace(/\s*\d+$/, '').trim();
+            }
+            
+            return branchName || 'غير محدد';
+        }
+        
+        // Update Manager Title with Branch Name
+        function updateManagerTitle() {
+            const titleElement = document.getElementById('managerTitle');
+            if (titleElement) {
+                titleElement.textContent = 'مدير العمليات';
+            }
+        }
+        
+        // ==================== Export Functions ====================
+        function exportToPDF() {
+            try {
+                const table = document.getElementById('allExpensesTable');
+                if (!table) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'تنبيه',
+                        text: 'لا توجد بيانات للتصدير',
+                        confirmButtonText: 'حسناً',
+                        confirmButtonColor: '#007ACC',
+                        customClass: {
+                            popup: 'swal2-rtl'
+                        }
+                    });
+                    return;
+                }
+                
+                const rows = table.querySelectorAll('tbody tr');
+                if (rows.length === 0 || (rows.length === 1 && rows[0].querySelector('.empty-expenses'))) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'تنبيه',
+                        text: 'لا توجد بيانات للتصدير',
+                        confirmButtonText: 'حسناً',
+                        confirmButtonColor: '#007ACC',
+                        customClass: {
+                            popup: 'swal2-rtl'
+                        }
+                    });
+                    return;
+                }
+                
+                // Check if jsPDF is loaded
+                if (typeof window.jspdf === 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ',
+                        text: 'مكتبة PDF غير محملة. يرجى إعادة تحميل الصفحة',
+                        confirmButtonText: 'حسناً',
+                        confirmButtonColor: '#007ACC',
+                        customClass: {
+                            popup: 'swal2-rtl'
+                        }
+                    });
+                    return;
+                }
+                
+                showLoading();
+                
+                // Get hotel name from userInfo
+                const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                const hotelName = userInfo.tenantName || userInfo.tenantCode || 'غير محدد';
+                
+                // Format print date in Gregorian
+                const printDate = new Date();
+                const printDateFormatted = printDate.toLocaleDateString('en-GB', { 
+                    year: 'numeric', 
+                    month: '2-digit', 
+                    day: '2-digit' 
+                });
+                
+                // Format date range if filters are applied
+                let dateRangeText = '';
+                if (dateFilterFrom && dateFilterTo) {
+                    const fromDate = new Date(dateFilterFrom);
+                    const toDate = new Date(dateFilterTo);
+                    const fromFormatted = fromDate.toLocaleDateString('en-GB', { 
+                        year: 'numeric', 
+                        month: '2-digit', 
+                        day: '2-digit' 
+                    });
+                    const toFormatted = toDate.toLocaleDateString('en-GB', { 
+                        year: 'numeric', 
+                        month: '2-digit', 
+                        day: '2-digit' 
+                    });
+                    dateRangeText = `الفترة: من ${fromFormatted} إلى ${toFormatted}`;
+                }
+                
+                // Clone table and prepare for printing
+                const tableClone = table.cloneNode(true);
+                
+                // Remove SAR symbol from amount cells
+                const amountCells = tableClone.querySelectorAll('tbody tr td:nth-child(5)');
+                amountCells.forEach(cell => {
+                    const sarSymbols = cell.querySelectorAll('.sar-symbol, svg, img');
+                    sarSymbols.forEach(el => el.remove());
+                });
+                
+                // Remove action buttons/icons
+                const actionCells = tableClone.querySelectorAll('td:last-child');
+                actionCells.forEach(cell => {
+                    const buttons = cell.querySelectorAll('button, svg, .action-btn, .btn-view-details');
+                    buttons.forEach(btn => btn.remove());
+                });
+                
+                // Remove action column header
+                const headerRow = tableClone.querySelector('thead tr');
+                if (headerRow) {
+                    const headers = headerRow.querySelectorAll('th');
+                    if (headers.length > 0) headers[headers.length - 1].remove();
+                }
+                
+                // Remove action columns from all rows
+                const allRows = tableClone.querySelectorAll('tbody tr');
+                allRows.forEach(row => {
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length > 0) cells[cells.length - 1].remove();
+                });
+                
+                // Create a temporary container for the PDF content
+                const printContainer = document.createElement('div');
+                printContainer.style.position = 'absolute';
+                printContainer.style.left = '-9999px';
+                printContainer.style.width = '297mm'; // A4 landscape width
+                printContainer.style.padding = '20px';
+                printContainer.style.backgroundColor = 'white';
+                printContainer.style.fontFamily = "'Cairo', Arial, sans-serif";
+                printContainer.style.direction = 'rtl';
+                printContainer.innerHTML = `
+                    <style>
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-family: 'Cairo', Arial, sans-serif; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: right; font-size: 12px; }
+                        th { background-color: #007ACC; color: white; font-weight: 600; }
+                        tr:nth-child(even) { background-color: #f9f9f9; }
+                    </style>
+                    <h1 style="text-align: center; color: #333; margin-bottom: 10px; font-size: 24px; font-family: 'Cairo', Arial, sans-serif;">تقرير المصروفات</h1>
+                    <div style="text-align: center; color: #666; margin-bottom: 20px; font-size: 14px; font-family: 'Cairo', Arial, sans-serif;">
+                        <p style="margin: 5px 0;"><strong>الفندق:</strong> ${hotelName}</p>
+                        <p style="margin: 5px 0;"><strong>تاريخ الطباعة:</strong> ${printDateFormatted}</p>
+                        ${dateRangeText ? `<p style="margin: 5px 0;">${dateRangeText}</p>` : ''}
+                    </div>
+                    ${tableClone.outerHTML}
+                `;
+                
+                document.body.appendChild(printContainer);
+                
+                // Use html2canvas to capture the content
+                if (typeof html2canvas !== 'undefined') {
+                    html2canvas(printContainer, {
+                        scale: 2,
+                        useCORS: true,
+                        logging: false,
+                        backgroundColor: '#ffffff'
+                    }).then(canvas => {
+                        const imgData = canvas.toDataURL('image/png');
+                        const { jsPDF } = window.jspdf;
+                        const doc = new jsPDF('l', 'mm', 'a4');
+                        
+                        const imgWidth = doc.internal.pageSize.getWidth();
+                        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                        
+                        let heightLeft = imgHeight;
+                        let position = 0;
+                        
+                        doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                        heightLeft -= doc.internal.pageSize.getHeight();
+                        
+                        while (heightLeft > 0) {
+                            position = heightLeft - imgHeight;
+                            doc.addPage();
+                            doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                            heightLeft -= doc.internal.pageSize.getHeight();
+                        }
+                        
+                        const fileName = `expenses_${new Date().toISOString().split('T')[0]}.pdf`;
+                        doc.save(fileName);
+                        
+                        document.body.removeChild(printContainer);
+                        hideLoading();
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'نجح',
+                            text: 'تم تصدير البيانات إلى PDF بنجاح',
+                            confirmButtonText: 'حسناً',
+                            confirmButtonColor: '#28A745',
+                            customClass: {
+                                popup: 'swal2-rtl'
+                            }
+                        });
+                    }).catch(error => {
+                        document.body.removeChild(printContainer);
+                        hideLoading();
+                        console.error('Error with html2canvas:', error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'خطأ',
+                            text: `خطأ في تصدير PDF: ${error.message}`,
+                            confirmButtonText: 'حسناً',
+                            confirmButtonColor: '#DC3545',
+                            customClass: {
+                                popup: 'swal2-rtl'
+                            }
+                        });
+                    });
+                } else {
+                    document.body.removeChild(printContainer);
+                    hideLoading();
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ',
+                        text: 'مكتبة html2canvas غير محملة. يرجى إعادة تحميل الصفحة',
+                        confirmButtonText: 'حسناً',
+                        confirmButtonColor: '#DC3545',
+                        customClass: {
+                            popup: 'swal2-rtl'
+                        }
+                    });
+                }
+            } catch (error) {
+                hideLoading();
+                console.error('Error exporting to PDF:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: `خطأ في تصدير PDF: ${error.message}`,
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#DC3545',
+                    customClass: {
+                        popup: 'swal2-rtl'
+                    }
+                });
+            }
+        }
+        
+        function exportToExcel() {
+            try {
+                const table = document.getElementById('allExpensesTable');
+                if (!table) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'تنبيه',
+                        text: 'لا توجد بيانات للتصدير',
+                        confirmButtonText: 'حسناً',
+                        confirmButtonColor: '#007ACC',
+                        customClass: {
+                            popup: 'swal2-rtl'
+                        }
+                    });
+                    return;
+                }
+                
+                const rows = table.querySelectorAll('tbody tr');
+                if (rows.length === 0 || (rows.length === 1 && rows[0].querySelector('.empty-expenses'))) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'تنبيه',
+                        text: 'لا توجد بيانات للتصدير',
+                        confirmButtonText: 'حسناً',
+                        confirmButtonColor: '#007ACC',
+                        customClass: {
+                            popup: 'swal2-rtl'
+                        }
+                    });
+                    return;
+                }
+                
+                // Check if XLSX is loaded
+                if (typeof XLSX === 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ',
+                        text: 'مكتبة Excel غير محملة. يرجى إعادة تحميل الصفحة',
+                        confirmButtonText: 'حسناً',
+                        confirmButtonColor: '#DC3545',
+                        customClass: {
+                            popup: 'swal2-rtl'
+                        }
+                    });
+                    return;
+                }
+                
+                // Get hotel name from userInfo
+                const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                const hotelName = userInfo.tenantName || userInfo.tenantCode || 'غير محدد';
+                
+                // Format print date in Gregorian
+                const printDate = new Date();
+                const printDateFormatted = printDate.toLocaleDateString('en-GB', { 
+                    year: 'numeric', 
+                    month: '2-digit', 
+                    day: '2-digit' 
+                });
+                
+                // Prepare data array
+                const data = [];
+                
+                // Add header row
+                data.push(['رقم المصروف', 'الفندق', 'التاريخ', 'فئة المصروف', 'المبلغ الإجمالي', 'حالة الموافقة', 'الملاحظات']);
+                
+                // Add data rows - extract clean text without HTML/SVG
+                rows.forEach(row => {
+                    if (row.querySelector('.empty-expenses')) return;
+                    
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length >= 7) {
+                        // Extract text content, removing HTML tags and SVG
+                        const expenseId = cells[0].textContent.trim().replace(/#/g, '');
+                        const hotel = cells[1].textContent.trim();
+                        const date = cells[2].textContent.trim();
+                        const category = cells[3].textContent.trim();
+                        // Extract amount without SAR symbol SVG
+                        const amountCell = cells[4].cloneNode(true);
+                        amountCell.querySelectorAll('.sar-symbol, svg, img').forEach(el => el.remove());
+                        const amount = amountCell.textContent.trim().replace(/ر\.س/g, '').trim();
+                        // Extract status text without SVG icons
+                        const statusCell = cells[5].cloneNode(true);
+                        statusCell.querySelectorAll('svg, i').forEach(el => el.remove());
+                        const status = statusCell.textContent.trim();
+                        const notes = cells[6]?.textContent.trim() || '-';
+                        
+                        data.push([expenseId, hotel, date, category, amount, status, notes]);
+                    }
+                });
+                
+                // Create workbook
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.aoa_to_sheet(data);
+                
+                // Set column widths
+                ws['!cols'] = [
+                    { wch: 15 }, // رقم المصروف
+                    { wch: 20 }, // الفندق
+                    { wch: 15 }, // التاريخ
+                    { wch: 30 }, // فئة المصروف
+                    { wch: 18 }, // المبلغ الإجمالي
+                    { wch: 20 }, // حالة الموافقة
+                    { wch: 40 }  // الملاحظات
+                ];
+                
+                // Add worksheet to workbook
+                XLSX.utils.book_append_sheet(wb, ws, 'المصروفات');
+                
+                // Add info sheet
+                const infoData = [
+                    ['تقرير المصروفات'],
+                    [''],
+                    ['الفندق:', hotelName],
+                    ['تاريخ التصدير:', printDateFormatted]
+                ];
+                
+                if (dateFilterFrom && dateFilterTo) {
+                    const fromDate = new Date(dateFilterFrom);
+                    const toDate = new Date(dateFilterTo);
+                    const fromFormatted = fromDate.toLocaleDateString('en-GB', { 
+                        year: 'numeric', 
+                        month: '2-digit', 
+                        day: '2-digit' 
+                    });
+                    const toFormatted = toDate.toLocaleDateString('en-GB', { 
+                        year: 'numeric', 
+                        month: '2-digit', 
+                        day: '2-digit' 
+                    });
+                    infoData.push(['الفترة:', `من ${fromFormatted} إلى ${toFormatted}`]);
+                }
+                
+                const infoWs = XLSX.utils.aoa_to_sheet(infoData);
+                XLSX.utils.book_append_sheet(wb, infoWs, 'معلومات التقرير');
+                
+                // Generate file and download
+                const fileName = `expenses_${new Date().toISOString().split('T')[0]}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'نجح',
+                    text: 'تم تصدير البيانات إلى Excel بنجاح',
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#28A745',
+                    customClass: {
+                        popup: 'swal2-rtl'
+                    }
+                });
+            } catch (error) {
+                console.error('Error exporting to Excel:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: `خطأ في تصدير Excel: ${error.message}`,
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#DC3545',
+                    customClass: {
+                        popup: 'swal2-rtl'
+                    }
+                });
+            }
+        }
+        
+        function printExpenses() {
+            try {
+                const table = document.getElementById('allExpensesTable');
+                if (!table) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'تنبيه',
+                        text: 'لا توجد بيانات للطباعة',
+                        confirmButtonText: 'حسناً',
+                        confirmButtonColor: '#007ACC',
+                        customClass: {
+                            popup: 'swal2-rtl'
+                        }
+                    });
+                    return;
+                }
+                
+                const rows = table.querySelectorAll('tbody tr');
+                if (rows.length === 0 || (rows.length === 1 && rows[0].querySelector('.empty-expenses'))) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'تنبيه',
+                        text: 'لا توجد بيانات للطباعة',
+                        confirmButtonText: 'حسناً',
+                        confirmButtonColor: '#007ACC',
+                        customClass: {
+                            popup: 'swal2-rtl'
+                        }
+                    });
+                    return;
+                }
+                
+                // Get hotel name from userInfo
+                const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                const hotelName = userInfo.tenantName || userInfo.tenantCode || 'غير محدد';
+                
+                // Format print date in Gregorian
+                const printDate = new Date();
+                const printDateFormatted = printDate.toLocaleDateString('en-GB', { 
+                    year: 'numeric', 
+                    month: '2-digit', 
+                    day: '2-digit' 
+                });
+                
+                // Format date range if filters are applied
+                let dateRangeText = '';
+                if (dateFilterFrom && dateFilterTo) {
+                    const fromDate = new Date(dateFilterFrom + 'T00:00:00');
+                    const toDate = new Date(dateFilterTo + 'T00:00:00');
+                    const fromFormatted = fromDate.toLocaleDateString('en-GB', { 
+                        year: 'numeric', 
+                        month: '2-digit', 
+                        day: '2-digit' 
+                    });
+                    const toFormatted = toDate.toLocaleDateString('en-GB', { 
+                        year: 'numeric', 
+                        month: '2-digit', 
+                        day: '2-digit' 
+                    });
+                    dateRangeText = `<p style="text-align: center; color: #666; margin: 5px 0; font-weight: 600;"><strong>من تاريخ:</strong> ${fromFormatted} <strong>إلى تاريخ:</strong> ${toFormatted}</p>`;
+                }
+                
+                // Clone table and remove action buttons/icons
+                const tableClone = table.cloneNode(true);
+                
+                // Remove SAR symbol from amount cells
+                const amountCells = tableClone.querySelectorAll('tbody tr td:nth-child(5)');
+                amountCells.forEach(cell => {
+                    const sarSymbols = cell.querySelectorAll('.sar-symbol, svg, img');
+                    sarSymbols.forEach(el => el.remove());
+                    const textContent = cell.textContent.trim();
+                    const amountMatch = textContent.match(/[\d.]+/);
+                    if (amountMatch) {
+                        cell.innerHTML = `<strong>${amountMatch[0]}</strong>`;
+                    }
+                });
+                
+                // Remove action buttons/icons from all action cells
+                const actionCells = tableClone.querySelectorAll('td:last-child');
+                actionCells.forEach(cell => {
+                    const buttons = cell.querySelectorAll('button, svg, .action-btn, .btn-view-details');
+                    buttons.forEach(btn => btn.remove());
+                });
+                
+                // Remove action column header
+                const headerRow = tableClone.querySelector('thead tr');
+                if (headerRow) {
+                    const headers = headerRow.querySelectorAll('th');
+                    if (headers.length > 0) {
+                        headers[headers.length - 1].remove();
+                    }
+                }
+                
+                // Remove action columns from all rows
+                const allRows = tableClone.querySelectorAll('tbody tr');
+                allRows.forEach(row => {
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length > 0) {
+                        cells[cells.length - 1].remove();
+                    }
+                });
+                
+                // Create print window
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html dir="rtl" lang="ar">
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>طباعة المصروفات</title>
+                        <style>
+                            body { font-family: 'Cairo', Arial, sans-serif; padding: 20px; direction: rtl; }
+                            h1 { text-align: center; color: #333; margin-bottom: 10px; }
+                            .print-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+                            .print-date { text-align: left; color: #666; font-size: 14px; }
+                            .print-info { text-align: center; color: #666; margin-bottom: 20px; }
+                            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                            th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }
+                            th { background-color: #007ACC; color: white; font-weight: 600; }
+                            tr:nth-child(even) { background-color: #f9f9f9; }
+                            @media print { body { padding: 0; } }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="print-header">
+                            <div class="print-date">
+                                <p style="margin: 0;"><strong>تاريخ الطباعة:</strong> ${printDateFormatted}</p>
+                            </div>
+                            <div style="flex: 1;"></div>
+                        </div>
+                        <h1>تقرير المصروفات</h1>
+                        <div class="print-info">
+                            <p style="margin: 5px 0;"><strong>الفندق:</strong> ${hotelName}</p>
+                            ${dateRangeText}
+                        </div>
+                        ${tableClone.outerHTML}
+                    </body>
+                    </html>
+                `);
+                printWindow.document.close();
+                printWindow.focus();
+                setTimeout(() => {
+                    printWindow.print();
+                    printWindow.close();
+                }, 250);
+            } catch (error) {
+                console.error('Error printing expenses:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: 'خطأ في الطباعة',
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#DC3545',
+                    customClass: {
+                        popup: 'swal2-rtl'
+                    }
+                });
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!checkAuth()) {
+                return;
+            }
+            
+            // Update manager title with branch name
+            updateManagerTitle();
+            
+            // Initialize pending date filters
+            initializePendingDateFilters();
+            
+            // Load pending approvals first (default tab)
+            loadPendingApprovals();
+        });
+    </script>
+</body>
+</html>
+

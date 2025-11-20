@@ -8,6 +8,7 @@ namespace zaaerIntegration.DTOs.Expense
         public int ExpenseId { get; set; }
         public int HotelId { get; set; }
         public DateTime DateTime { get; set; }
+        public DateTime? DueDate { get; set; }
         public string? Comment { get; set; }
         public int? ExpenseCategoryId { get; set; }
         public string? ExpenseCategoryName { get; set; }
@@ -36,10 +37,22 @@ namespace zaaerIntegration.DTOs.Expense
         public DateTime? ApprovedAt { get; set; }
 
         /// <summary>
+        /// سبب الرفض (في حالة رفض المصروف)
+        /// Rejection reason (if expense is rejected)
+        /// </summary>
+        public string? RejectionReason { get; set; }
+
+        /// <summary>
         /// اسم الفندق
         /// Hotel name
         /// </summary>
         public string? HotelName { get; set; }
+
+        /// <summary>
+        /// كود الفندق (Tenant Code) - يُستخدم للمشرفين لتحديد قاعدة البيانات الصحيحة
+        /// Hotel code (Tenant Code) - used by supervisors to identify the correct database
+        /// </summary>
+        public string? HotelCode { get; set; }
 
         /// <summary>
         /// رابط الموافقة (يُستخدم فقط للمصروفات في حالة pending)

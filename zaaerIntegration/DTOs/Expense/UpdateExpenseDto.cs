@@ -10,6 +10,8 @@ namespace zaaerIntegration.DTOs.Expense
     {
         public DateTime? DateTime { get; set; }
 
+        public DateTime? DueDate { get; set; }
+
         [MaxLength(500)]
         public string? Comment { get; set; }
 
@@ -23,6 +25,12 @@ namespace zaaerIntegration.DTOs.Expense
 
         [Range(0, double.MaxValue)]
         public decimal? TotalAmount { get; set; }
+
+        /// <summary>
+        /// قائمة الغرف المرتبطة بهذه النفقة (للتحديث)
+        /// List of rooms to update for this expense
+        /// </summary>
+        public List<CreateExpenseRoomDto>? ExpenseRooms { get; set; }
     }
 }
 

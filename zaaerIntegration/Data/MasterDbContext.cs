@@ -37,6 +37,17 @@ namespace zaaerIntegration.Data
         public DbSet<UserRole> UserRoles { get; set; }
 
         /// <summary>
+        /// جدول ربط المستخدمين بالفنادق (UserTenants) - للصلاحيات
+        /// يحدد أي فنادق يمكن للمستخدم الوصول إليها
+        /// </summary>
+        public DbSet<UserTenant> UserTenants { get; set; }
+
+        /// <summary>
+        /// جدول فئات المصروفات (ExpenseCategories)
+        /// </summary>
+        public DbSet<MasterExpenseCategory> ExpenseCategories { get; set; }
+
+        /// <summary>
         /// تكوين نموذج البيانات
         /// </summary>
         /// <param name="modelBuilder">Model builder</param>
@@ -75,6 +86,10 @@ namespace zaaerIntegration.Data
                 entity.Property(u => u.TenantId).IsRequired();
                 entity.Property(u => u.IsActive).IsRequired();
                 entity.Property(u => u.CreatedAt).IsRequired();
+                entity.Property(u => u.PhoneNumber).HasMaxLength(50);
+                entity.Property(u => u.Email).HasMaxLength(200);
+                entity.Property(u => u.EmployeeNumber).HasMaxLength(50);
+                entity.Property(u => u.FullName).HasMaxLength(100);
 
                 // Foreign Key إلى Tenants
                 entity.HasOne(u => u.Tenant)
@@ -119,6 +134,47 @@ namespace zaaerIntegration.Data
 
                 // Unique constraint لمنع تكرار نفس الدور لنفس المستخدم
                 entity.HasIndex(ur => new { ur.UserId, ur.RoleId }).IsUnique();
+            });
+
+            // تكوين جدول UserTenants
+            modelBuilder.Entity<UserTenant>(entity =>
+            {
+                entity.ToTable("UserTenants");
+                entity.HasKey(ut => ut.Id);
+                entity.Property(ut => ut.UserId).IsRequired();
+                entity.Property(ut => ut.TenantId).IsRequired();
+                entity.Property(ut => ut.CreatedAt).IsRequired();
+
+                // Foreign Keys
+                entity.HasOne(ut => ut.User)
+                    .WithMany()
+                    .HasForeignKey(ut => ut.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(ut => ut.Tenant)
+                    .WithMany()
+                    .HasForeignKey(ut => ut.TenantId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Unique constraint لمنع تكرار نفس الفندق لنفس المستخدم
+                entity.HasIndex(ut => new { ut.UserId, ut.TenantId }).IsUnique();
+            });
+
+            // تكوين جدول ExpenseCategories
+            modelBuilder.Entity<MasterExpenseCategory>(entity =>
+            {
+                entity.ToTable("ExpenseCategories");
+                entity.HasKey(ec => ec.Id);
+                entity.Property(ec => ec.MainCategory).IsRequired().HasMaxLength(200);
+                entity.Property(ec => ec.Details).HasMaxLength(1000);
+                entity.Property(ec => ec.IsActive).IsRequired();
+                entity.Property(ec => ec.CreatedAt).IsRequired();
+
+                // Index على MainCategory للبحث السريع
+                entity.HasIndex(ec => ec.MainCategory);
+                
+                // Index على IsActive
+                entity.HasIndex(ec => ec.IsActive);
             });
         }
     }

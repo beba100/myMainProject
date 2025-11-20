@@ -77,13 +77,20 @@ namespace zaaerIntegration.Middleware
                             context.Items["Username"] = username;
 
                         if (!string.IsNullOrWhiteSpace(roles))
+                        {
                             context.Items["Roles"] = roles;
+                            _logger.LogDebug("✅ [MasterUserResolver] Roles extracted from JWT for UserId={UserId}: {Roles}", userId, roles);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("⚠️ [MasterUserResolver] No roles found in JWT token for UserId={UserId}", userId);
+                        }
 
                         // تعيين User في HttpContext للاستخدام في Authorization
                         context.User = principal;
 
-                        _logger.LogDebug("User resolved from JWT: UserId={UserId}, TenantId={TenantId}, Username={Username}", 
-                            userId, tenantId, username);
+                        _logger.LogDebug("✅ [MasterUserResolver] User resolved from JWT: UserId={UserId}, TenantId={TenantId}, Username={Username}, Roles={Roles}", 
+                            userId, tenantId, username, roles ?? "none");
                     }
                     else
                     {

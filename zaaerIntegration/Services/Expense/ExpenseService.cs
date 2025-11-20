@@ -89,19 +89,133 @@ namespace zaaerIntegration.Services.Expense
             _logger.LogInformation("Fetching expenses for Tenant Code: {TenantCode} (HotelId: {HotelId}) from Master DB", 
                 tenant?.Code ?? "Unknown", hotelId);
 
-            // ✅ إرجاع جميع المصروفات (بما في ذلك pending و rejected) للعرض في الجدول
-            // Return all expenses (including pending and rejected) for table display
-            var expenses = await _context.Expenses
-                .AsNoTracking()
-                .Include(e => e.ExpenseCategory)
-                .Include(e => e.HotelSettings) // ✅ تحميل HotelSettings للحصول على اسم الفندق
-                .Include(e => e.ExpenseRooms)
-                    .ThenInclude(er => er.Apartment)
-                .Where(e => e.HotelId == hotelId)
-                .OrderByDescending(e => e.DateTime)
-                .ToListAsync();
+            try
+            {
+                // ✅ PERFORMANCE OPTIMIZATION: Use Select projection to only load needed fields
+                // This avoids loading full entity graphs and reduces memory usage
+                var expenseData = await _context.Expenses
+                    .AsNoTracking()
+                    .Where(e => e.HotelId == hotelId)
+                    .OrderByDescending(e => e.DateTime)
+                    .Select(e => new
+                    {
+                        Expense = e,
+                        ExpenseCategoryName = e.ExpenseCategory != null ? e.ExpenseCategory.CategoryName : null,
+                        HotelName = e.HotelSettings != null ? e.HotelSettings.HotelName : null,
+                        ExpenseRooms = e.ExpenseRooms.Select(er => new
+                        {
+                            ExpenseRoomId = er.ExpenseRoomId,
+                            ExpenseId = er.ExpenseId,
+                            ZaaerId = er.ZaaerId,
+                            Purpose = er.Purpose,
+                            Amount = er.Amount,
+                            CreatedAt = er.CreatedAt
+                        }).ToList()
+                    })
+                    .ToListAsync();
 
-            return expenses.Select(e => MapToDto(e));
+                // ✅ PERFORMANCE OPTIMIZATION: Load all apartments in one query using dictionary for O(1) lookup
+                var allZaaerIds = expenseData
+                    .SelectMany(e => e.ExpenseRooms)
+                    .Where(er => er.ZaaerId.HasValue)
+                    .Select(er => er.ZaaerId!.Value)
+                    .Distinct()
+                    .ToList();
+
+                var apartmentsDict = allZaaerIds.Any()
+                    ? await _context.Apartments
+                        .AsNoTracking()
+                        .Where(a => allZaaerIds.Contains(a.ZaaerId ?? 0))
+                        .ToDictionaryAsync(a => a.ZaaerId!.Value, a => a)
+                    : new Dictionary<int, Apartment>();
+
+                // ✅ PERFORMANCE OPTIMIZATION: Map to DTOs efficiently without nested loops
+                var result = new List<ExpenseResponseDto>();
+                foreach (var item in expenseData)
+                {
+                    var expense = item.Expense;
+                    
+                    // ✅ Create approval link only for pending expenses
+                    string? approvalLink = null;
+                    if (expense.ApprovalStatus == "pending")
+                    {
+                        var approvalBaseUrl = _configuration["AppSettings:ApprovalBaseUrl"] ?? "https://aleery.tryasp.net";
+                        approvalBaseUrl = approvalBaseUrl.TrimEnd('/');
+                        approvalLink = $"{approvalBaseUrl}/approve-expense.html?id={expense.ExpenseId}";
+                    }
+
+                    // ✅ Map expense rooms efficiently
+                    var expenseRooms = item.ExpenseRooms.Select(er =>
+                    {
+                        // ✅ Extract category code from purpose if it exists
+                        string? categoryCode = null;
+                        string? actualPurpose = er.Purpose;
+                        
+                        if (er.ZaaerId == null || (!string.IsNullOrEmpty(er.Purpose) && er.Purpose.StartsWith("CAT_")))
+                        {
+                            if (!string.IsNullOrEmpty(er.Purpose) && er.Purpose.StartsWith("CAT_"))
+                            {
+                                var parts = er.Purpose.Split(new[] { " - " }, 2, StringSplitOptions.None);
+                                if (parts.Length > 0)
+                                {
+                                    categoryCode = parts[0];
+                                    actualPurpose = parts.Length > 1 ? parts[1] : null;
+                                }
+                            }
+                        }
+
+                        // ✅ Get apartment name if ZaaerId exists (O(1) dictionary lookup)
+                        string? apartmentName = null;
+                        if (er.ZaaerId.HasValue && apartmentsDict.TryGetValue(er.ZaaerId.Value, out var apartment))
+                        {
+                            apartmentName = apartment.ApartmentName;
+                        }
+
+                        return new ExpenseRoomResponseDto
+                        {
+                            ExpenseRoomId = er.ExpenseRoomId,
+                            ExpenseId = er.ExpenseId,
+                            ZaaerId = er.ZaaerId,
+                            CategoryCode = categoryCode,
+                            Purpose = actualPurpose,
+                            Amount = er.Amount,
+                            ApartmentName = apartmentName,
+                            CreatedAt = er.CreatedAt
+                        };
+                    }).ToList();
+
+                    result.Add(new ExpenseResponseDto
+                    {
+                        ExpenseId = expense.ExpenseId,
+                        HotelId = expense.HotelId,
+                        HotelName = item.HotelName,
+                        DateTime = expense.DateTime,
+                        DueDate = expense.DueDate,
+                        Comment = expense.Comment,
+                        ExpenseCategoryId = expense.ExpenseCategoryId,
+                        ExpenseCategoryName = item.ExpenseCategoryName,
+                        TaxRate = expense.TaxRate,
+                        TaxAmount = expense.TaxAmount,
+                        TotalAmount = expense.TotalAmount,
+                        CreatedAt = expense.CreatedAt,
+                        UpdatedAt = expense.UpdatedAt,
+                        ApprovalStatus = expense.ApprovalStatus,
+                        ApprovedBy = expense.ApprovedBy,
+                        ApprovedAt = expense.ApprovedAt,
+                        RejectionReason = expense.RejectionReason,
+                        ApprovalLink = approvalLink,
+                        ExpenseRooms = expenseRooms
+                    });
+                }
+
+                _logger.LogInformation("✅ Successfully loaded {Count} expenses with optimized query", result.Count);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error in GetAllAsync: {Message}", ex.Message);
+                throw;
+            }
         }
 
         /// <summary>
@@ -154,24 +268,18 @@ namespace zaaerIntegration.Services.Expense
         {
             var hotelId = await GetCurrentHotelIdAsync();
 
-            // ✅ تحديد حالة الموافقة بناءً على المبلغ
-            // Approval status logic: auto-approved if amount <= 50, pending if > 50
-            string approvalStatus;
-            if (dto.TotalAmount <= 50)
-            {
-                approvalStatus = "auto-approved";
-                _logger.LogInformation("💰 Expense amount ({Amount}) <= 50, setting status to auto-approved", dto.TotalAmount);
-            }
-            else
-            {
-                approvalStatus = "pending";
-                _logger.LogInformation("⏳ Expense amount ({Amount}) > 50, setting status to pending (requires supervisor approval)", dto.TotalAmount);
-            }
+            // ✅ Always set approval status to pending after creation
+            string approvalStatus = "pending";
+            _logger.LogInformation("⏳ Setting expense status to pending (requires supervisor approval)");
+
+            // ✅ Set DueDate to today if not provided
+            DateTime? dueDate = dto.DueDate ?? DateTime.Today;
 
             var expense = new ExpenseModel
             {
                 HotelId = hotelId,
                 DateTime = dto.DateTime,
+                DueDate = dueDate,
                 Comment = dto.Comment,
                 ExpenseCategoryId = dto.ExpenseCategoryId,
                 TaxRate = dto.TaxRate,
@@ -239,6 +347,28 @@ namespace zaaerIntegration.Services.Expense
 
                 foreach (var roomDto in dto.ExpenseRooms)
                 {
+                    // ✅ Check if it's a category (CAT_BUILDING, CAT_RECEPTION, CAT_CORRIDORS) or actual room
+                    if (!string.IsNullOrEmpty(roomDto.CategoryCode) && roomDto.CategoryCode.StartsWith("CAT_"))
+                    {
+                        // ✅ It's a room category (مبنى كامل, الاستقبال, الممرات)
+                        // For categories, we don't need to find an apartment - just save the category code
+                        // We'll use ApartmentId = 0 or a special value, but store categoryCode in Purpose field
+                        // Or we need to add category_code column to expense_rooms table
+                        var categoryRoom = new ExpenseRoomModel
+                        {
+                            ExpenseId = expense.ExpenseId,
+                            ZaaerId = null, // ✅ Use null for categories (ZaaerId is nullable)
+                            Purpose = roomDto.CategoryCode + (string.IsNullOrEmpty(roomDto.Purpose) ? "" : " - " + roomDto.Purpose), // ✅ Store category code in purpose
+                            Amount = roomDto.Amount,
+                            CreatedAt = DateTime.Now
+                        };
+
+                        await _unitOfWork.ExpenseRooms.AddAsync(categoryRoom);
+                        _logger.LogInformation("✅ [CreateAsync] Added ExpenseRoom with Category: ExpenseId={ExpenseId}, CategoryCode={CategoryCode}, Purpose={Purpose}, Amount={Amount}", 
+                            expense.ExpenseId, roomDto.CategoryCode, roomDto.Purpose, roomDto.Amount);
+                        continue;
+                    }
+
                     // ✅ البحث عن Apartment باستخدام ApartmentId أو ZaaerId مع جميع HotelIds المرتبطة بنفس HotelCode
                     Apartment? apartment = null;
                     
@@ -252,17 +382,26 @@ namespace zaaerIntegration.Services.Expense
                     else if (roomDto.ZaaerId.HasValue)
                     {
                         // ✅ البحث باستخدام ZaaerId مع جميع HotelIds المرتبطة بنفس HotelCode
+                        _logger.LogInformation("🔍 [CreateAsync] Searching for apartment with ZaaerId={ZaaerId}, HotelIds={HotelIds}", 
+                            roomDto.ZaaerId.Value, string.Join(", ", allHotelIdsWithSameCode));
+                        
                         apartment = await _context.Apartments
                             .AsNoTracking()
                             .FirstOrDefaultAsync(a => a.ZaaerId == roomDto.ZaaerId.Value && allHotelIdsWithSameCode.Contains(a.HotelId));
                         
-                        _logger.LogInformation("🔍 [CreateAsync] Searching for apartment with ZaaerId={ZaaerId}, HotelIds={HotelIds}", 
-                            roomDto.ZaaerId.Value, string.Join(", ", allHotelIdsWithSameCode));
+                        if (apartment == null)
+                        {
+                            // ✅ Try searching without HotelId filter as fallback
+                            _logger.LogWarning("⚠️ [CreateAsync] Apartment not found with HotelId filter, trying without filter...");
+                            apartment = await _context.Apartments
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync(a => a.ZaaerId == roomDto.ZaaerId.Value);
+                        }
                     }
 
                     if (apartment == null)
                     {
-                        _logger.LogWarning("⚠️ [CreateAsync] Apartment not found: ApartmentId={ApartmentId}, ZaaerId={ZaaerId}, HotelIds={HotelIds}", 
+                        _logger.LogError("❌ [CreateAsync] Apartment not found: ApartmentId={ApartmentId}, ZaaerId={ZaaerId}, HotelIds={HotelIds}", 
                             roomDto.ApartmentId, roomDto.ZaaerId, string.Join(", ", allHotelIdsWithSameCode));
                         continue; // Skip invalid apartment
                     }
@@ -270,18 +409,26 @@ namespace zaaerIntegration.Services.Expense
                     _logger.LogInformation("✅ [CreateAsync] Found apartment: ApartmentId={ApartmentId}, ZaaerId={ZaaerId}, Name={Name}, HotelId={HotelId}", 
                         apartment.ApartmentId, apartment.ZaaerId, apartment.ApartmentName, apartment.HotelId);
 
+                    // ✅ Save zaaerId directly (Foreign Key to apartments.zaaer_id)
+                    if (!apartment.ZaaerId.HasValue)
+                    {
+                        _logger.LogWarning("⚠️ [CreateAsync] Apartment found but ZaaerId is null: ApartmentId={ApartmentId}, Name={Name}", 
+                            apartment.ApartmentId, apartment.ApartmentName);
+                        continue; // Skip if apartment doesn't have zaaerId
+                    }
+
                     var expenseRoom = new ExpenseRoomModel
                     {
                         ExpenseId = expense.ExpenseId,
-                        ApartmentId = apartment.ApartmentId, // ✅ استخدام ApartmentId من الـ apartment الموجود
+                        ZaaerId = apartment.ZaaerId.Value, // ✅ حفظ zaaerId مباشرة (Foreign Key to apartments.zaaer_id)
                         Purpose = roomDto.Purpose,
-                        Amount = roomDto.Amount, // ✅ إضافة Amount
+                        Amount = roomDto.Amount,
                         CreatedAt = DateTime.Now
                     };
 
                     await _unitOfWork.ExpenseRooms.AddAsync(expenseRoom);
-                    _logger.LogInformation("✅ [CreateAsync] Added ExpenseRoom: ExpenseId={ExpenseId}, ApartmentId={ApartmentId}, Purpose={Purpose}, Amount={Amount}", 
-                        expense.ExpenseId, apartment.ApartmentId, roomDto.Purpose, roomDto.Amount);
+                    _logger.LogInformation("✅ [CreateAsync] Added ExpenseRoom: ExpenseId={ExpenseId}, ZaaerId={ZaaerId}, Purpose={Purpose}, Amount={Amount}", 
+                        expense.ExpenseId, apartment.ZaaerId.Value, roomDto.Purpose, roomDto.Amount);
                 }
 
                 await _unitOfWork.SaveChangesAsync();
@@ -312,6 +459,8 @@ namespace zaaerIntegration.Services.Expense
             // تحديث الحقول
             if (dto.DateTime.HasValue)
                 expense.DateTime = dto.DateTime.Value;
+            if (dto.DueDate.HasValue)
+                expense.DueDate = dto.DueDate.Value;
             if (dto.Comment != null)
                 expense.Comment = dto.Comment;
             if (dto.ExpenseCategoryId.HasValue)
@@ -343,6 +492,128 @@ namespace zaaerIntegration.Services.Expense
             expense.UpdatedAt = DateTime.Now;
 
             await _unitOfWork.Expenses.UpdateAsync(expense);
+
+            // ✅ Update expense rooms if provided (same logic as CreateAsync)
+            if (dto.ExpenseRooms != null && dto.ExpenseRooms.Any())
+            {
+                // Delete existing expense rooms first
+                var existingRooms = await _context.ExpenseRooms
+                    .Where(er => er.ExpenseId == expense.ExpenseId)
+                    .ToListAsync();
+
+                if (existingRooms.Any())
+                {
+                    foreach (var existingRoom in existingRooms)
+                    {
+                        await _unitOfWork.ExpenseRooms.DeleteAsync(existingRoom);
+                    }
+                    // ✅ Save changes after deleting old rooms before adding new ones
+                    await _unitOfWork.SaveChangesAsync();
+                    _logger.LogInformation("✅ [UpdateAsync] Deleted {Count} existing expense rooms", existingRooms.Count);
+                }
+
+                // ✅ Get all HotelIds with the same HotelCode (like in CreateAsync)
+                var tenant = _tenantService.GetTenant();
+                if (tenant == null)
+                {
+                    throw new InvalidOperationException("Tenant not resolved. Cannot update expense rooms.");
+                }
+                
+                var hotelSettings = await _unitOfWork.HotelSettings
+                    .FindSingleAsync(h => h.HotelCode != null && h.HotelCode.ToLower() == tenant.Code.ToLower());
+                
+                var hotelCode = hotelSettings?.HotelCode ?? tenant.Code;
+                
+                // Get all HotelIds with the same HotelCode
+                var allHotelIdsWithSameCode = await _context.HotelSettings
+                    .AsNoTracking()
+                    .Where(h => h.HotelCode != null && h.HotelCode.ToLower() == hotelCode.ToLower())
+                    .Select(h => h.HotelId)
+                    .ToListAsync();
+
+                // Add new expense rooms (same logic as CreateAsync)
+                foreach (var roomDto in dto.ExpenseRooms)
+                {
+                    // ✅ Check if it's a category (CAT_BUILDING, CAT_RECEPTION, CAT_CORRIDORS) or actual room
+                    if (!string.IsNullOrEmpty(roomDto.CategoryCode) && roomDto.CategoryCode.StartsWith("CAT_"))
+                    {
+                        // ✅ It's a room category
+                        var categoryExpenseRoom = new ExpenseRoomModel
+                        {
+                            ExpenseId = expense.ExpenseId,
+                            ZaaerId = null, // ✅ Use null for categories (ZaaerId is nullable)
+                            Purpose = roomDto.CategoryCode + (string.IsNullOrEmpty(roomDto.Purpose) ? "" : " - " + roomDto.Purpose),
+                            Amount = roomDto.Amount,
+                            CreatedAt = DateTime.Now
+                        };
+
+                        await _unitOfWork.ExpenseRooms.AddAsync(categoryExpenseRoom);
+                        _logger.LogInformation("✅ [UpdateAsync] Added ExpenseRoom with Category: ExpenseId={ExpenseId}, CategoryCode={CategoryCode}, Purpose={Purpose}, Amount={Amount}", 
+                            expense.ExpenseId, roomDto.CategoryCode, roomDto.Purpose, roomDto.Amount);
+                        continue;
+                    }
+
+                    // ✅ Search for Apartment using ApartmentId or ZaaerId
+                    Apartment? apartment = null;
+                    
+                    if (roomDto.ApartmentId.HasValue)
+                    {
+                        apartment = await _context.Apartments
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(a => a.ApartmentId == roomDto.ApartmentId.Value && allHotelIdsWithSameCode.Contains(a.HotelId));
+                    }
+                    else if (roomDto.ZaaerId.HasValue)
+                    {
+                        _logger.LogInformation("🔍 [UpdateAsync] Searching for apartment with ZaaerId={ZaaerId}, HotelIds={HotelIds}", 
+                            roomDto.ZaaerId.Value, string.Join(", ", allHotelIdsWithSameCode));
+                        
+                        apartment = await _context.Apartments
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(a => a.ZaaerId == roomDto.ZaaerId.Value && allHotelIdsWithSameCode.Contains(a.HotelId));
+                        
+                        if (apartment == null)
+                        {
+                            // ✅ Try searching without HotelId filter as fallback
+                            _logger.LogWarning("⚠️ [UpdateAsync] Apartment not found with HotelId filter, trying without filter...");
+                            apartment = await _context.Apartments
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync(a => a.ZaaerId == roomDto.ZaaerId.Value);
+                        }
+                    }
+
+                    if (apartment == null)
+                    {
+                        _logger.LogError("❌ [UpdateAsync] Apartment not found: ApartmentId={ApartmentId}, ZaaerId={ZaaerId}, HotelIds={HotelIds}", 
+                            roomDto.ApartmentId, roomDto.ZaaerId, string.Join(", ", allHotelIdsWithSameCode));
+                        continue;
+                    }
+
+                    _logger.LogInformation("✅ [UpdateAsync] Found apartment: ApartmentId={ApartmentId}, ZaaerId={ZaaerId}, Name={Name}, HotelId={HotelId}", 
+                        apartment.ApartmentId, apartment.ZaaerId, apartment.ApartmentName, apartment.HotelId);
+
+                    // ✅ Save zaaerId directly (Foreign Key to apartments.zaaer_id)
+                    if (!apartment.ZaaerId.HasValue)
+                    {
+                        _logger.LogWarning("⚠️ [UpdateAsync] Apartment found but ZaaerId is null: ApartmentId={ApartmentId}, Name={Name}", 
+                            apartment.ApartmentId, apartment.ApartmentName);
+                        continue; // Skip if apartment doesn't have zaaerId
+                    }
+
+                    var roomExpenseRoom = new ExpenseRoomModel
+                    {
+                        ExpenseId = expense.ExpenseId,
+                        ZaaerId = apartment.ZaaerId.Value, // ✅ حفظ zaaerId مباشرة (Foreign Key to apartments.zaaer_id)
+                        Purpose = roomDto.Purpose,
+                        Amount = roomDto.Amount,
+                        CreatedAt = DateTime.Now
+                    };
+
+                    await _unitOfWork.ExpenseRooms.AddAsync(roomExpenseRoom);
+                    _logger.LogInformation("✅ [UpdateAsync] Added ExpenseRoom: ExpenseId={ExpenseId}, ZaaerId={ZaaerId}, Purpose={Purpose}, Amount={Amount}", 
+                        expense.ExpenseId, apartment.ZaaerId.Value, roomDto.Purpose, roomDto.Amount);
+                }
+            }
+
             await _unitOfWork.SaveChangesAsync();
 
             _logger.LogInformation("✅ Expense updated successfully: ExpenseId={ExpenseId}", expense.ExpenseId);
@@ -453,20 +724,26 @@ namespace zaaerIntegration.Services.Expense
             _logger.LogInformation("✅ [AddExpenseRoomAsync] Found apartment: ApartmentId={ApartmentId}, ZaaerId={ZaaerId}, Name={Name}", 
                 apartment.ApartmentId, apartment.ZaaerId, apartment.ApartmentName);
 
+            // ✅ Save zaaerId directly (Foreign Key to apartments.zaaer_id)
+            if (!apartment.ZaaerId.HasValue)
+            {
+                throw new InvalidOperationException($"Apartment found but ZaaerId is null: ApartmentId={apartment.ApartmentId}, Name={apartment.ApartmentName}");
+            }
+
             var expenseRoom = new ExpenseRoomModel
             {
                 ExpenseId = expenseId,
-                ApartmentId = apartment.ApartmentId, // ✅ استخدام ApartmentId من الـ apartment الموجود
+                ZaaerId = apartment.ZaaerId.Value, // ✅ حفظ zaaerId مباشرة (Foreign Key to apartments.zaaer_id)
                 Purpose = dto.Purpose,
-                Amount = dto.Amount, // ✅ إضافة Amount
+                Amount = dto.Amount,
                 CreatedAt = DateTime.Now
             };
 
             await _unitOfWork.ExpenseRooms.AddAsync(expenseRoom);
             await _unitOfWork.SaveChangesAsync();
 
-            _logger.LogInformation("✅ ExpenseRoom added successfully: ExpenseRoomId={ExpenseRoomId}, ExpenseId={ExpenseId}, ApartmentId={ApartmentId}", 
-                expenseRoom.ExpenseRoomId, expenseId, dto.ApartmentId);
+            _logger.LogInformation("✅ ExpenseRoom added successfully: ExpenseRoomId={ExpenseRoomId}, ExpenseId={ExpenseId}, ZaaerId={ZaaerId}", 
+                expenseRoom.ExpenseRoomId, expenseId, apartment.ZaaerId.Value);
 
             return await MapExpenseRoomToDtoWithLoadAsync(expenseRoom.ExpenseRoomId);
         }
@@ -488,9 +765,27 @@ namespace zaaerIntegration.Services.Expense
                 return null;
             }
 
-            // التحقق من Apartment إذا تم تحديثه
-            if (dto.ApartmentId.HasValue)
+            // ✅ التحقق من Apartment إذا تم تحديثه (باستخدام ZaaerId)
+            if (dto.ZaaerId.HasValue)
             {
+                var apartment = await _unitOfWork.Apartments
+                    .FindSingleAsync(a => a.ZaaerId == dto.ZaaerId.Value && a.HotelId == hotelId);
+
+                if (apartment == null)
+                {
+                    throw new KeyNotFoundException($"Apartment with ZaaerId {dto.ZaaerId.Value} not found");
+                }
+
+                if (!apartment.ZaaerId.HasValue)
+                {
+                    throw new InvalidOperationException($"Apartment found but ZaaerId is null: ApartmentId={apartment.ApartmentId}");
+                }
+
+                expenseRoom.ZaaerId = apartment.ZaaerId.Value; // ✅ تحديث zaaerId (Foreign Key to apartments.zaaer_id)
+            }
+            else if (dto.ApartmentId.HasValue)
+            {
+                // ✅ Fallback: البحث باستخدام ApartmentId ثم استخدام ZaaerId
                 var apartment = await _unitOfWork.Apartments
                     .FindSingleAsync(a => a.ApartmentId == dto.ApartmentId.Value && a.HotelId == hotelId);
 
@@ -499,7 +794,12 @@ namespace zaaerIntegration.Services.Expense
                     throw new KeyNotFoundException($"Apartment with id {dto.ApartmentId.Value} not found");
                 }
 
-                expenseRoom.ApartmentId = dto.ApartmentId.Value;
+                if (!apartment.ZaaerId.HasValue)
+                {
+                    throw new InvalidOperationException($"Apartment found but ZaaerId is null: ApartmentId={apartment.ApartmentId}");
+                }
+
+                expenseRoom.ZaaerId = apartment.ZaaerId.Value; // ✅ تحديث zaaerId (Foreign Key to apartments.zaaer_id)
             }
 
             if (dto.Purpose != null)
@@ -549,8 +849,9 @@ namespace zaaerIntegration.Services.Expense
         /// <param name="id">معرف المصروف</param>
         /// <param name="status">حالة الموافقة (accepted أو rejected)</param>
         /// <param name="approvedBy">معرف المستخدم الذي وافق/رفض</param>
+        /// <param name="rejectionReason">سبب الرفض (في حالة الرفض)</param>
         /// <returns>المصروف المُحدّث</returns>
-        public async Task<ExpenseResponseDto?> ApproveExpenseAsync(int id, string status, int approvedBy)
+        public async Task<ExpenseResponseDto?> ApproveExpenseAsync(int id, string status, int approvedBy, string? rejectionReason = null)
         {
             // ✅ محاولة الحصول على hotelId، لكن إذا فشل، نبحث بدون filter
             // هذا يسمح للمشرفين بالموافقة/الرفض بدون تسجيل دخول
@@ -579,9 +880,32 @@ namespace zaaerIntegration.Services.Expense
 
             // تحديث حالة الموافقة
             expense.ApprovalStatus = status;
-            expense.ApprovedBy = approvedBy;
-            expense.ApprovedAt = DateTime.Now;
+
+            bool awaitingNextLevel = status == "awaiting-manager" || status == "awaiting-accountant" || status == "awaiting-admin";
+            if (awaitingNextLevel)
+            {
+                // لا يتم تعيين بيانات الموافقة عند الانتقال لمستوى أعلى
+                expense.ApprovedBy = null;
+                expense.ApprovedAt = null;
+            }
+            else
+            {
+                expense.ApprovedBy = approvedBy;
+                expense.ApprovedAt = DateTime.Now;
+            }
+
             expense.UpdatedAt = DateTime.Now;
+            
+            // ✅ تحديث سبب الرفض إذا كان موجوداً
+            if (status == "rejected" && !string.IsNullOrWhiteSpace(rejectionReason))
+            {
+                expense.RejectionReason = rejectionReason;
+            }
+            else if (status != "rejected")
+            {
+                // ✅ مسح سبب الرفض إذا تمت الموافقة
+                expense.RejectionReason = null;
+            }
 
             await _unitOfWork.Expenses.UpdateAsync(expense);
             await _unitOfWork.SaveChangesAsync();
@@ -629,6 +953,7 @@ namespace zaaerIntegration.Services.Expense
                 HotelId = expense.HotelId,
                 HotelName = hotelName,
                 DateTime = expense.DateTime,
+                DueDate = expense.DueDate,
                 Comment = expense.Comment,
                 ExpenseCategoryId = expense.ExpenseCategoryId,
                 ExpenseCategoryName = expense.ExpenseCategory?.CategoryName,
@@ -640,6 +965,7 @@ namespace zaaerIntegration.Services.Expense
                 ApprovalStatus = expense.ApprovalStatus,
                 ApprovedBy = expense.ApprovedBy,
                 ApprovedAt = expense.ApprovedAt,
+                RejectionReason = expense.RejectionReason,
                 ApprovalLink = approvalLink,
                 ExpenseRooms = expense.ExpenseRooms?.Select(MapExpenseRoomToDto).ToList() ?? new List<ExpenseRoomResponseDto>()
             };
@@ -650,15 +976,37 @@ namespace zaaerIntegration.Services.Expense
         /// </summary>
         private ExpenseRoomResponseDto MapExpenseRoomToDto(ExpenseRoomModel expenseRoom)
         {
+            // ✅ Extract category code from purpose if it exists (format: "CAT_XXX - purpose text")
+            // أو ZaaerId = null يعني أنه فئة
+            string? categoryCode = null;
+            string? actualPurpose = expenseRoom.Purpose;
+            
+            // ✅ Check if ZaaerId is null (for categories) OR purpose starts with CAT_
+            if (expenseRoom.ZaaerId == null || (!string.IsNullOrEmpty(expenseRoom.Purpose) && expenseRoom.Purpose.StartsWith("CAT_")))
+            {
+                // It's a category - extract category code from purpose
+                if (!string.IsNullOrEmpty(expenseRoom.Purpose) && expenseRoom.Purpose.StartsWith("CAT_"))
+                {
+                    var parts = expenseRoom.Purpose.Split(new[] { " - " }, 2, StringSplitOptions.None);
+                    if (parts.Length > 0)
+                    {
+                        categoryCode = parts[0]; // CAT_BUILDING, CAT_RECEPTION, etc.
+                        actualPurpose = parts.Length > 1 ? parts[1] : null; // Actual purpose text (after " - ")
+                    }
+                }
+            }
+            
             return new ExpenseRoomResponseDto
             {
                 ExpenseRoomId = expenseRoom.ExpenseRoomId,
                 ExpenseId = expenseRoom.ExpenseId,
-                ApartmentId = expenseRoom.ApartmentId,
-                ApartmentCode = expenseRoom.Apartment?.ApartmentCode,
-                ApartmentName = expenseRoom.Apartment?.ApartmentName,
-                Purpose = expenseRoom.Purpose,
-                Amount = expenseRoom.Amount, // ✅ إضافة Amount
+                ApartmentId = expenseRoom.Apartment?.ApartmentId, // ✅ For backward compatibility
+                ZaaerId = expenseRoom.ZaaerId, // ✅ ZaaerId from expense_rooms.zaaer_id (Foreign Key)
+                CategoryCode = categoryCode, // ✅ Category code (null for actual rooms)
+                ApartmentCode = expenseRoom.Apartment?.ApartmentCode, // ✅ null for categories
+                ApartmentName = expenseRoom.Apartment?.ApartmentName, // ✅ null for categories
+                Purpose = actualPurpose, // ✅ Actual purpose without category code
+                Amount = expenseRoom.Amount,
                 CreatedAt = expenseRoom.CreatedAt
             };
         }
