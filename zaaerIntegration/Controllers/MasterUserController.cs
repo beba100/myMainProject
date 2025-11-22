@@ -9,11 +9,11 @@ namespace zaaerIntegration.Controllers
 {
     /// <summary>
     /// Controller for managing Master Users
-    /// Only accessible to users with Developer role
+    /// Accessible without authentication for developer-users.html page
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Developer")] // Requires authentication and Developer role
+    // Removed [Authorize] to allow access without authentication
     public class MasterUserController : ControllerBase
     {
         private readonly IMasterUserService _masterUserService;

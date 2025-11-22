@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏨</text></svg>">
     <title>إدارة المستخدمين - Developer Users Management</title>
     
     <!-- Google Fonts - Cairo -->
@@ -954,6 +959,97 @@
             });
         }
 
+        // Handle roles change - auto-fill additional tenants for Accountant/Manager/Admin
+        async function handleRolesChangeForAdditionalTenants(rolesSelector, additionalTenantsSelector) {
+            try {
+                const selectedRoleIds = $(rolesSelector).val() || [];
+                if (selectedRoleIds.length === 0) {
+                    // If no roles selected, clear additional tenants
+                    $(additionalTenantsSelector).val(null).trigger('change');
+                    return;
+                }
+
+                // Get all roles to check their codes
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                const token = getToken();
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+
+                const rolesResponse = await fetch(`${API_BASE}/roles`, {
+                    headers: headers
+                });
+
+                if (!rolesResponse.ok) {
+                    console.warn('Could not load roles to check for auto-fill');
+                    return;
+                }
+
+                const allRoles = await rolesResponse.json();
+                // Convert selectedRoleIds to numbers for comparison
+                const selectedRoleIdsNumeric = selectedRoleIds.map(id => parseInt(id));
+                const selectedRoles = allRoles.filter(role => 
+                    selectedRoleIdsNumeric.includes(role.id) || selectedRoleIds.includes(role.id.toString())
+                );
+
+                // Check if any of the selected roles is Accountant, Manager, or Admin
+                const hasAccountantRole = selectedRoles.some(role => 
+                    role.code && role.code.toLowerCase() === 'accountant'
+                );
+                const hasManagerRole = selectedRoles.some(role => 
+                    role.code && role.code.toLowerCase() === 'manager'
+                );
+                const hasAdminRole = selectedRoles.some(role => 
+                    role.code && role.code.toLowerCase() === 'admin'
+                );
+
+                // If Accountant, Manager, or Admin is selected, auto-fill all tenants
+                if (hasAccountantRole || hasManagerRole || hasAdminRole) {
+                    // Get all tenants
+                    const tenantsResponse = await fetch(`${API_BASE}/tenants`, {
+                        headers: headers
+                    });
+
+                    if (tenantsResponse.ok) {
+                        const allTenants = await tenantsResponse.json();
+                        const allTenantIds = allTenants.map(tenant => tenant.id.toString());
+
+                        // Get primary tenant ID to exclude it
+                        const primaryTenantId = rolesSelector === '#roles' 
+                            ? $('#primaryTenant').val() 
+                            : $('#editPrimaryTenant').val();
+
+                        // Filter out primary tenant
+                        const additionalTenantIds = allTenantIds.filter(id => id !== primaryTenantId);
+
+                        // Set all tenants (except primary) in additional tenants field
+                        $(additionalTenantsSelector).val(additionalTenantIds).trigger('change');
+                    }
+                } else {
+                    // If none of these roles are selected, don't auto-fill
+                    // User can manually select tenants if needed
+                }
+            } catch (error) {
+                console.error('Error in handleRolesChangeForAdditionalTenants:', error);
+            }
+        }
+
+        // Format date to Gregorian (DD/MM/YYYY)
+        function formatGregorianDate(dateString) {
+            if (!dateString) return '-';
+            try {
+                const date = new Date(dateString);
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                return `${day}/${month}/${year}`;
+            } catch (e) {
+                return dateString;
+            }
+        }
+
         // Format phone number - Add 966 prefix if needed
         function formatPhoneNumber(phoneNumber) {
             if (!phoneNumber || phoneNumber.trim() === '') {
@@ -1076,110 +1172,13 @@
         // API Base URL
         const API_BASE = '/api/MasterUser';
 
-        // Check if user is authenticated (optional - page works without login)
-        function isAuthenticated() {
-            const token = getToken();
-            return !!token;
-        }
-
-        // Check if user has Developer role (optional check)
-        async function checkDeveloperRole() {
-            const token = getToken();
-            if (!token) {
-                return false;
-            }
-
-            // First, try to validate token and get fresh roles from server
-            try {
-                const validateResponse = await fetch('/api/auth/validate', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                
-                if (validateResponse.ok) {
-                    const validateData = await validateResponse.json();
-                    if (validateData.roles && validateData.roles.length > 0) {
-                        // Update userInfo with fresh roles
-                        const userInfo = getUserInfo();
-                        userInfo.roles = validateData.roles;
-                        localStorage.setItem('userInfo', JSON.stringify(userInfo));
-                        console.log('Updated roles from server:', validateData.roles);
-                    }
-                }
-            } catch (error) {
-                console.warn('Could not validate token, using cached roles:', error);
-            }
-
-            // Check if user has Developer role
-            const roles = getUserRoles();
-            console.log('Checking roles for Developer access. Current roles:', roles);
-            
-            const hasDeveloperRole = roles.some(role => {
-                const roleStr = typeof role === 'object' && role.code ? role.code : role;
-                const normalizedRole = roleStr ? roleStr.toString().toLowerCase().trim() : '';
-                const isDeveloper = normalizedRole === 'developer';
-                console.log(`Checking role: "${roleStr}" -> normalized: "${normalizedRole}" -> isDeveloper: ${isDeveloper}`);
-                return isDeveloper;
-            });
-
-            console.log('Has Developer role:', hasDeveloperRole);
-            return hasDeveloperRole;
-        }
-
-        // Show login prompt if not authenticated
-        function showLoginPrompt() {
-            const loginPrompt = `
-                <div style="text-align: center; padding: 40px; background: white; border-radius: 8px; margin: 20px;">
-                    <i class="fas fa-lock" style="font-size: 64px; color: #007ACC; margin-bottom: 20px;"></i>
-                    <h2 style="color: #333; margin-bottom: 15px;">تسجيل الدخول مطلوب</h2>
-                    <p style="color: #666; margin-bottom: 25px;">يجب تسجيل الدخول بحساب مطور للوصول إلى هذه الصفحة</p>
-                    <button onclick="window.location.href='/login.html'" 
-                            style="background: linear-gradient(135deg, #007ACC 0%, #005A9E 100%); 
-                                   color: white; 
-                                   border: none; 
-                                   padding: 12px 30px; 
-                                   border-radius: 8px; 
-                                   font-size: 16px; 
-                                   font-weight: 600; 
-                                   cursor: pointer;
-                                   font-family: 'Cairo', sans-serif;">
-                        <i class="fas fa-sign-in-alt"></i> تسجيل الدخول
-                    </button>
-                </div>
-            `;
-            $('#view-users .users-table-container').html(loginPrompt);
-            $('#add-user .form-card').html(loginPrompt);
-        }
-
-        // Load data on page load
+        // Load data on page load - No authentication required
         $(document).ready(async function() {
             // Initialize Select2 first (always)
             initializeSelect2();
             initializeEditModalSelect2();
             
-            // Check if user is authenticated
-            if (!isAuthenticated()) {
-                showLoginPrompt();
-                return;
-            }
-            
-            // Check if user has Developer role
-            const hasDeveloperRole = await checkDeveloperRole();
-            if (!hasDeveloperRole) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'تنبيه',
-                    html: `هذه الصفحة مخصصة للمطورين فقط.<br><br>
-                           <small>يمكنك عرض الصفحة، لكن لن تتمكن من الوصول إلى البيانات.</small>`,
-                    confirmButtonText: 'حسناً',
-                    confirmButtonColor: '#007ACC'
-                });
-                showLoginPrompt();
-                return;
-            }
-            
-            // User is authenticated and has Developer role - load data
+            // Load data directly without authentication checks
             loadUsers();
             loadTenants();
             loadRoles();
@@ -1210,6 +1209,11 @@
                 allowClear: true,
                 dir: 'rtl'
             });
+            
+            // Add event listener for roles change - auto-fill additional tenants for Accountant/Manager/Admin
+            $('#roles').on('change', function() {
+                handleRolesChangeForAdditionalTenants('#roles', '#additionalTenants');
+            });
 
             // Initialize additional tenants multiselect
             $('#additionalTenants').select2({
@@ -1220,32 +1224,26 @@
             });
         }
 
-        // Load Users
+        // Load Users - No authentication required
         async function loadUsers() {
             try {
-                const token = getToken();
-                if (!token) {
-                    showLoginPrompt();
-                    return;
-                }
-                
                 showLoading();
 
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                // Add token if available (optional)
+                const token = getToken();
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+
                 const response = await fetch(`${API_BASE}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
+                    headers: headers
                 });
 
                 if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        localStorage.removeItem('authToken');
-                        localStorage.removeItem('userInfo');
-                        showLoginPrompt();
-                        return;
-                    }
-                    
                     const errorData = await response.json().catch(() => ({ error: 'فشل تحميل المستخدمين' }));
                     throw new Error(errorData.error || 'فشل تحميل المستخدمين');
                 }
@@ -1304,7 +1302,7 @@
                             ${user.isActive ? 'نشط' : 'غير نشط'}
                         </span>
                     </td>
-                    <td>${new Date(user.createdAt).toLocaleDateString('ar-SA')}</td>
+                    <td>${formatGregorianDate(user.createdAt)}</td>
                     <td>
                         <div class="action-buttons">
                             <button class="btn-action btn-edit" onclick="editUser(${user.id})">
@@ -1319,29 +1317,27 @@
             `).join(''));
         }
 
-        // Load Tenants
+        // Load Tenants - No authentication required
         async function loadTenants() {
             try {
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                // Add token if available (optional)
                 const token = getToken();
-                if (!token) {
-                    return; // Silently fail - page works without this
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
                 }
 
                 const response = await fetch(`${API_BASE}/tenants`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
+                    headers: headers
                 });
 
                 if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        // Silently fail - page works without this data
-                        return;
-                    }
                     const errorData = await response.json().catch(() => ({ error: 'فشل تحميل الفنادق' }));
                     console.error('Error loading tenants:', errorData.error || 'فشل تحميل الفنادق');
-                    return; // Don't show error - page works without this
+                    return;
                 }
 
                 const tenants = await response.json();
@@ -1390,6 +1386,11 @@
                     dir: 'rtl'
                 });
                 
+                // Re-attach event listener for roles change after re-initialization
+                $('#roles').off('change.autoFillTenants').on('change.autoFillTenants', function() {
+                    handleRolesChangeForAdditionalTenants('#roles', '#additionalTenants');
+                });
+                
                 // Exclude primary tenant from additional tenants dropdown when primary tenant changes
                 $('#primaryTenant').off('change.excludePrimary').on('change.excludePrimary', function() {
                     const primaryId = $(this).val();
@@ -1425,29 +1426,27 @@
             }
         }
 
-        // Load Roles
+        // Load Roles - No authentication required
         async function loadRoles() {
             try {
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                // Add token if available (optional)
                 const token = getToken();
-                if (!token) {
-                    return; // Silently fail - page works without this
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
                 }
 
                 const response = await fetch(`${API_BASE}/roles`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
+                    headers: headers
                 });
 
                 if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        // Silently fail - page works without this data
-                        return;
-                    }
                     const errorData = await response.json().catch(() => ({ error: 'فشل تحميل الأدوار' }));
                     console.error('Error loading roles:', errorData.error || 'فشل تحميل الأدوار');
-                    return; // Don't show error - page works without this
+                    return;
                 }
 
                 const roles = await response.json();
@@ -1471,6 +1470,11 @@
                     placeholder: 'اختر الأدوار...',
                     allowClear: true,
                     dir: 'rtl'
+                });
+                
+                // Re-attach event listener for roles change (use namespace to avoid conflicts)
+                rolesSelect.off('change.autoFillTenants').on('change.autoFillTenants', function() {
+                    handleRolesChangeForAdditionalTenants('#roles', '#additionalTenants');
                 });
 
                 // Populate edit modal selects
@@ -1536,45 +1540,25 @@
             });
 
             try {
-                const token = getToken();
-                if (!token) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'تسجيل الدخول مطلوب',
-                        text: 'يجب تسجيل الدخول لإضافة مستخدم جديد',
-                        confirmButtonText: 'تسجيل الدخول',
-                        confirmButtonColor: '#007ACC'
-                    }).then(() => {
-                        window.location.href = '/login.html';
-                    });
-                    return;
-                }
-
                 showLoading();
+                
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                // Add token if available (optional)
+                const token = getToken();
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+                
                 const response = await fetch(`${API_BASE}`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
+                    headers: headers,
                     body: JSON.stringify(formData)
                 });
 
                 if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        localStorage.removeItem('authToken');
-                        localStorage.removeItem('userInfo');
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'انتهت الجلسة',
-                            text: 'يرجى تسجيل الدخول مرة أخرى',
-                            confirmButtonText: 'تسجيل الدخول',
-                            confirmButtonColor: '#007ACC'
-                        }).then(() => {
-                            window.location.href = '/login.html';
-                        });
-                        return;
-                    }
                     const error = await response.json().catch(() => ({ error: 'فشل إنشاء المستخدم' }));
                     throw new Error(error.error || 'فشل إنشاء المستخدم');
                 }
@@ -1587,10 +1571,12 @@
                     confirmButtonText: 'موافق'
                 });
 
-                // Reset form
+                // Reset all form controls
                 $('#addUserForm')[0].reset();
+                $('#primaryTenant').val(null).trigger('change');
                 $('#roles').val(null).trigger('change');
                 $('#additionalTenants').val(null).trigger('change');
+                $('#isActive').prop('checked', true); // Reset to default checked state
 
                 // Reload users
                 loadUsers();
@@ -1607,48 +1593,27 @@
             }
         });
 
-        // Edit User - Load user data and show modal
+        // Edit User - Load user data and show modal - No authentication required
         async function editUser(userId) {
             try {
-                const token = getToken();
-                if (!token) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'تسجيل الدخول مطلوب',
-                        text: 'يجب تسجيل الدخول لتعديل المستخدم',
-                        confirmButtonText: 'تسجيل الدخول',
-                        confirmButtonColor: '#007ACC'
-                    }).then(() => {
-                        window.location.href = '/login.html';
-                    });
-                    return;
-                }
-
                 showLoading();
+                
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                // Add token if available (optional)
+                const token = getToken();
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
                 
                 // Fetch user data
                 const response = await fetch(`${API_BASE}/${userId}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
+                    headers: headers
                 });
 
                 if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        localStorage.removeItem('authToken');
-                        localStorage.removeItem('userInfo');
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'انتهت الجلسة',
-                            text: 'يرجى تسجيل الدخول مرة أخرى',
-                            confirmButtonText: 'تسجيل الدخول',
-                            confirmButtonColor: '#007ACC'
-                        }).then(() => {
-                            window.location.href = '/login.html';
-                        });
-                        return;
-                    }
                     throw new Error('فشل تحميل بيانات المستخدم');
                 }
 
@@ -1660,11 +1625,15 @@
                 let roles = [];
                 
                 try {
+                    const headers = {
+                        'Content-Type': 'application/json'
+                    };
+                    if (token) {
+                        headers['Authorization'] = `Bearer ${token}`;
+                    }
+                    
                     const tenantsResponse = await fetch(`${API_BASE}/tenants`, {
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        }
+                        headers: headers
                     });
                     if (tenantsResponse.ok) {
                         tenants = await tenantsResponse.json();
@@ -1674,11 +1643,15 @@
                 }
                 
                 try {
+                    const headers = {
+                        'Content-Type': 'application/json'
+                    };
+                    if (token) {
+                        headers['Authorization'] = `Bearer ${token}`;
+                    }
+                    
                     const rolesResponse = await fetch(`${API_BASE}/roles`, {
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        }
+                        headers: headers
                     });
                     if (rolesResponse.ok) {
                         roles = await rolesResponse.json();
@@ -1753,8 +1726,10 @@
         function closeEditModal() {
             $('#editUserModal').fadeOut(300);
             $('#editUserForm')[0].reset();
+            $('#editPrimaryTenant').val(null).trigger('change');
             $('#editRoles').val(null).trigger('change');
             $('#editAdditionalTenants').val(null).trigger('change');
+            $('#editIsActive').prop('checked', false);
         }
 
         // Initialize Select2 for edit modal
@@ -1775,6 +1750,11 @@
                 allowClear: true,
                 dir: 'rtl',
                 dropdownParent: $('#editUserModal')
+            });
+            
+            // Add event listener for roles change - auto-fill additional tenants for Accountant/Manager/Admin
+            $('#editRoles').on('change.autoFillTenants', function() {
+                handleRolesChangeForAdditionalTenants('#editRoles', '#editAdditionalTenants');
             });
 
             // Initialize additional tenants multiselect
@@ -1837,6 +1817,11 @@
                     dir: 'rtl',
                     dropdownParent: $('#editUserModal')
                 });
+                
+                // Re-attach event listener for roles change
+                editRoles.off('change.autoFillTenants').on('change.autoFillTenants', function() {
+                    handleRolesChangeForAdditionalTenants('#editRoles', '#editAdditionalTenants');
+                });
             }
 
             // Populate additional tenants
@@ -1875,6 +1860,11 @@
                         editAdditionalTenants.val(filteredValues).trigger('change');
                     }
                 }
+            });
+            
+            // Re-attach event listener for roles change in edit modal after re-initialization
+            $('#editRoles').off('change.autoFillTenants').on('change.autoFillTenants', function() {
+                handleRolesChangeForAdditionalTenants('#editRoles', '#editAdditionalTenants');
             });
         }
 
@@ -1924,45 +1914,25 @@
             });
 
             try {
-                const token = getToken();
-                if (!token) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'تسجيل الدخول مطلوب',
-                        text: 'يجب تسجيل الدخول لتحديث المستخدم',
-                        confirmButtonText: 'تسجيل الدخول',
-                        confirmButtonColor: '#007ACC'
-                    }).then(() => {
-                        window.location.href = '/login.html';
-                    });
-                    return;
-                }
-
                 showLoading();
+                
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                // Add token if available (optional)
+                const token = getToken();
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+                
                 const response = await fetch(`${API_BASE}/${userId}`, {
                     method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
+                    headers: headers,
                     body: JSON.stringify(formData)
                 });
 
                 if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        localStorage.removeItem('authToken');
-                        localStorage.removeItem('userInfo');
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'انتهت الجلسة',
-                            text: 'يرجى تسجيل الدخول مرة أخرى',
-                            confirmButtonText: 'تسجيل الدخول',
-                            confirmButtonColor: '#007ACC'
-                        }).then(() => {
-                            window.location.href = '/login.html';
-                        });
-                        return;
-                    }
                     const error = await response.json().catch(() => ({ error: 'فشل تحديث المستخدم' }));
                     throw new Error(error.error || 'فشل تحديث المستخدم');
                 }
@@ -2007,36 +1977,24 @@
 
             if (result.isConfirmed) {
                 try {
-                    const token = getToken();
-                    if (!token) {
-                        window.location.href = '/login.html';
-                        return;
-                    }
-
                     showLoading();
+                    
+                    const headers = {
+                        'Content-Type': 'application/json'
+                    };
+                    
+                    // Add token if available (optional)
+                    const token = getToken();
+                    if (token) {
+                        headers['Authorization'] = `Bearer ${token}`;
+                    }
+                    
                     const response = await fetch(`${API_BASE}/${userId}`, {
                         method: 'DELETE',
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        }
+                        headers: headers
                     });
 
                     if (!response.ok) {
-                        if (response.status === 401 || response.status === 403) {
-                            localStorage.removeItem('authToken');
-                            localStorage.removeItem('userInfo');
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'انتهت الجلسة',
-                                text: 'يرجى تسجيل الدخول مرة أخرى',
-                                confirmButtonText: 'تسجيل الدخول',
-                                confirmButtonColor: '#007ACC'
-                            }).then(() => {
-                                window.location.href = '/login.html';
-                            });
-                            return;
-                        }
                         const errorData = await response.json().catch(() => ({ error: 'فشل حذف المستخدم' }));
                         throw new Error(errorData.error || 'فشل حذف المستخدم');
                     }

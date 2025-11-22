@@ -35,6 +35,7 @@ namespace zaaerIntegration.Data
         public DbSet<ExpenseRoom> ExpenseRooms { get; set; }
         public DbSet<ExpenseCategory> ExpenseCategories { get; set; }
         public DbSet<ExpenseImage> ExpenseImages { get; set; }
+        public DbSet<ExpenseApprovalHistory> ExpenseApprovalHistories { get; set; }
         public DbSet<ReservationUnit> ReservationUnits { get; set; }
         public DbSet<CustomerAccount> CustomerAccounts { get; set; }
         public DbSet<CustomerTransaction> CustomerTransactions { get; set; }

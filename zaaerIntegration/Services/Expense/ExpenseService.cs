@@ -2,6 +2,7 @@ using FinanceLedgerAPI.Models;
 using ExpenseModel = FinanceLedgerAPI.Models.Expense;
 using ExpenseRoomModel = FinanceLedgerAPI.Models.ExpenseRoom;
 using ExpenseCategoryModel = FinanceLedgerAPI.Models.ExpenseCategory;
+using ExpenseApprovalHistoryModel = FinanceLedgerAPI.Models.ExpenseApprovalHistory;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -24,6 +25,8 @@ namespace zaaerIntegration.Services.Expense
         private readonly ITenantService _tenantService;
         private readonly ILogger<ExpenseService> _logger;
         private readonly IConfiguration _configuration;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly MasterDbContext _masterDbContext;
 
         /// <summary>
         /// Constructor for ExpenseService
@@ -33,18 +36,24 @@ namespace zaaerIntegration.Services.Expense
         /// <param name="tenantService">Tenant service for getting current hotel</param>
         /// <param name="logger">Logger</param>
         /// <param name="configuration">Configuration for reading app settings</param>
+        /// <param name="httpContextAccessor">HTTP context accessor for getting current user</param>
+        /// <param name="masterDbContext">Master database context for getting user info</param>
         public ExpenseService(
             IUnitOfWork unitOfWork,
             ApplicationDbContext context,
             ITenantService tenantService,
             ILogger<ExpenseService> logger,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IHttpContextAccessor httpContextAccessor,
+            MasterDbContext masterDbContext)
         {
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _tenantService = tenantService ?? throw new ArgumentNullException(nameof(tenantService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            _httpContextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
+            _masterDbContext = masterDbContext ?? throw new ArgumentNullException(nameof(masterDbContext));
         }
 
         /// <summary>
@@ -100,7 +109,6 @@ namespace zaaerIntegration.Services.Expense
                     .Select(e => new
                     {
                         Expense = e,
-                        ExpenseCategoryName = e.ExpenseCategory != null ? e.ExpenseCategory.CategoryName : null,
                         HotelName = e.HotelSettings != null ? e.HotelSettings.HotelName : null,
                         ExpenseRooms = e.ExpenseRooms.Select(er => new
                         {
@@ -114,8 +122,34 @@ namespace zaaerIntegration.Services.Expense
                     })
                     .ToListAsync();
 
+                // ✅ Get all unique ExpenseCategoryIds from expenses
+                var categoryIds = expenseData
+                    .Where(e => e.Expense.ExpenseCategoryId.HasValue)
+                    .Select(e => e.Expense.ExpenseCategoryId!.Value)
+                    .Distinct()
+                    .ToList();
+
+                // ✅ Load category names from Master DB
+                var masterCategories = categoryIds.Any()
+                    ? await _masterDbContext.ExpenseCategories
+                        .AsNoTracking()
+                        .Where(ec => categoryIds.Contains(ec.Id))
+                        .ToDictionaryAsync(ec => ec.Id, ec => ec.MainCategory)
+                    : new Dictionary<int, string>();
+
+                // ✅ Add category names to expense data
+                var expenseDataWithCategories = expenseData.Select(e => new
+                {
+                    e.Expense,
+                    ExpenseCategoryName = e.Expense.ExpenseCategoryId.HasValue && masterCategories.TryGetValue(e.Expense.ExpenseCategoryId.Value, out var categoryName)
+                        ? categoryName
+                        : null,
+                    e.HotelName,
+                    e.ExpenseRooms
+                }).ToList();
+
                 // ✅ PERFORMANCE OPTIMIZATION: Load all apartments in one query using dictionary for O(1) lookup
-                var allZaaerIds = expenseData
+                var allZaaerIds = expenseDataWithCategories
                     .SelectMany(e => e.ExpenseRooms)
                     .Where(er => er.ZaaerId.HasValue)
                     .Select(er => er.ZaaerId!.Value)
@@ -129,9 +163,38 @@ namespace zaaerIntegration.Services.Expense
                         .ToDictionaryAsync(a => a.ZaaerId!.Value, a => a)
                     : new Dictionary<int, Apartment>();
 
+                // ✅ PERFORMANCE OPTIMIZATION: Get all unique ApprovedBy user IDs
+                var approvedByUserIds = expenseDataWithCategories
+                    .Where(e => e.Expense.ApprovedBy.HasValue)
+                    .Select(e => e.Expense.ApprovedBy!.Value)
+                    .Distinct()
+                    .ToList();
+
+                // ✅ Load all approved by user info (full name, role, tenant) from Master DB in one query
+                var approvedByUsersDict = new Dictionary<int, (string fullName, string? role, string? tenantName)>();
+                if (approvedByUserIds.Any())
+                {
+                    var users = await _masterDbContext.MasterUsers
+                        .AsNoTracking()
+                        .Include(u => u.UserRoles)
+                            .ThenInclude(ur => ur.Role)
+                        .Include(u => u.Tenant)
+                        .Where(u => approvedByUserIds.Contains(u.Id))
+                        .ToListAsync();
+
+                    foreach (var user in users)
+                    {
+                        var fullName = user.FullName ?? user.Username;
+                        var primaryRole = user.UserRoles?.FirstOrDefault()?.Role;
+                        var roleName = GetRoleDisplayName(primaryRole?.Code);
+                        var tenantName = user.Tenant?.Name;
+                        approvedByUsersDict[user.Id] = (fullName, roleName, tenantName);
+                    }
+                }
+
                 // ✅ PERFORMANCE OPTIMIZATION: Map to DTOs efficiently without nested loops
                 var result = new List<ExpenseResponseDto>();
-                foreach (var item in expenseData)
+                foreach (var item in expenseDataWithCategories)
                 {
                     var expense = item.Expense;
                     
@@ -142,6 +205,17 @@ namespace zaaerIntegration.Services.Expense
                         var approvalBaseUrl = _configuration["AppSettings:ApprovalBaseUrl"] ?? "https://aleery.tryasp.net";
                         approvalBaseUrl = approvalBaseUrl.TrimEnd('/');
                         approvalLink = $"{approvalBaseUrl}/approve-expense.html?id={expense.ExpenseId}";
+                    }
+
+                    // ✅ Get approved by user info from dictionary
+                    string? approvedByFullName = null;
+                    string? approvedByRole = null;
+                    string? approvedByTenantName = null;
+                    if (expense.ApprovedBy.HasValue && approvedByUsersDict.TryGetValue(expense.ApprovedBy.Value, out var userInfo))
+                    {
+                        approvedByFullName = userInfo.fullName;
+                        approvedByRole = userInfo.role;
+                        approvedByTenantName = userInfo.tenantName;
                     }
 
                     // ✅ Map expense rooms efficiently
@@ -201,6 +275,9 @@ namespace zaaerIntegration.Services.Expense
                         UpdatedAt = expense.UpdatedAt,
                         ApprovalStatus = expense.ApprovalStatus,
                         ApprovedBy = expense.ApprovedBy,
+                        ApprovedByFullName = approvedByFullName,
+                        ApprovedByRole = approvedByRole,
+                        ApprovedByTenantName = approvedByTenantName,
                         ApprovedAt = expense.ApprovedAt,
                         RejectionReason = expense.RejectionReason,
                         ApprovalLink = approvalLink,
@@ -240,14 +317,12 @@ namespace zaaerIntegration.Services.Expense
             var expense = hotelId.HasValue
                 ? await _context.Expenses
                     .AsNoTracking()
-                    .Include(e => e.ExpenseCategory)
                     .Include(e => e.HotelSettings) // ✅ تحميل HotelSettings للحصول على اسم الفندق
                     .Include(e => e.ExpenseRooms)
                         .ThenInclude(er => er.Apartment)
                     .FirstOrDefaultAsync(e => e.ExpenseId == id && e.HotelId == hotelId.Value)
                 : await _context.Expenses
                     .AsNoTracking()
-                    .Include(e => e.ExpenseCategory)
                     .Include(e => e.HotelSettings) // ✅ تحميل HotelSettings للحصول على اسم الفندق
                     .Include(e => e.ExpenseRooms)
                         .ThenInclude(er => er.Apartment)
@@ -258,7 +333,17 @@ namespace zaaerIntegration.Services.Expense
                 return null;
             }
 
-            return MapToDto(expense);
+            // ✅ Get category name from Master DB
+            string? categoryName = null;
+            if (expense.ExpenseCategoryId.HasValue)
+            {
+                var masterCategory = await _masterDbContext.ExpenseCategories
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(ec => ec.Id == expense.ExpenseCategoryId.Value);
+                categoryName = masterCategory?.MainCategory;
+            }
+
+            return await MapToDtoAsync(expense, categoryName);
         }
 
         /// <summary>
@@ -275,22 +360,96 @@ namespace zaaerIntegration.Services.Expense
             // ✅ Set DueDate to today if not provided
             DateTime? dueDate = dto.DueDate ?? DateTime.Today;
 
+            // الحصول على UserId من JWT Token
+            int? createdBy = null;
+            string? createdByFullName = null;
+            if (_httpContextAccessor.HttpContext?.Items.TryGetValue("UserId", out var userIdObj) == true && userIdObj != null)
+            {
+                if (int.TryParse(userIdObj.ToString(), out int userId))
+                {
+                    createdBy = userId;
+                    // الحصول على FullName من Master DB
+                    var masterUser = await _masterDbContext.MasterUsers
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(u => u.Id == userId);
+                    createdByFullName = masterUser?.FullName ?? masterUser?.Username;
+                }
+            }
+
+            // ✅ Get tax rate from taxes table if not provided in DTO
+            decimal? taxRate = dto.TaxRate;
+            if (!taxRate.HasValue)
+            {
+                // Get all hotel settings with the same HotelCode
+                var tenant = _tenantService.GetTenant();
+                if (tenant != null)
+                {
+                    var allHotelSettings = await _context.HotelSettings
+                        .AsNoTracking()
+                        .Where(h => h.HotelCode != null && h.HotelCode.ToLower() == tenant.Code.ToLower())
+                        .Select(h => h.HotelId)
+                        .ToListAsync();
+
+                    if (allHotelSettings.Any())
+                    {
+                        // Get enabled tax for any of these hotels (prefer VAT type, or first enabled tax)
+                        var tax = await _context.Taxes
+                            .AsNoTracking()
+                            .Where(t => allHotelSettings.Contains(t.HotelId) && t.Enabled)
+                            .OrderByDescending(t => t.TaxType == "VAT" || t.TaxType == "vat")
+                            .ThenBy(t => t.Id)
+                            .FirstOrDefaultAsync();
+
+                        if (tax != null)
+                        {
+                            taxRate = tax.TaxRate;
+                            _logger.LogInformation("✅ Tax rate retrieved from taxes table: {TaxRate}% for HotelId: {HotelId}", taxRate, tax.HotelId);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("⚠️ No enabled tax found for HotelIds: {HotelIds}", string.Join(", ", allHotelSettings));
+                        }
+                    }
+                }
+            }
+
+            // ✅ Store Master DB ExpenseCategory ID (dto.ExpenseCategoryId is from Master DB)
             var expense = new ExpenseModel
             {
                 HotelId = hotelId,
                 DateTime = dto.DateTime,
                 DueDate = dueDate,
                 Comment = dto.Comment,
-                ExpenseCategoryId = dto.ExpenseCategoryId,
-                TaxRate = dto.TaxRate,
+                ExpenseCategoryId = dto.ExpenseCategoryId, // ✅ This is Master DB ExpenseCategory ID
+                TaxRate = taxRate,
                 TaxAmount = dto.TaxAmount,
                 TotalAmount = dto.TotalAmount,
                 ApprovalStatus = approvalStatus,
-                CreatedAt = DateTime.Now
+                CreatedAt = DateTime.Now,
+                CreatedBy = createdBy
             };
 
             await _unitOfWork.Expenses.AddAsync(expense);
             await _unitOfWork.SaveChangesAsync();
+
+            // حفظ سجل الإنشاء في ExpenseApprovalHistory
+            if (createdBy.HasValue)
+            {
+                var history = new ExpenseApprovalHistoryModel
+                {
+                    ExpenseId = expense.ExpenseId,
+                    Action = "created",
+                    ActionBy = createdBy.Value,
+                    ActionByFullName = createdByFullName,
+                    ActionAt = DateTime.UtcNow,
+                    Status = approvalStatus,
+                    Comments = "تم إنشاء طلب المصروف"
+                };
+                await _context.ExpenseApprovalHistories.AddAsync(history);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("✅ Expense approval history saved: ExpenseId={ExpenseId}, Action=created, ActionBy={ActionBy}", 
+                    expense.ExpenseId, createdBy.Value);
+            }
 
             // إضافة expense_rooms إذا وُجدت
             if (dto.ExpenseRooms != null && dto.ExpenseRooms.Any())
@@ -438,7 +597,17 @@ namespace zaaerIntegration.Services.Expense
             _logger.LogInformation("✅ Expense created successfully: ExpenseId={ExpenseId}, HotelId={HotelId}", 
                 expense.ExpenseId, hotelId);
 
-            return await GetByIdAsync(expense.ExpenseId) ?? MapToDto(expense);
+            // ✅ Get category name from Master DB for response
+            string? categoryName = null;
+            if (expense.ExpenseCategoryId.HasValue)
+            {
+                var masterCategory = await _masterDbContext.ExpenseCategories
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(ec => ec.Id == expense.ExpenseCategoryId.Value);
+                categoryName = masterCategory?.MainCategory;
+            }
+
+            return await GetByIdAsync(expense.ExpenseId) ?? await MapToDtoAsync(expense, categoryName);
         }
 
         /// <summary>
@@ -617,6 +786,16 @@ namespace zaaerIntegration.Services.Expense
             await _unitOfWork.SaveChangesAsync();
 
             _logger.LogInformation("✅ Expense updated successfully: ExpenseId={ExpenseId}", expense.ExpenseId);
+
+            // ✅ Get category name from Master DB for response
+            string? categoryName = null;
+            if (expense.ExpenseCategoryId.HasValue)
+            {
+                var masterCategory = await _masterDbContext.ExpenseCategories
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(ec => ec.Id == expense.ExpenseCategoryId.Value);
+                categoryName = masterCategory?.MainCategory;
+            }
 
             return await GetByIdAsync(expense.ExpenseId);
         }
@@ -910,6 +1089,52 @@ namespace zaaerIntegration.Services.Expense
             await _unitOfWork.Expenses.UpdateAsync(expense);
             await _unitOfWork.SaveChangesAsync();
 
+            // حفظ سجل الموافقة/الرفض في ExpenseApprovalHistory
+            string? actionByFullName = null;
+            if (approvedBy > 0)
+            {
+                var masterUser = await _masterDbContext.MasterUsers
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.Id == approvedBy);
+                actionByFullName = masterUser?.FullName ?? masterUser?.Username;
+            }
+
+            string action = status switch
+            {
+                "accepted" => "approved",
+                "rejected" => "rejected",
+                "awaiting-manager" => "awaiting-manager",
+                "awaiting-accountant" => "awaiting-accountant",
+                "awaiting-admin" => "awaiting-admin",
+                _ => "updated"
+            };
+
+            string comments = status switch
+            {
+                "accepted" => "تم الموافقة على المصروف",
+                "rejected" => $"تم رفض المصروف{(string.IsNullOrWhiteSpace(rejectionReason) ? "" : $": {rejectionReason}")}",
+                "awaiting-manager" => "في انتظار موافقة مدير العمليات",
+                "awaiting-accountant" => "في انتظار موافقة المحاسب",
+                "awaiting-admin" => "في انتظار موافقة المدير العام",
+                _ => "تم تحديث حالة المصروف"
+            };
+
+            var history = new ExpenseApprovalHistoryModel
+            {
+                ExpenseId = expense.ExpenseId,
+                Action = action,
+                ActionBy = approvedBy > 0 ? approvedBy : null,
+                ActionByFullName = actionByFullName,
+                ActionAt = DateTime.UtcNow,
+                Status = status,
+                RejectionReason = status == "rejected" ? rejectionReason : null,
+                Comments = comments
+            };
+            await _context.ExpenseApprovalHistories.AddAsync(history);
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("✅ Expense approval history saved: ExpenseId={ExpenseId}, Action={Action}, Status={Status}, ActionBy={ActionBy}", 
+                expense.ExpenseId, action, status, approvedBy);
+
             _logger.LogInformation("✅ Expense approval updated: ExpenseId={ExpenseId}, Status={Status}, ApprovedBy={ApprovedBy}, ApprovedAt={ApprovedAt}", 
                 id, status, approvedBy, expense.ApprovedAt);
 
@@ -917,9 +1142,83 @@ namespace zaaerIntegration.Services.Expense
         }
 
         /// <summary>
+        /// الحصول على سجل موافقات المصروف
+        /// Get expense approval history
+        /// </summary>
+        /// <param name="expenseId">معرف المصروف</param>
+        /// <returns>قائمة سجلات الموافقات</returns>
+        public async Task<IEnumerable<ExpenseApprovalHistoryDto>> GetApprovalHistoryAsync(int expenseId)
+        {
+            var hotelId = await GetCurrentHotelIdAsync();
+
+            // التحقق من أن Expense موجود في نفس الفندق
+            var expense = await _unitOfWork.Expenses
+                .FindSingleAsync(e => e.ExpenseId == expenseId && e.HotelId == hotelId);
+
+            if (expense == null)
+            {
+                throw new KeyNotFoundException($"Expense with id {expenseId} not found");
+            }
+
+            var history = await _context.ExpenseApprovalHistories
+                .AsNoTracking()
+                .Where(h => h.ExpenseId == expenseId)
+                .OrderBy(h => h.ActionAt)
+                .ToListAsync();
+
+            // Get unique user IDs to fetch role and tenant info
+            var userIds = history.Where(h => h.ActionBy.HasValue).Select(h => h.ActionBy!.Value).Distinct().ToList();
+            var userInfoDict = new Dictionary<int, (string? role, string? tenantName)>();
+            
+            if (userIds.Any())
+            {
+                var users = await _masterDbContext.MasterUsers
+                    .AsNoTracking()
+                    .Include(u => u.UserRoles)
+                        .ThenInclude(ur => ur.Role)
+                    .Include(u => u.Tenant)
+                    .Where(u => userIds.Contains(u.Id))
+                    .ToListAsync();
+
+                foreach (var user in users)
+                {
+                    // Get primary role (first role or most relevant)
+                    var primaryRole = user.UserRoles?.FirstOrDefault()?.Role;
+                    var roleName = GetRoleDisplayName(primaryRole?.Code);
+                    var tenantName = user.Tenant?.Name;
+                    userInfoDict[user.Id] = (roleName, tenantName);
+                }
+            }
+
+            return history.Select(h =>
+            {
+                var dto = new ExpenseApprovalHistoryDto
+            {
+                Id = h.Id,
+                ExpenseId = h.ExpenseId,
+                Action = h.Action,
+                ActionBy = h.ActionBy,
+                ActionByFullName = h.ActionByFullName,
+                ActionAt = h.ActionAt,
+                Status = h.Status,
+                RejectionReason = h.RejectionReason,
+                Comments = h.Comments
+                };
+
+                if (h.ActionBy.HasValue && userInfoDict.TryGetValue(h.ActionBy.Value, out var userInfo))
+                {
+                    dto.ActionByRole = userInfo.role;
+                    dto.ActionByTenantName = userInfo.tenantName;
+                }
+
+                return dto;
+            });
+        }
+
+        /// <summary>
         /// تحويل Expense إلى ExpenseResponseDto
         /// </summary>
-        private ExpenseResponseDto MapToDto(ExpenseModel expense)
+        private async Task<ExpenseResponseDto> MapToDtoAsync(ExpenseModel expense, string? categoryName = null)
         {
             // ✅ الحصول على اسم الفندق من HotelSettings
             string? hotelName = null;
@@ -947,6 +1246,38 @@ namespace zaaerIntegration.Services.Expense
                 approvalLink = $"{approvalBaseUrl}/approve-expense.html?id={expense.ExpenseId}";
             }
 
+            // ✅ Get approved by user full name, role, and tenant from Master DB
+            string? approvedByFullName = null;
+            string? approvedByRole = null;
+            string? approvedByTenantName = null;
+            if (expense.ApprovedBy.HasValue)
+            {
+                try
+                {
+                    var masterUser = await _masterDbContext.MasterUsers
+                        .AsNoTracking()
+                        .Include(u => u.UserRoles)
+                            .ThenInclude(ur => ur.Role)
+                        .Include(u => u.Tenant)
+                        .FirstOrDefaultAsync(u => u.Id == expense.ApprovedBy.Value);
+                    
+                    if (masterUser != null)
+                    {
+                        approvedByFullName = masterUser.FullName ?? masterUser.Username;
+                        
+                        // Get primary role (first role or most relevant)
+                        var primaryRole = masterUser.UserRoles?.FirstOrDefault()?.Role;
+                        approvedByRole = GetRoleDisplayName(primaryRole?.Code);
+                        
+                        approvedByTenantName = masterUser.Tenant?.Name;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to fetch approved by user info for user ID {UserId}", expense.ApprovedBy.Value);
+                }
+            }
+
             return new ExpenseResponseDto
             {
                 ExpenseId = expense.ExpenseId,
@@ -956,7 +1287,7 @@ namespace zaaerIntegration.Services.Expense
                 DueDate = expense.DueDate,
                 Comment = expense.Comment,
                 ExpenseCategoryId = expense.ExpenseCategoryId,
-                ExpenseCategoryName = expense.ExpenseCategory?.CategoryName,
+                ExpenseCategoryName = categoryName, // ✅ Use category name from Master DB
                 TaxRate = expense.TaxRate,
                 TaxAmount = expense.TaxAmount,
                 TotalAmount = expense.TotalAmount,
@@ -964,10 +1295,33 @@ namespace zaaerIntegration.Services.Expense
                 UpdatedAt = expense.UpdatedAt,
                 ApprovalStatus = expense.ApprovalStatus,
                 ApprovedBy = expense.ApprovedBy,
+                ApprovedByFullName = approvedByFullName,
+                ApprovedByRole = approvedByRole,
+                ApprovedByTenantName = approvedByTenantName,
                 ApprovedAt = expense.ApprovedAt,
                 RejectionReason = expense.RejectionReason,
                 ApprovalLink = approvalLink,
                 ExpenseRooms = expense.ExpenseRooms?.Select(MapExpenseRoomToDto).ToList() ?? new List<ExpenseRoomResponseDto>()
+            };
+        }
+
+        /// <summary>
+        /// تحويل Role Code إلى اسم عربي للعرض
+        /// Convert Role Code to Arabic display name
+        /// </summary>
+        private string? GetRoleDisplayName(string? roleCode)
+        {
+            if (string.IsNullOrWhiteSpace(roleCode))
+                return null;
+
+            return roleCode.ToLower() switch
+            {
+                "staff" or "reception staff" => "موظف",
+                "supervisor" => "مشرف فرع",
+                "manager" => "مدير العمليات",
+                "accountant" => "المحاسب",
+                "admin" or "administrator" => "المدير العام",
+                _ => roleCode
             };
         }
 

@@ -318,6 +318,29 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// Add Security Headers Middleware
+app.Use(async (context, next) =>
+{
+    // Security Headers to prevent blocking by security software
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["X-XSS-Protection"] = "1; mode=block";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()";
+    
+    // Content Security Policy - Allow necessary external resources
+    var csp = "default-src 'self'; " +
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://code.jquery.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn3.devexpress.com; " +
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn3.devexpress.com; " +
+              "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; " +
+              "img-src 'self' data: https:; " +
+              "connect-src 'self' https://fonts.googleapis.com; " +
+              "frame-ancestors 'none';";
+    context.Response.Headers["Content-Security-Policy"] = csp;
+    
+    await next();
+});
+
 // Enable static files for frontend
 app.UseStaticFiles();
 

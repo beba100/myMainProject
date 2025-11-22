@@ -31,6 +31,24 @@ namespace zaaerIntegration.DTOs.Expense
         public int? ApprovedBy { get; set; }
 
         /// <summary>
+        /// الاسم الكامل للمستخدم الذي وافق/رفض المصروف
+        /// Full name of the user who approved/rejected the expense
+        /// </summary>
+        public string? ApprovedByFullName { get; set; }
+
+        /// <summary>
+        /// دور المستخدم الذي وافق/رفض المصروف
+        /// Role of the user who approved/rejected the expense
+        /// </summary>
+        public string? ApprovedByRole { get; set; }
+
+        /// <summary>
+        /// اسم الفندق للمستخدم الذي وافق/رفض المصروف
+        /// Tenant name of the user who approved/rejected the expense
+        /// </summary>
+        public string? ApprovedByTenantName { get; set; }
+
+        /// <summary>
         /// تاريخ ووقت الموافقة/الرفض
         /// Date and time of approval/rejection
         /// </summary>

@@ -22,6 +22,9 @@ namespace zaaerIntegration.Services.Expense
 
         // Approval Operations
         Task<ExpenseResponseDto?> ApproveExpenseAsync(int id, string status, int approvedBy, string? rejectionReason = null);
+
+        // Approval History Operations
+        Task<IEnumerable<ExpenseApprovalHistoryDto>> GetApprovalHistoryAsync(int expenseId);
     }
 }
 

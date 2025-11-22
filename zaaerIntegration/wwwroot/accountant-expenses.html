@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏨</text></svg>">
     <title>لوحة المحاسب - Accountant Dashboard</title>
     
     <!-- Google Fonts - Cairo -->
@@ -44,7 +49,7 @@
     
     <style>
         :root {
-            --primary-blue: #007ACC;
+            --primary-blue:#007ACC;
             --dark-blue: #005A9E;
             --light-blue: #E3F2FD;
             --success-green: #28A745;
@@ -71,6 +76,7 @@
         }
 
         /* Header */
+        /* Header - Compact */
         .page-header {
             background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%);
             color: white;
@@ -108,34 +114,39 @@
             margin-bottom: 3px;
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 6px;
         }
 
         .page-header p {
             font-family: 'Cairo', sans-serif;
             opacity: 0.9;
-            font-size: 11px;
+            font-size: 9px;
             margin: 0;
+            margin-top: 2px;
+            line-height: 1.2;
         }
 
-        /* Logout Button */
-        .logout-btn {
+        /* User Role Display */
+        .user-role-display {
             position: absolute;
             left: 15px;
             top: 50%;
             transform: translateY(-50%);
             background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.3);
             color: white;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-family: 'Cairo', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
             backdrop-filter: blur(10px);
+            white-space: nowrap;
+        }
+
+        .user-role-display #userRoleTitle {
+            display: inline-block;
         }
 
         .logout-btn:hover {
@@ -820,7 +831,7 @@
 
         .notification-icon {
             font-size: 24px;
-            color: white;
+            color: #DC3545; /* Always red */
             position: relative;
             transition: all 0.3s ease;
         }
@@ -848,7 +859,307 @@
         }
 
         .notification-count.read {
-            background: var(--success-green);
+            background: var(--danger-red); /* Always red, even when read */
+        }
+
+        /* User Profile Dropdown */
+        .user-profile-dropdown {
+            position: absolute;
+            right: 60px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 1001;
+        }
+
+        .user-name-display {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.15);
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .user-name-display:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .user-name-display i {
+            font-size: 18px;
+        }
+
+        .user-name-text {
+            font-size: 13px;
+            font-weight: 600;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .user-dropdown-menu {
+            position: fixed;
+            top: 60px;
+            right: 60px;
+            width: 250px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 10000;
+            display: none;
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .user-dropdown-menu.active {
+            display: block;
+        }
+
+        .user-dropdown-header {
+            padding: 15px;
+            background: var(--primary-blue);
+            color: white;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .user-dropdown-header .user-email {
+            font-size: 11px;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+
+        .user-dropdown-item {
+            padding: 12px 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.2s ease;
+            border-bottom: 1px solid #f3f4f6;
+            color: #374151;
+        }
+
+        .user-dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .user-dropdown-item:hover {
+            background: #f9fafb;
+        }
+
+        .user-dropdown-item i {
+            width: 20px;
+            color: var(--primary-blue);
+            font-size: 16px;
+        }
+
+        .user-dropdown-item.logout {
+            color: var(--danger-red);
+        }
+
+        .user-dropdown-item.logout i {
+            color: var(--danger-red);
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%);
+            color: white;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal-close {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(90deg);
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .btn-cancel {
+            padding: 10px 20px;
+            background: #f3f4f6;
+            color: #374151;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-cancel:hover {
+            background: #e5e7eb;
+        }
+
+        .btn-submit {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--dark-blue) 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 122, 204, 0.3);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: var(--dark-gray);
+            font-size: 13px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
+        }
+
+        /* Action Button for History */
+        .action-btn-history {
+            background: #f3f4f6;
+            color: #6b7280;
+            border: 1px solid #e5e7eb;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn-history:hover {
+            background: #e5e7eb;
+            color: #8b5cf6;
+        }
+
+        /* Action Button for View Details (Icon-only like History) */
+        .action-btn-view {
+            background: #f3f4f6;
+            color: #6b7280;
+            border: 1px solid #e5e7eb;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn-view:hover {
+            background: #e5e7eb;
+            color: var(--primary-blue);
         }
 
         /* Notifications Dropdown */
@@ -974,15 +1285,57 @@
             min-width: 150px;
         }
 
+        /* Custom Dropdown Styling (like developer-users.html Select2) */
         .status-filter-select {
             font-family: 'Cairo', sans-serif;
             font-size: 11px;
-            padding: 5px 8px;
-            border-radius: 4px;
-            border: 1px solid #e0e0e0;
+            padding: 8px 35px 8px 12px;
+            border-radius: 8px;
+            border: 2px solid #e5e7eb;
             width: 100%;
             background: white;
             cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            transition: all 0.3s ease;
+            color: #374151;
+            min-height: 36px;
+            font-weight: 500;
+        }
+
+        .status-filter-select:hover {
+            border-color: #d1d5db;
+            background: #f9fafb;
+        }
+
+        .status-filter-select:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
+        }
+
+        .status-filter-group {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .status-filter-group label {
+            margin-bottom: 4px;
+        }
+
+        .status-filter-group::after {
+            content: '\f078';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            right: 12px;
+            bottom: 8px;
+            pointer-events: none;
+            color: #6b7280;
+            font-size: 10px;
+            z-index: 1;
         }
 
         /* Expenses Filter Section */
@@ -1127,19 +1480,36 @@
     <div class="main-container">
         <!-- Page Header -->
         <div class="page-header">
-            <button class="logout-btn" onclick="handleLogout()" title="تسجيل الخروج">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-            </button>
             <div class="page-header-content">
                 <h1>
-                    <i class="fas fa-calculator"></i>
-                    <span id="accountantTitle">لوحة المحاسب</span>
+                    <span id="accountantTitle">المحاسب</span>
                 </h1>
-                <p>مراجعة وموافقة على المصروفات</p>
+            </div>
+            <div class="user-profile-dropdown">
+                <div class="user-name-display" onclick="toggleUserDropdown(event)" title="الملف الشخصي">
+                    <i class="fas fa-user-circle"></i>
+                    <span class="user-name-text" id="userFullName">المستخدم</span>
+                    <i class="fas fa-chevron-down" style="font-size: 11px;"></i>
+                </div>
+                <div class="user-dropdown-menu" id="userDropdownMenu" onclick="event.stopPropagation()">
+                    <div class="user-dropdown-header">
+                        <div id="dropdownUserName">المستخدم</div>
+                        <div class="user-email" id="dropdownUserEmail">-</div>
+                        <div class="user-employee-number" id="dropdownEmployeeNumber" style="font-size: 11px; opacity: 0.9; margin-top: 4px; display: none;"></div>
+                    </div>
+                    <div class="user-dropdown-item" onclick="openProfileModal()">
+                        <i class="fas fa-user"></i>
+                        <span>الملف الشخصي</span>
+                    </div>
+                    <div class="user-dropdown-item" onclick="openChangePasswordModal()">
+                        <i class="fas fa-key"></i>
+                        <span>تغيير كلمة المرور</span>
+                    </div>
+                    <div class="user-dropdown-item logout" onclick="handleLogout()">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>تسجيل الخروج</span>
+                    </div>
+                </div>
             </div>
             <div class="notification-badge" onclick="toggleNotifications()" title="الإشعارات">
                 <i class="fas fa-bell notification-icon"></i>
@@ -1372,6 +1742,109 @@
         </div>
     </div>
 
+    <!-- Profile Modal -->
+    <div id="profileModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-user"></i> الملف الشخصي</h3>
+                <button class="modal-close" onclick="closeProfileModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="profileForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>اسم المستخدم</label>
+                            <input type="text" id="profileUsername" class="form-control" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>الاسم الكامل</label>
+                            <input type="text" id="profileFullName" class="form-control" readonly>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>البريد الإلكتروني</label>
+                            <input type="email" id="profileEmail" class="form-control" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>رقم الجوال</label>
+                            <input type="text" id="profilePhoneNumber" class="form-control" placeholder="966XXXXXXXXX" readonly>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>الرقم الوظيفي</label>
+                            <input type="text" id="profileEmployeeNumber" class="form-control" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>الفندق</label>
+                            <input type="text" id="profileTenantName" class="form-control" readonly>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                            <button type="button" class="btn-cancel" onclick="closeProfileModal()">إغلاق</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="changePasswordModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-key"></i> تغيير كلمة المرور</h3>
+                <button class="modal-close" onclick="closeChangePasswordModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="changePasswordForm">
+                    <div class="form-group">
+                        <label>كلمة المرور الحالية <span style="color: red;">*</span></label>
+                        <input type="password" id="currentPassword" class="form-control" required>
+                        <span id="currentPasswordError" class="password-error-message" style="display: none; color: #DC3545; font-size: 12px; margin-top: 5px;"></span>
+                    </div>
+                    <div class="form-group">
+                        <label>كلمة المرور الجديدة <span style="color: red;">*</span></label>
+                        <input type="password" id="newPassword" class="form-control" required minlength="3">
+                    </div>
+                    <div class="form-group">
+                        <label>تأكيد كلمة المرور الجديدة <span style="color: red;">*</span></label>
+                        <input type="password" id="confirmPassword" class="form-control" required minlength="3">
+                        <span id="confirmPasswordError" class="password-error-message" style="display: none; color: #DC3545; font-size: 12px; margin-top: 5px;"></span>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-cancel" onclick="closeChangePasswordModal()">إلغاء</button>
+                        <button type="submit" class="btn-submit">تغيير كلمة المرور</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approval History Timeline Modal -->
+    <div class="images-modal" id="approvalHistoryModal">
+        <div class="images-modal-content" style="max-width: 900px;">
+            <div class="images-modal-header">
+                <h3><i class="fas fa-route"></i> مسار الطلب / سجل الموافقات</h3>
+                <button class="images-modal-close" onclick="closeApprovalHistoryModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div style="padding: 20px;">
+                <div id="approvalHistoryContent">
+                    <div style="text-align: center; padding: 40px;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 24px; color: var(--primary-blue);"></i>
+                        <p style="margin-top: 15px; color: var(--dark-gray);">جاري تحميل سجل الموافقات...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const API_BASE_URL = window.location.origin;
@@ -1478,14 +1951,14 @@
                     }
                     loadPendingApprovals();
                 } else if (tabId === 'all-expenses') {
-                    // Only load all expenses when tab is clicked (lazy loading for performance)
-                    if (!allExpensesLoaded) {
                         // Initialize filter datepickers if not already initialized
                         if (!$('#filterDateFrom').hasClass('calendar-initialized')) {
                             waitForCalendars(function() {
                                 initializeFilterDatePickers();
                             });
                         }
+                    // Only load all expenses when tab is clicked (lazy loading for performance)
+                    if (!allExpensesLoaded) {
                         loadAllExpenses();
                     }
                 }
@@ -1527,6 +2000,9 @@
                 allExpensesData = expenses || [];
                 allExpenses = allExpensesData;
                 allExpensesLoaded = true; // Mark as loaded
+                
+                // ✅ Update notification count when loading all expenses
+                updateNotificationCount();
                 
                 if (!allExpensesData || allExpensesData.length === 0) {
                     tbody.innerHTML = `
@@ -1603,8 +2079,12 @@
             
             currentPageExpenses.forEach(expense => {
                 const expenseId = expense.expenseId || expense.ExpenseId;
-                const date = new Date(expense.dateTime || expense.DateTime);
-                const formattedDate = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+                // Format date in Gregorian format (not Arabic Hijri) - date only (no time)
+                const date = new Date(expense.dateTime || expense.DateTime || expense.date_time);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const formattedDate = `${day}/${month}/${year}`;
                 const amount = (expense.totalAmount || expense.TotalAmount || 0).toFixed(2);
                 const status = (expense.approvalStatus || expense.ApprovalStatus || '').toLowerCase();
                 const rejectionReason = expense.rejectionReason || expense.RejectionReason || null;
@@ -1626,8 +2106,16 @@
                     <td>${statusBadge}</td>
                     <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${expense.comment || expense.Comment || '-'}">${comment || '-'}</td>
                     <td class="action-buttons-cell">
-                        <button class="btn-view-details" onclick="viewExpenseDetails(${expenseId}, '${hotelCodeEscaped}')" title="عرض التفاصيل">
-                            <i class="fas fa-eye"></i> عرض التفاصيل
+                        <button class="action-btn-view" onclick="viewExpenseDetails(${expenseId}, '${hotelCodeEscaped}')" title="عرض التفاصيل">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                        <button class="action-btn-history" onclick="showApprovalHistory(${expenseId})" title="مسار الطلب / سجل الموافقات">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                            </svg>
                         </button>
                     </td>
                 `;
@@ -2013,39 +2501,161 @@
         // Track read notifications
         let readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
         
+        // Get current user ID
+        function getCurrentUserId() {
+            const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+            return userInfo.userId || userInfo.UserId || null;
+        }
+        
         // Update Notification Count
+        // ✅ For accountant: Show only expenses that are "accepted" or "rejected" after accountant takes action
         function updateNotificationCount() {
-            // Only count expenses with status "awaiting-accountant" that need accountant approval
-            const pendingExpenses = pendingExpensesData.filter(expense => {
+            const currentUserId = getCurrentUserId();
+            if (!currentUserId) {
+                const notificationCount = document.getElementById('notificationCount');
+                if (notificationCount) {
+                    notificationCount.style.display = 'none';
+                }
+                return;
+            }
+            
+            // Get all expenses (from allExpensesData which includes all hotels)
+            const allExpenses = allExpensesData || [];
+            
+            // ✅ Show only expenses that are "accepted" or "rejected" where accountant has taken action
+            const notificationExpenses = allExpenses.filter(expense => {
                 const status = (expense.approvalStatus || expense.ApprovalStatus || '').toLowerCase();
                 const approvedBy = expense.approvedBy || expense.ApprovedBy;
-                return status === 'awaiting-accountant' && !approvedBy;
+                
+                // Show expenses that are accepted or rejected AND accountant has taken action
+                return (status === 'accepted' || status === 'rejected') && 
+                       approvedBy === currentUserId;
             });
             
             // Filter out read notifications
-            const unreadCount = pendingExpenses.filter(expense => {
+            const unreadCount = notificationExpenses.filter(expense => {
                 const expenseId = expense.expenseId || expense.ExpenseId;
                 return !readNotifications.includes(expenseId);
             }).length;
             
             const notificationCount = document.getElementById('notificationCount');
+            const notificationIcon = document.querySelector('.notification-icon');
+            
             if (notificationCount) {
+                if (unreadCount > 0) {
                 notificationCount.textContent = unreadCount;
-                notificationCount.style.display = unreadCount > 0 ? 'flex' : 'none';
-                
-                // Change color to green if all read
-                if (unreadCount === 0 && pendingExpenses.length > 0) {
-                    notificationCount.classList.add('read');
+                    notificationCount.style.display = 'flex';
+                    notificationCount.classList.remove('read');
+                } else if (notificationExpenses.length > 0 && unreadCount === 0) {
+                    // All notification expenses are read - show 0 with red
                     notificationCount.textContent = '0';
                     notificationCount.style.display = 'flex';
+                    notificationCount.classList.remove('read'); // Keep red
                 } else {
+                    // No notification expenses
+                    notificationCount.textContent = '0';
+                    notificationCount.style.display = 'none';
                     notificationCount.classList.remove('read');
                 }
+            }
+            
+            // Always keep notification icon red
+            if (notificationIcon) {
+                notificationIcon.style.color = '#DC3545'; // Red color
             }
         }
         
         // Load and Display Notifications
+        // ✅ For accountant: Show only expenses that are "accepted" or "rejected" after accountant takes action
         function loadNotifications() {
+            const notificationsList = document.getElementById('notificationsList');
+            if (!notificationsList) return;
+            
+            const currentUserId = getCurrentUserId();
+            if (!currentUserId) {
+                notificationsList.innerHTML = `
+                    <div class="notifications-empty">
+                        <i class="fas fa-check-circle"></i>
+                        <p>لا توجد إشعارات</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Get all expenses (from allExpensesData which includes all hotels)
+            const allExpenses = allExpensesData || [];
+            
+            // ✅ Show only expenses that are "accepted" or "rejected" where accountant has taken action
+            const notificationExpenses = allExpenses.filter(expense => {
+                const status = (expense.approvalStatus || expense.ApprovalStatus || '').toLowerCase();
+                const approvedBy = expense.approvedBy || expense.ApprovedBy;
+                
+                // Show expenses that are accepted or rejected AND accountant has taken action
+                return (status === 'accepted' || status === 'rejected') && 
+                       approvedBy === currentUserId;
+            });
+            
+            if (!notificationExpenses || notificationExpenses.length === 0) {
+                notificationsList.innerHTML = `
+                    <div class="notifications-empty">
+                        <i class="fas fa-check-circle"></i>
+                        <p>لا توجد إشعارات</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Sort by date (newest first)
+            const sortedExpenses = [...notificationExpenses].sort((a, b) => {
+                const dateA = new Date(a.dateTime || a.DateTime || a.date_time);
+                const dateB = new Date(b.dateTime || b.DateTime || b.date_time);
+                return dateB - dateA;
+            });
+            
+            notificationsList.innerHTML = sortedExpenses.map(expense => {
+                const expenseId = expense.expenseId || expense.ExpenseId;
+                const hotelName = expense.hotelName || expense.HotelName || 'غير محدد';
+                const amount = (expense.totalAmount || expense.TotalAmount || 0).toFixed(2);
+                const status = (expense.approvalStatus || expense.ApprovalStatus || '').toLowerCase();
+                // Format date in Gregorian format (not Arabic Hijri)
+                const date = new Date(expense.dateTime || expense.DateTime || expense.date_time);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const formattedDate = `${day}/${month}/${year}`;
+                const formattedTime = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                const isRead = readNotifications.includes(expenseId);
+                
+                // Get status text in Arabic
+                let statusText = '';
+                let statusIcon = 'fa-file-invoice-dollar';
+                if (status === 'accepted') {
+                    statusText = ' - مقبول';
+                    statusIcon = 'fa-check-circle';
+                } else if (status === 'rejected') {
+                    statusText = ' - مرفوض';
+                    statusIcon = 'fa-times-circle';
+                }
+                
+                return `
+                    <div class="notification-item ${isRead ? 'read' : ''}" onclick="markNotificationAsRead(${expenseId})">
+                        <div class="notification-item-title">
+                            <i class="fas ${statusIcon}"></i>
+                            طلب مصروف #${expenseId}${statusText}
+                        </div>
+                        <div class="notification-item-content">
+                            طلب من <strong>${hotelName}</strong> يحتوي على مبلغ <strong>${amount} <img src="logo/sar-symbol.svg" style="width: 14px; height: 14px; vertical-align: middle;" alt="SAR" /></strong>
+                        </div>
+                        <div class="notification-item-date">
+                            ${formattedDate} ${formattedTime}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // OLD CODE - REMOVED
+        function loadNotifications_OLD() {
             const notificationsList = document.getElementById('notificationsList');
             // Only show expenses with status "awaiting-accountant" that need accountant approval
             const pendingExpenses = pendingExpensesData.filter(expense => {
@@ -2075,8 +2685,12 @@
                 const expenseId = expense.expenseId || expense.ExpenseId;
                 const hotelName = expense.hotelName || expense.HotelName || 'غير محدد';
                 const amount = (expense.totalAmount || expense.TotalAmount || 0).toFixed(2);
-                const date = new Date(expense.dateTime || expense.DateTime);
-                const formattedDate = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+                // Format date in Gregorian format (not Arabic Hijri)
+                const date = new Date(expense.dateTime || expense.DateTime || expense.date_time);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const formattedDate = `${day}/${month}/${year}`;
                 const formattedTime = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
                 const isRead = readNotifications.includes(expenseId);
                 
@@ -2130,21 +2744,26 @@
                 updateNotificationCount();
                 loadNotifications();
                 
-                // Navigate to pending approvals tab
-                document.querySelector('[data-tab="pending-approvals"]').click();
+                // ✅ Navigate to all expenses tab to see the expense
+                document.querySelector('[data-tab="all-expenses"]').click();
             }
         }
         
         // Mark All Notifications as Read
         function markAllNotificationsAsRead() {
-            // Only mark expenses with status "awaiting-accountant" that need accountant approval
-            const pendingExpenses = pendingExpensesData.filter(expense => {
+            const currentUserId = getCurrentUserId();
+            if (!currentUserId) return;
+            
+            // ✅ Mark expenses that are "accepted" or "rejected" where accountant has taken action
+            const allExpenses = allExpensesData || [];
+            const notificationExpenses = allExpenses.filter(expense => {
                 const status = (expense.approvalStatus || expense.ApprovalStatus || '').toLowerCase();
                 const approvedBy = expense.approvedBy || expense.ApprovedBy;
-                return status === 'awaiting-accountant' && !approvedBy;
+                return (status === 'accepted' || status === 'rejected') && 
+                       approvedBy === currentUserId;
             });
             
-            pendingExpenses.forEach(expense => {
+            notificationExpenses.forEach(expense => {
                 const expenseId = expense.expenseId || expense.ExpenseId;
                 if (!readNotifications.includes(expenseId)) {
                     readNotifications.push(expenseId);
@@ -2327,8 +2946,12 @@
             
             tbody.innerHTML = currentPageExpenses.map(expense => {
                 const expenseId = expense.expenseId || expense.ExpenseId;
-                const date = new Date(expense.dateTime || expense.DateTime);
-                const formattedDate = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+                // Format date in Gregorian format (not Arabic Hijri) - date only (no time)
+                const date = new Date(expense.dateTime || expense.DateTime || expense.date_time);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const formattedDate = `${day}/${month}/${year}`;
                 const amount = (expense.totalAmount || expense.TotalAmount || 0).toFixed(2);
                 const comment = (expense.comment || expense.Comment || '').substring(0, 50);
                 const hotelName = expense.hotelName || expense.HotelName || 'غير محدد';
@@ -2369,6 +2992,11 @@
                                 title="عرض التفاصيل"
                                 style="margin-bottom: 5px;">
                                 <i class="fas fa-eye"></i> عرض التفاصيل
+                            </button>
+                            <button class="action-btn-history" onclick="showApprovalHistory(${expenseId})" title="مسار الطلب / سجل الموافقات" style="margin-bottom: 5px;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                                </svg>
                             </button>
                             <div style="display: flex; gap: 5px; flex-wrap: wrap;">
                                 <button 
@@ -2550,11 +3178,9 @@
                     badgeClass = 'status-rejected';
                     icon = '<i class="fas fa-times-circle"></i>';
                     text = 'مرفوض';
-                    // Make badge clickable if there's a rejection reason
-                    if (rejectionReason && rejectionReason !== '-' && rejectionReason.trim() !== '') {
-                        clickable = 'clickable';
-                        onclickAttr = `onclick="showRejectionReason('${rejectionReason.replace(/'/g, "\\'")}')"`;
-                    }
+                    // Do not make badge clickable for rejected status
+                    clickable = '';
+                    onclickAttr = '';
                     break;
                 default:
                     badgeClass = 'status-pending';
@@ -2682,8 +3308,23 @@
                     }
                 });
                 
+                // ✅ Remove from notifications after taking action
+                const expenseIdToRemove = expenseId;
+                if (!readNotifications.includes(expenseIdToRemove)) {
+                    readNotifications.push(expenseIdToRemove);
+                    localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
+                }
+                
                 // Reload pending approvals (it will show its own loading)
                 await loadPendingApprovals();
+                
+                // ✅ Reload all expenses to update notification count
+                if (allExpensesLoaded) {
+                    await loadAllExpenses();
+                }
+                
+                // ✅ Update notification count
+                updateNotificationCount();
                 
             } catch (error) {
                 console.error('Error approving expense:', error);
@@ -2830,8 +3471,23 @@
                     }
                 });
                 
+                // ✅ Remove from notifications after taking action
+                const expenseIdToRemove = expenseId;
+                if (!readNotifications.includes(expenseIdToRemove)) {
+                    readNotifications.push(expenseIdToRemove);
+                    localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
+                }
+                
                 // Reload pending approvals (it will show its own loading)
                 await loadPendingApprovals();
+                
+                // ✅ Reload all expenses to update notification count
+                if (allExpensesLoaded) {
+                    await loadAllExpenses();
+                }
+                
+                // ✅ Update notification count
+                updateNotificationCount();
                 
             } catch (error) {
                 console.error('Error rejecting expense:', error);
@@ -3007,15 +3663,24 @@
             const content = document.getElementById('expenseDetailsContent');
             
             const expenseId = expense.expenseId || expense.ExpenseId;
-            const date = new Date(expense.dateTime || expense.DateTime);
-            // Format date in Gregorian (DD/MM/YYYY)
-            const formattedDate = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+            // Format date in Gregorian format (not Arabic Hijri)
+            const date = new Date(expense.dateTime || expense.DateTime || expense.date_time);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const formattedDate = `${day}/${month}/${year}`;
             const formattedTime = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-            const dueDate = expense.dueDate || expense.DueDate;
+            const dueDate = expense.dueDate || expense.DueDate || expense.due_date;
             // Format due date in Gregorian (DD/MM/YYYY)
             const formattedDueDate = dueDate ? (() => {
                 const d = new Date(dueDate);
-                return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                if (!isNaN(d.getTime())) {
+                    const dueYear = d.getFullYear();
+                    const dueMonth = String(d.getMonth() + 1).padStart(2, '0');
+                    const dueDay = String(d.getDate()).padStart(2, '0');
+                    return `${dueDay}/${dueMonth}/${dueYear}`;
+                }
+                return '-';
             })() : '-';
             const amount = (expense.totalAmount || expense.TotalAmount || 0).toFixed(2);
             const taxAmount = (expense.taxAmount || expense.TaxAmount || 0).toFixed(2);
@@ -3024,13 +3689,20 @@
             const rejectionReason = expense.rejectionReason || expense.RejectionReason || null;
             const statusBadge = getApprovalStatusBadge(status, rejectionReason, expenseId);
             const approvedBy = expense.approvedBy || expense.ApprovedBy;
+            const approvedByFullName = expense.approvedByFullName || expense.ApprovedByFullName || approvedBy || '-';
             const approvedAt = expense.approvedAt || expense.ApprovedAt;
             // Format approved date in Gregorian (DD/MM/YYYY HH:MM:SS)
             const formattedApprovedAt = approvedAt ? (() => {
                 const d = new Date(approvedAt);
-                const dateStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                if (!isNaN(d.getTime())) {
+                    const approvedYear = d.getFullYear();
+                    const approvedMonth = String(d.getMonth() + 1).padStart(2, '0');
+                    const approvedDay = String(d.getDate()).padStart(2, '0');
+                    const dateStr = `${approvedDay}/${approvedMonth}/${approvedYear}`;
                 const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
                 return `${dateStr} ${timeStr}`;
+                }
+                return '-';
             })() : '-';
             const expenseRooms = expense.expenseRooms || expense.ExpenseRooms || [];
             
@@ -3114,7 +3786,7 @@
                     <div class="expense-details-grid">
                         <div class="expense-detail-item">
                             <span class="expense-detail-label">تمت الموافقة/الرفض بواسطة</span>
-                            <span class="expense-detail-value">${approvedBy || '-'}</span>
+                            <span class="expense-detail-value">${formatUserDisplayName(approvedByFullName, expense.approvedByRole || expense.ApprovedByRole, expense.approvedByTenantName || expense.ApprovedByTenantName)}</span>
                         </div>
                         <div class="expense-detail-item">
                             <span class="expense-detail-label">تاريخ الموافقة/الرفض</span>
@@ -3300,11 +3972,11 @@
             return branchName || 'غير محدد';
         }
         
-        // Update Accountant Title
+    
         function updateAccountantTitle() {
             const titleElement = document.getElementById('accountantTitle');
             if (titleElement) {
-                titleElement.textContent = 'لوحة المحاسب';
+                titleElement.textContent = 'المحاسب';
             }
         }
         
@@ -3858,11 +4530,709 @@
             }
         }
 
+        // ==================== User Profile Functions ====================
+        // Parse JWT Token
+        function parseJwt(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // Load User Info
+        async function loadUserInfo() {
+            try {
+                const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                const authToken = localStorage.getItem('authToken');
+                
+                if (!authToken) {
+                    return;
+                }
+
+                if (userInfo && (userInfo.fullName || userInfo.username)) {
+                    displayUserInfo(userInfo);
+                }
+
+                const userId = userInfo.userId || userInfo.UserId;
+                if (!userId) {
+                    console.warn('User ID not found in userInfo');
+                    const tokenData = parseJwt(authToken);
+                    if (tokenData && tokenData.userId) {
+                        await fetchUserProfile(tokenData.userId);
+                    }
+                    return;
+                }
+
+                await fetchUserProfile(userId);
+            } catch (error) {
+                console.error('Error loading user info:', error);
+                const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                displayUserInfo(userInfo);
+            }
+        }
+
+        // Fetch User Profile from API
+        async function fetchUserProfile(userId) {
+            try {
+                const authToken = localStorage.getItem('authToken');
+                if (!authToken) {
+                    return;
+                }
+
+                const response = await fetch(`/api/MasterUser/${userId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const userData = await response.json();
+                    displayUserInfo(userData);
+                } else {
+                    console.warn('Failed to fetch user profile, using cached info');
+                    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                    displayUserInfo(userInfo);
+                }
+            } catch (error) {
+                console.error('Error fetching user profile:', error);
+                const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                displayUserInfo(userInfo);
+            }
+        }
+
+        // Display User Info
+        function displayUserInfo(userData) {
+            const fullName = userData.fullName || userData.FullName;
+            const displayName = fullName ? fullName : (userData.username || userData.Username || 'المستخدم');
+            const email = userData.email || userData.Email || userData.username || userData.Username || '-';
+            const employeeNumber = userData.employeeNumber || userData.EmployeeNumber || null;
+            
+            const userNameElement = document.getElementById('userFullName');
+            if (userNameElement) {
+                userNameElement.textContent = displayName;
+            }
+
+            const dropdownUserName = document.getElementById('dropdownUserName');
+            const dropdownUserEmail = document.getElementById('dropdownUserEmail');
+            const dropdownEmployeeNumber = document.getElementById('dropdownEmployeeNumber');
+            
+            if (dropdownUserName) {
+                dropdownUserName.textContent = displayName;
+            }
+            if (dropdownUserEmail) {
+                dropdownUserEmail.textContent = email;
+            }
+            if (dropdownEmployeeNumber) {
+                if (employeeNumber) {
+                    dropdownEmployeeNumber.textContent = `الرقم الوظيفي: ${employeeNumber}`;
+                    dropdownEmployeeNumber.style.display = 'block';
+                } else {
+                    dropdownEmployeeNumber.style.display = 'none';
+                }
+            }
+
+            window.currentUserData = userData;
+        }
+
+        // Toggle User Dropdown
+        function toggleUserDropdown(event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('userDropdownMenu');
+            if (dropdown) {
+                dropdown.classList.toggle('active');
+            }
+        }
+
+        // Close User Dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('userDropdownMenu');
+            const userProfile = document.querySelector('.user-profile-dropdown');
+            if (dropdown && userProfile && !userProfile.contains(event.target)) {
+                dropdown.classList.remove('active');
+            }
+        });
+
+        // Open Profile Modal
+        function openProfileModal() {
+            const modal = document.getElementById('profileModal');
+            const userData = window.currentUserData || JSON.parse(localStorage.getItem('userInfo') || '{}');
+            
+            if (modal) {
+                $('#profileUsername').val(userData.username || userData.Username || '');
+                $('#profileFullName').val(userData.fullName || userData.FullName || '');
+                $('#profileEmail').val(userData.email || userData.Email || '');
+                $('#profilePhoneNumber').val(userData.phoneNumber || userData.PhoneNumber || '');
+                $('#profileEmployeeNumber').val(userData.employeeNumber || userData.EmployeeNumber || '');
+                $('#profileTenantName').val(userData.tenantName || userData.TenantName || userData.tenantCode || userData.TenantCode || '');
+                
+                modal.style.display = 'flex';
+                $('#userDropdownMenu').removeClass('active');
+            }
+        }
+
+        // Close Profile Modal
+        function closeProfileModal() {
+            $('#profileModal').hide();
+        }
+
+        // Open Change Password Modal
+        function openChangePasswordModal() {
+            const modal = document.getElementById('changePasswordModal');
+            if (modal) {
+                $('#changePasswordForm')[0].reset();
+                // Clear error messages
+                const errorElement = document.getElementById('currentPasswordError');
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                    errorElement.textContent = '';
+                }
+                const confirmErrorElement = document.getElementById('confirmPasswordError');
+                if (confirmErrorElement) {
+                    confirmErrorElement.style.display = 'none';
+                    confirmErrorElement.textContent = '';
+                }
+                $('#currentPassword, #newPassword, #confirmPassword').css('border-color', '');
+                modal.style.display = 'flex';
+                $('#userDropdownMenu').removeClass('active');
+            }
+        }
+
+        // Close Change Password Modal
+        function closeChangePasswordModal() {
+            $('#changePasswordModal').hide();
+        }
+
+        // Profile Form is read-only, no submit handler needed
+        $(document).ready(function() {
+
+            // Handle Change Password Form Submit
+            $('#changePasswordForm').on('submit', async function(e) {
+                e.preventDefault();
+                
+                const currentPassword = $('#currentPassword').val();
+                const newPassword = $('#newPassword').val();
+                const confirmPassword = $('#confirmPassword').val();
+
+                // Validate current password is provided
+                if (!currentPassword || currentPassword.trim() === '') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'خطأ',
+                        text: 'يرجى إدخال كلمة المرور الحالية',
+                            confirmButtonText: 'حسناً',
+                        confirmButtonColor: '#DC3545'
+                        });
+                        return;
+                    }
+
+                // Validate new password is provided
+                if (!newPassword || newPassword.trim() === '') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'خطأ',
+                        text: 'يرجى إدخال كلمة المرور الجديدة',
+                            confirmButtonText: 'حسناً',
+                            confirmButtonColor: '#DC3545'
+                        });
+                    return;
+                }
+
+                if (newPassword !== confirmPassword) {
+                    // Show error message next to the confirm password field
+                    const confirmErrorElement = document.getElementById('confirmPasswordError');
+                    if (confirmErrorElement) {
+                        confirmErrorElement.textContent = 'كلمة المرور الجديدة وتأكيد كلمة المرور غير متطابقين';
+                        confirmErrorElement.style.display = 'block';
+                        // Add red border to inputs
+                        $('#confirmPassword').css('border-color', '#DC3545');
+                        $('#newPassword').css('border-color', '#DC3545');
+                        // Clear error when user starts typing
+                        $('#confirmPassword, #newPassword').on('input', function() {
+                            if ($('#newPassword').val() === $('#confirmPassword').val()) {
+                                confirmErrorElement.style.display = 'none';
+                                $('#confirmPassword').css('border-color', '');
+                                $('#newPassword').css('border-color', '');
+                            }
+                        });
+                    }
+                    return;
+                }
+                
+                // Clear confirm password error if passwords match
+                const confirmErrorElement = document.getElementById('confirmPasswordError');
+                if (confirmErrorElement) {
+                    confirmErrorElement.style.display = 'none';
+                    $('#confirmPassword').css('border-color', '');
+                    $('#newPassword').css('border-color', '');
+                }
+
+                if (newPassword.length < 3) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ',
+                        text: 'يجب أن تكون كلمة المرور 3 أحرف على الأقل',
+                        confirmButtonText: 'حسناً',
+                        confirmButtonColor: '#DC3545'
+                    });
+                    return;
+                }
+
+                // Check if new password is same as current password
+                if (currentPassword === newPassword) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ',
+                        text: 'كلمة المرور الجديدة يجب أن تكون مختلفة عن كلمة المرور الحالية',
+                        confirmButtonText: 'حسناً',
+                        confirmButtonColor: '#DC3545'
+                    });
+                    return;
+                }
+
+                try {
+                    const authToken = localStorage.getItem('authToken');
+                    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+                    const userId = userInfo.userId || userInfo.UserId || parseJwt(authToken)?.userId;
+                    
+                    if (!userId || !authToken) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'خطأ',
+                            text: 'يجب تسجيل الدخول أولاً',
+                            confirmButtonText: 'حسناً',
+                            confirmButtonColor: '#007ACC'
+                        });
+                        return;
+                    }
+
+                    // First, verify current password by fetching user and validating
+                    showLoading();
+                    const userResponse = await fetch(`/api/MasterUser/${userId}`, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (!userResponse.ok) {
+                        hideLoading();
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'خطأ',
+                            text: 'فشل في جلب بيانات المستخدم',
+                            confirmButtonText: 'حسناً',
+                            confirmButtonColor: '#DC3545'
+                        });
+                        return;
+                    }
+
+                    // Verify current password by attempting login
+                    const username = userInfo.username || userInfo.Username;
+                    if (!username) {
+                        hideLoading();
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'خطأ',
+                            text: 'لم يتم العثور على اسم المستخدم',
+                            confirmButtonText: 'حسناً',
+                            confirmButtonColor: '#DC3545'
+                        });
+                        return;
+                    }
+
+                    // Verify current password by calling login endpoint
+                    const verifyResponse = await fetch('/api/Auth/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            username: username,
+                            password: currentPassword
+                        })
+                    });
+
+                    if (!verifyResponse.ok) {
+                        hideLoading();
+                        // Show error message next to the current password field
+                        const errorElement = document.getElementById('currentPasswordError');
+                        if (errorElement) {
+                            errorElement.textContent = 'كلمة المرور الحالية غير صحيحة';
+                            errorElement.style.display = 'block';
+                            // Add red border to input
+                            $('#currentPassword').css('border-color', '#DC3545');
+                            // Clear error when user starts typing
+                            $('#currentPassword').on('input', function() {
+                                errorElement.style.display = 'none';
+                                $(this).css('border-color', '');
+                            });
+                        }
+                        return;
+                    }
+                    
+                    // Clear error message if password is correct
+                    const errorElement = document.getElementById('currentPasswordError');
+                    if (errorElement) {
+                        errorElement.style.display = 'none';
+                        $('#currentPassword').css('border-color', '');
+                    }
+
+                    // Current password is correct, proceed with password change
+                    const formData = {
+                        password: newPassword
+                    };
+
+                    const response = await fetch(`/api/MasterUser/${userId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(formData)
+                    });
+
+                    hideLoading();
+
+                    if (response.ok) {
+                        closeChangePasswordModal();
+                        await Swal.fire({
+                            icon: 'success',
+                            title: 'نجح',
+                            text: 'تم تغيير كلمة المرور بنجاح',
+                            confirmButtonText: 'حسناً',
+                            confirmButtonColor: '#28A745'
+                        });
+                    } else {
+                        const error = await response.json().catch(() => ({ error: 'فشل تغيير كلمة المرور' }));
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'خطأ',
+                            text: error.error || 'فشل تغيير كلمة المرور',
+                            confirmButtonText: 'حسناً',
+                            confirmButtonColor: '#DC3545'
+                        });
+                    }
+                } catch (error) {
+                    hideLoading();
+                    console.error('Error changing password:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ',
+                        text: `خطأ: ${error.message}`,
+                        confirmButtonText: 'حسناً',
+                        confirmButtonColor: '#DC3545'
+                    });
+                }
+            });
+        });
+
+        // ==================== Approval History Timeline ====================
+        async function showApprovalHistory(expenseId) {
+            const modal = document.getElementById('approvalHistoryModal');
+            const content = document.getElementById('approvalHistoryContent');
+            
+            modal.classList.add('active');
+            
+            content.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 24px; color: var(--primary-blue);"></i>
+                    <p style="margin-top: 15px; color: var(--dark-gray);">جاري تحميل سجل الموافقات...</p>
+                </div>
+            `;
+            
+            try {
+                const headers = getApiHeaders();
+                const response = await fetch(`${API_BASE_URL}/api/Expense/${expenseId}/history`, {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch approval history');
+                }
+                
+                const history = await response.json();
+                
+                if (!history || history.length === 0) {
+                    content.innerHTML = `
+                        <div style="text-align: center; padding: 40px;">
+                            <i class="fas fa-info-circle" style="font-size: 48px; color: var(--light-gray); margin-bottom: 15px;"></i>
+                            <p style="color: var(--dark-gray); font-size: 16px;">لا يوجد سجل موافقات لهذا المصروف</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                content.innerHTML = renderApprovalTimeline(history);
+            } catch (error) {
+                console.error('Error loading approval history:', error);
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: var(--danger-red); margin-bottom: 15px;"></i>
+                        <p style="color: var(--danger-red); font-size: 16px;">حدث خطأ أثناء تحميل سجل الموافقات</p>
+                        <p style="color: var(--dark-gray); font-size: 14px; margin-top: 10px;">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderApprovalTimeline(history) {
+            const sortedHistory = [...history].sort((a, b) => {
+                return new Date(a.actionAt) - new Date(b.actionAt);
+            });
+            
+            let html = '<div class="approval-timeline">';
+            
+            sortedHistory.forEach((item, index) => {
+                const isLast = index === sortedHistory.length - 1;
+                const actionInfo = getActionInfo(item.action, item.status);
+                const date = new Date(item.actionAt);
+                const formattedDate = formatDateTime(date);
+                
+                html += `
+                    <div class="timeline-item ${isLast ? 'timeline-item-active' : ''}">
+                        <div class="timeline-marker" style="background: ${actionInfo.color};">
+                            <i class="${actionInfo.icon}"></i>
+                        </div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <h4 style="color: ${actionInfo.color}; margin: 0; font-size: 16px;">${actionInfo.title}</h4>
+                                <span class="timeline-date">${formattedDate}</span>
+                            </div>
+                            <div class="timeline-body">
+                                <p style="margin: 5px 0; color: var(--dark-gray);">
+                                    <strong>بواسطة:</strong> ${formatUserDisplayName(item.actionByFullName, item.actionByRole, item.actionByTenantName)}
+                                </p>
+                                ${item.comments ? `<p style="margin: 5px 0; color: var(--dark-gray);">${item.comments}</p>` : ''}
+                                ${item.rejectionReason ? `
+                                    <div style="margin-top: 10px; padding: 10px; background: #fee; border-right: 3px solid var(--danger-red); border-radius: 4px;">
+                                        <strong style="color: var(--danger-red);">سبب الرفض:</strong>
+                                        <p style="margin: 5px 0; color: var(--dark-gray);">${item.rejectionReason}</p>
+                                    </div>
+                                ` : ''}
+                                <div style="margin-top: 8px;">
+                                    <span class="status-badge" style="background: ${actionInfo.badgeColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px;">
+                                        ${actionInfo.statusText}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        ${!isLast ? '<div class="timeline-line"></div>' : ''}
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            
+            html += `
+                <style>
+                    .approval-timeline {
+                        position: relative;
+                        padding: 20px 0;
+                    }
+                    .timeline-item {
+                        position: relative;
+                        padding-right: 50px;
+                        margin-bottom: 30px;
+                    }
+                    .timeline-marker {
+                        position: absolute;
+                        right: 0;
+                        top: 0;
+                        width: 40px;
+                        height: 40px;
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        color: white;
+                        font-size: 18px;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                        z-index: 2;
+                    }
+                    .timeline-content {
+                        background: white;
+                        border: 1px solid var(--light-gray);
+                        border-radius: 8px;
+                        padding: 15px;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                    }
+                    .timeline-header {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 10px;
+                        padding-bottom: 10px;
+                        border-bottom: 1px solid var(--light-gray);
+                    }
+                    .timeline-date {
+                        color: var(--dark-gray);
+                        font-size: 12px;
+                    }
+                    .timeline-body {
+                        font-size: 14px;
+                    }
+                    .timeline-line {
+                        position: absolute;
+                        right: 19px;
+                        top: 40px;
+                        width: 2px;
+                        height: calc(100% + 10px);
+                        background: var(--light-gray);
+                        z-index: 1;
+                    }
+                    .timeline-item-active .timeline-marker {
+                        box-shadow: 0 0 0 4px rgba(0,122,204,0.2);
+                    }
+                </style>
+            `;
+            
+            return html;
+        }
+
+        function getActionInfo(action, status) {
+            const actionLower = (action || '').toLowerCase();
+            
+            switch(actionLower) {
+                case 'created':
+                    return {
+                        title: 'إنشاء الطلب',
+                        icon: 'fas fa-plus-circle',
+                        color: '#007ACC',
+                        badgeColor: '#007ACC',
+                        statusText: 'تم الإنشاء'
+                    };
+                case 'approved':
+                    return {
+                        title: 'تمت الموافقة',
+                        icon: 'fas fa-check-circle',
+                        color: '#28A745',
+                        badgeColor: '#28A745',
+                        statusText: 'مقبول'
+                    };
+                case 'rejected':
+                    return {
+                        title: 'تم الرفض',
+                        icon: 'fas fa-times-circle',
+                        color: '#DC3545',
+                        badgeColor: '#DC3545',
+                        statusText: 'مرفوض'
+                    };
+                case 'awaiting-manager':
+                    return {
+                        title: 'في انتظار مدير العمليات',
+                        icon: 'fas fa-user-tie',
+                        color: '#8b5cf6',
+                        badgeColor: '#8b5cf6',
+                        statusText: 'في الانتظار'
+                    };
+                case 'awaiting-accountant':
+                    return {
+                        title: 'في انتظار المحاسب',
+                        icon: 'fas fa-calculator',
+                        color: '#FF9800',
+                        badgeColor: '#FF9800',
+                        statusText: 'في الانتظار'
+                    };
+                case 'awaiting-admin':
+                    return {
+                        title: 'في انتظار المدير العام',
+                        icon: 'fas fa-user-shield',
+                        color: '#9C27B0',
+                        badgeColor: '#9C27B0',
+                        statusText: 'في الانتظار'
+                    };
+                default:
+                    return {
+                        title: action || 'إجراء',
+                        icon: 'fas fa-circle',
+                        color: '#6c757d',
+                        badgeColor: '#6c757d',
+                        statusText: status || 'غير محدد'
+                    };
+            }
+        }
+
+        function formatDateTime(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${day}/${month}/${year} ${hours}:${minutes}`;
+        }
+
+        // Format user display name with role and tenant in parentheses
+        function formatUserDisplayName(fullName, role, tenantName) {
+            if (!fullName || fullName === 'غير محدد') {
+                return 'غير محدد';
+            }
+            
+            let displayName = fullName;
+            const parts = [];
+            
+            // Add role if available
+            if (role) {
+                // For "موظف" (Staff), add tenant name
+                if (role === 'موظف' && tenantName) {
+                    parts.push(`${role} ${tenantName}`);
+                } else if (role === 'مشرف فرع') {
+                    // For supervisor: add first word of tenant name (without numbers)
+                    if (tenantName) {
+                        // Extract first word from tenant name (remove numbers and extra spaces)
+                        const firstWord = tenantName.split(/\s+/)[0].replace(/\d+/g, '').trim();
+                        if (firstWord) {
+                            parts.push(`${role} ${firstWord}`);
+                        } else {
+                            parts.push(role);
+                        }
+                    } else {
+                        parts.push(role);
+                    }
+                } else if (role === 'مدير العمليات' || role === 'المدير العام' || role === 'المحاسب') {
+                    // For manager, admin, and accountant: only show role without tenant name
+                    parts.push(role);
+                } else {
+                    // For other roles, add role and tenant if available
+                    if (tenantName) {
+                        parts.push(role);
+                        parts.push(tenantName);
+                    } else {
+                        parts.push(role);
+                    }
+                }
+            } else if (tenantName) {
+                // If no role but tenant name exists, just add tenant name
+                parts.push(tenantName);
+            }
+            
+            if (parts.length > 0) {
+                displayName += ` (${parts.join(' - ')})`;
+            }
+            
+            return displayName;
+        }
+
+        function closeApprovalHistoryModal() {
+            document.getElementById('approvalHistoryModal').classList.remove('active');
+        }
+
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             if (!checkAuth()) {
                 return;
             }
+            
+            // Load user info
+            loadUserInfo();
             
             // Update accountant title
             updateAccountantTitle();
@@ -3870,8 +5240,12 @@
             // Initialize pending date filters
             initializePendingDateFilters();
             
+            // ✅ Load all expenses first to populate allExpensesData for notifications
             // Load pending approvals first (default tab)
             loadPendingApprovals();
+            
+            // ✅ Load all expenses in background to populate notification data
+            loadAllExpenses();
         });
     </script>
 </body>

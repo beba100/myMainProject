@@ -107,15 +107,58 @@ namespace zaaerIntegration.Controllers
 
                 ExpenseResponseDto? expense = null;
 
-                // ✅ إذا كان هناك X-Hotel-Code header، نستخدمه لتحديد قاعدة البيانات الصحيحة
+                // ✅ Check if user is supervisor/manager/accountant/admin
+                var userIdClaim = HttpContext.Items["UserId"]?.ToString();
+                if (!string.IsNullOrWhiteSpace(userIdClaim) && int.TryParse(userIdClaim, out int userId))
+                {
+                    var masterDb = HttpContext.RequestServices.GetRequiredService<MasterDbContext>();
+                    var rolesList = await masterDb.UserRoles
+                        .AsNoTracking()
+                        .Include(ur => ur.Role)
+                        .Where(ur => ur.UserId == userId)
+                        .Select(ur => ur.Role!.Code.ToLower())
+                        .ToListAsync();
+
+                    var isSupervisorOrManagerOrAdminOrAccountant = rolesList.Contains("supervisor") || 
+                                                                   rolesList.Contains("manager") || 
+                                                                   rolesList.Contains("admin") || 
+                                                                   rolesList.Contains("accountant");
+
+                    if (isSupervisorOrManagerOrAdminOrAccountant)
+                    {
+                        // ✅ For supervisors/managers/admins/accountants: search across all accessible hotels
                 if (!string.IsNullOrWhiteSpace(hotelCode))
                 {
-                    // ✅ للمشرفين: البحث في قاعدة البيانات الصحيحة بناءً على HotelCode
+                            // ✅ If X-Hotel-Code header is provided, use it to target specific hotel
+                            _logger.LogInformation("✅ [GetById] Supervisor/Manager/Admin/Accountant with X-Hotel-Code header: {HotelCode}", hotelCode);
                     expense = await GetExpenseByIdForSupervisorAsync(id, hotelCode);
                 }
                 else
                 {
-                    // ✅ للمستخدمين العاديين: استخدام الطريقة العادية
+                            // ✅ Search across all accessible hotels
+                            _logger.LogInformation("✅ [GetById] Supervisor/Manager/Admin/Accountant - searching across all accessible hotels");
+                            expense = await GetExpenseByIdForSupervisorAcrossAllHotelsAsync(id, userId);
+                        }
+                    }
+                    else if (!string.IsNullOrWhiteSpace(hotelCode))
+                    {
+                        // ✅ Regular user with X-Hotel-Code header
+                        expense = await GetExpenseByIdForSupervisorAsync(id, hotelCode);
+                    }
+                    else
+                    {
+                        // ✅ Regular user - use standard service method
+                        expense = await _expenseService.GetByIdAsync(id);
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(hotelCode))
+                {
+                    // ✅ No userId but X-Hotel-Code header provided
+                    expense = await GetExpenseByIdForSupervisorAsync(id, hotelCode);
+                }
+                else
+                {
+                    // ✅ Regular user - use standard service method
                     expense = await _expenseService.GetByIdAsync(id);
                 }
 
@@ -198,7 +241,6 @@ namespace zaaerIntegration.Controllers
                 // ✅ البحث عن المصروف في قاعدة البيانات الصحيحة
                 var expense = await tenantContext.Expenses
                     .AsNoTracking()
-                    .Include(e => e.ExpenseCategory)
                     .Include(e => e.HotelSettings)
                     .Include(e => e.ExpenseRooms)
                         .ThenInclude(er => er.Apartment)
@@ -209,6 +251,38 @@ namespace zaaerIntegration.Controllers
                     _logger.LogWarning("⚠️ [GetExpenseByIdForSupervisor] Expense not found: ExpenseId={ExpenseId}, HotelId={HotelId}, HotelCode={HotelCode}", 
                         expenseId, hotelSettings.HotelId, hotelCode);
                     return null;
+                }
+
+                // ✅ Get category name from Master DB
+                string? categoryName = null;
+                if (expense.ExpenseCategoryId.HasValue)
+                {
+                    var masterCategory = await masterDb.ExpenseCategories
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(ec => ec.Id == expense.ExpenseCategoryId.Value);
+                    categoryName = masterCategory?.MainCategory;
+                }
+
+                // ✅ Get approved by user info (full name, role, tenant) from Master DB
+                string? approvedByFullName = null;
+                string? approvedByRole = null;
+                string? approvedByTenantName = null;
+                if (expense.ApprovedBy.HasValue)
+                {
+                    var masterUser = await masterDb.MasterUsers
+                        .AsNoTracking()
+                        .Include(u => u.UserRoles)
+                            .ThenInclude(ur => ur.Role)
+                        .Include(u => u.Tenant)
+                        .FirstOrDefaultAsync(u => u.Id == expense.ApprovedBy.Value);
+                    
+                    if (masterUser != null)
+                    {
+                        approvedByFullName = masterUser.FullName ?? masterUser.Username;
+                        var primaryRole = masterUser.UserRoles?.FirstOrDefault()?.Role;
+                        approvedByRole = GetRoleDisplayName(primaryRole?.Code);
+                        approvedByTenantName = masterUser.Tenant?.Name;
+                    }
                 }
 
                 // ✅ تحويل إلى DTO
@@ -235,7 +309,7 @@ namespace zaaerIntegration.Controllers
                     DueDate = expense.DueDate,
                     Comment = expense.Comment,
                     ExpenseCategoryId = expense.ExpenseCategoryId,
-                    ExpenseCategoryName = expense.ExpenseCategory?.CategoryName,
+                    ExpenseCategoryName = categoryName, // ✅ From Master DB
                     TaxRate = expense.TaxRate,
                     TaxAmount = expense.TaxAmount,
                     TotalAmount = expense.TotalAmount,
@@ -243,6 +317,9 @@ namespace zaaerIntegration.Controllers
                     UpdatedAt = expense.UpdatedAt,
                     ApprovalStatus = expense.ApprovalStatus,
                     ApprovedBy = expense.ApprovedBy,
+                    ApprovedByFullName = approvedByFullName,
+                    ApprovedByRole = approvedByRole,
+                    ApprovedByTenantName = approvedByTenantName,
                     ApprovedAt = expense.ApprovedAt,
                     RejectionReason = expense.RejectionReason,
                     ExpenseRooms = expenseRooms
@@ -251,6 +328,154 @@ namespace zaaerIntegration.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ [GetExpenseByIdForSupervisor] Error fetching expense: {Message}", ex.Message);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get expense by ID for supervisor across all accessible hotels (searches all tenant databases)
+        /// </summary>
+        private async Task<ExpenseResponseDto?> GetExpenseByIdForSupervisorAcrossAllHotelsAsync(int expenseId, int userId)
+        {
+            try
+            {
+                _logger.LogInformation("🔍 [GetExpenseByIdForSupervisorAcrossAllHotels] Searching for expense: ExpenseId={ExpenseId}, UserId={UserId}", 
+                    expenseId, userId);
+
+                // ✅ Get all tenants the user has access to
+                var masterDb = HttpContext.RequestServices.GetRequiredService<MasterDbContext>();
+                var userTenants = await masterDb.UserTenants
+                    .AsNoTracking()
+                    .Include(ut => ut.Tenant)
+                    .Where(ut => ut.UserId == userId)
+                    .Select(ut => new { ut.TenantId, ut.Tenant!.Code, ut.Tenant.DatabaseName, ut.Tenant.Name })
+                    .ToListAsync();
+
+                // ✅ Get user roles to check if manager/admin/accountant (should see all tenants)
+                var rolesList = await masterDb.UserRoles
+                    .AsNoTracking()
+                    .Include(ur => ur.Role)
+                    .Where(ur => ur.UserId == userId)
+                    .Select(ur => ur.Role!.Code.ToLower())
+                    .ToListAsync();
+
+                var isManagerOrAdminOrAccountant = rolesList.Contains("manager") || 
+                                                   rolesList.Contains("admin") || 
+                                                   rolesList.Contains("accountant");
+
+                if (isManagerOrAdminOrAccountant)
+                {
+                    _logger.LogInformation("✅ [GetExpenseByIdForSupervisorAcrossAllHotels] Manager/Admin/Accountant - loading all tenants");
+                    userTenants = await masterDb.Tenants
+                        .AsNoTracking()
+                        .Select(t => new { TenantId = t.Id, Code = t.Code, DatabaseName = t.DatabaseName, Name = t.Name })
+                        .ToListAsync();
+                }
+
+                if (!userTenants.Any())
+                {
+                    _logger.LogWarning("⚠️ [GetExpenseByIdForSupervisorAcrossAllHotels] No tenants found for user: UserId={UserId}", userId);
+                    return null;
+                }
+
+                // ✅ Get configuration
+                var configuration = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+                var server = configuration["TenantDatabase:Server"]?.Trim();
+                var dbUserId = configuration["TenantDatabase:UserId"]?.Trim();
+                var password = configuration["TenantDatabase:Password"]?.Trim();
+
+                if (string.IsNullOrWhiteSpace(server) || string.IsNullOrWhiteSpace(dbUserId) || string.IsNullOrWhiteSpace(password))
+                {
+                    _logger.LogError("❌ [GetExpenseByIdForSupervisorAcrossAllHotels] TenantDatabase settings not found");
+                    return null;
+                }
+
+                // ✅ Search across all tenant databases
+                foreach (var userTenant in userTenants)
+                {
+                    try
+                    {
+                        var connectionString = $"Server={server}; Database={userTenant.DatabaseName}; User Id={dbUserId}; Password={password}; Encrypt=True; TrustServerCertificate=True; MultipleActiveResultSets=True;";
+
+                        var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
+                        optionsBuilder.UseSqlServer(connectionString);
+                        using var tenantContext = new ApplicationDbContext(optionsBuilder.Options);
+
+                        // ✅ Check if expense exists in this tenant database
+                        var expense = await tenantContext.Expenses
+                            .AsNoTracking()
+                            .Include(e => e.HotelSettings)
+                            .Include(e => e.ExpenseRooms)
+                                .ThenInclude(er => er.Apartment)
+                            .FirstOrDefaultAsync(e => e.ExpenseId == expenseId);
+
+                        if (expense != null)
+                        {
+                            // ✅ Found the expense - get its details
+                            _logger.LogInformation("✅ [GetExpenseByIdForSupervisorAcrossAllHotels] Found expense in tenant: {Code}", userTenant.Code);
+
+                            // ✅ Get category name from Master DB
+                            string? categoryName = null;
+                            if (expense.ExpenseCategoryId.HasValue)
+                            {
+                                var masterCategory = await masterDb.ExpenseCategories
+                                    .AsNoTracking()
+                                    .FirstOrDefaultAsync(ec => ec.Id == expense.ExpenseCategoryId.Value);
+                                categoryName = masterCategory?.MainCategory;
+                            }
+
+                            // ✅ Convert to DTO
+                            var expenseRooms = expense.ExpenseRooms.Select(er => new ExpenseRoomResponseDto
+                            {
+                                ExpenseRoomId = er.ExpenseRoomId,
+                                ExpenseId = er.ExpenseId,
+                                ZaaerId = er.ZaaerId,
+                                Purpose = er.Purpose,
+                                Amount = er.Amount,
+                                CreatedAt = er.CreatedAt,
+                                ApartmentId = er.Apartment?.ApartmentId,
+                                ApartmentCode = er.Apartment?.ApartmentCode,
+                                ApartmentName = er.Apartment?.ApartmentName
+                            }).ToList();
+
+                            return new ExpenseResponseDto
+                            {
+                                ExpenseId = expense.ExpenseId,
+                                HotelId = expense.HotelId,
+                                HotelName = expense.HotelSettings?.HotelName,
+                                HotelCode = userTenant.Code,
+                                DateTime = expense.DateTime,
+                                DueDate = expense.DueDate,
+                                Comment = expense.Comment,
+                                ExpenseCategoryId = expense.ExpenseCategoryId,
+                                ExpenseCategoryName = categoryName, // ✅ From Master DB
+                                TaxRate = expense.TaxRate,
+                                TaxAmount = expense.TaxAmount,
+                                TotalAmount = expense.TotalAmount,
+                                CreatedAt = expense.CreatedAt,
+                                UpdatedAt = expense.UpdatedAt,
+                                ApprovalStatus = expense.ApprovalStatus,
+                                ApprovedBy = expense.ApprovedBy,
+                                ApprovedAt = expense.ApprovedAt,
+                                RejectionReason = expense.RejectionReason,
+                                ExpenseRooms = expenseRooms
+                            };
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "⚠️ [GetExpenseByIdForSupervisorAcrossAllHotels] Error searching tenant {Code}: {Message}", 
+                            userTenant.Code, ex.Message);
+                        // Continue searching other tenants
+                    }
+                }
+
+                _logger.LogWarning("⚠️ [GetExpenseByIdForSupervisorAcrossAllHotels] Expense not found in any tenant database: ExpenseId={ExpenseId}", expenseId);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ [GetExpenseByIdForSupervisorAcrossAllHotels] Error: {Message}", ex.Message);
                 return null;
             }
         }
@@ -687,7 +912,8 @@ namespace zaaerIntegration.Controllers
         }
 
         /// <summary>
-        /// الحصول على جميع فئات المصروفات للفندق الحالي
+        /// الحصول على جميع فئات المصروفات من Master DB
+        /// Get all expense categories from Master DB (ignoring tenant DB expense_categories table)
         /// </summary>
         /// <returns>قائمة فئات المصروفات</returns>
         [HttpGet("categories")]
@@ -697,161 +923,28 @@ namespace zaaerIntegration.Controllers
         {
             try
             {
-                // ✅ Log request details including headers
-                var requestHotelCode = Request.Headers.ContainsKey("X-Hotel-Code") 
-                    ? Request.Headers["X-Hotel-Code"].ToString() 
-                    : "Not provided";
+                _logger.LogInformation("📋 [GetExpenseCategories] Fetching expense categories from Master DB");
+
+                // ✅ Get categories from Master DB (not tenant DB)
+                var masterDb = HttpContext.RequestServices.GetRequiredService<MasterDbContext>();
                 
-                _logger.LogInformation("📋 [GetExpenseCategories] ===== REQUEST ===== X-Hotel-Code: {HotelCode}", requestHotelCode);
-
-                var tenant = _tenantService.GetTenant();
-                
-                if (tenant == null)
-                {
-                    _logger.LogError("❌ [GetExpenseCategories] Tenant not resolved");
-                    return Unauthorized(new { error = "Tenant not resolved. Please provide X-Hotel-Code header." });
-                }
-
-                _logger.LogInformation("✅ [GetExpenseCategories] Tenant resolved: Code='{TenantCode}', Id={TenantId}, DatabaseName='{DatabaseName}'", 
-                    tenant.Code, tenant.Id, tenant.DatabaseName);
-
-                var dbContext = _dbContextResolver.GetCurrentDbContext();
-
-                // ✅ 1. الحصول على Tenant.Code من Master DB
-                // ✅ 2. البحث عن HotelSettings في Tenant DB باستخدام HotelCode == Tenant.Code
-                _logger.LogInformation("🔍 [GetExpenseCategories] Searching for HotelSettings with HotelCode: '{TenantCode}' (case-insensitive)", tenant.Code);
-                
-                // Try case-insensitive search
-                var hotelSettings = await dbContext.HotelSettings
+                var categories = await masterDb.ExpenseCategories
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(h => h.HotelCode != null && h.HotelCode.ToLower() == tenant.Code.ToLower());
-
-                if (hotelSettings == null)
-                {
-                    // Log all available HotelSettings for debugging
-                    var allHotelSettings = await dbContext.HotelSettings
-                        .AsNoTracking()
-                        .Select(h => new { h.HotelId, h.HotelCode })
-                        .ToListAsync();
-                    
-                    _logger.LogError("HotelSettings not found for Tenant Code: '{TenantCode}' in Tenant DB. Available HotelCodes: {AvailableCodes}", 
-                        tenant.Code, string.Join(", ", allHotelSettings.Select(h => $"HotelId={h.HotelId}, Code='{h.HotelCode}'")));
-                    
-                    return NotFound(new { error = $"HotelSettings not found for hotel code: {tenant.Code}. Please ensure hotel settings are configured in the tenant database with matching HotelCode." });
-                }
-
-                // ✅ SOLUTION: Find ALL HotelSettings with the same HotelCode, then use ALL their HotelIds
-                // This handles cases where data is linked to different HotelIds but same HotelCode
-                var hotelCode = hotelSettings.HotelCode ?? tenant.Code; // Fallback to tenant.Code if null
-                
-                // ✅ DEBUG: Log ALL HotelSettings in the database to see what we have
-                var allHotelSettingsInDb = await dbContext.HotelSettings
-                    .AsNoTracking()
-                    .Select(h => new { h.HotelId, h.HotelCode })
-                    .ToListAsync();
-                _logger.LogInformation("🔍 [GetExpenseCategories] ALL HotelSettings in tenant DB: {AllSettings}", 
-                    string.Join(", ", allHotelSettingsInDb.Select(h => $"HotelId={h.HotelId}, HotelCode='{h.HotelCode}'")));
-                
-                var allHotelSettingsWithSameCode = await dbContext.HotelSettings
-                    .AsNoTracking()
-                    .Where(h => h.HotelCode != null && h.HotelCode.ToLower() == hotelCode.ToLower())
-                    .Select(h => h.HotelId)
-                    .ToListAsync();
-                
-                _logger.LogInformation("📋 Found HotelSettings: HotelId={HotelId}, HotelCode='{HotelCode}' for Tenant Code: '{TenantCode}'", 
-                    hotelSettings.HotelId, hotelSettings.HotelCode, tenant.Code);
-                _logger.LogInformation("🔍 [GetExpenseCategories] All HotelIds with HotelCode='{HotelCode}': {HotelIds}", 
-                    hotelCode, string.Join(", ", allHotelSettingsWithSameCode));
-                
-                // ✅ CRITICAL FIX: If data is linked to HotelId=11 but we only found HotelId=1,
-                // we need to also check if there's a HotelSettings with HotelId=11 that should have the same HotelCode
-                // OR we need to include HotelId=11 in our search if categories/apartments are linked to it
-                // Let's check what HotelIds are actually used in the data tables
-                var hotelIdsInCategories = await dbContext.ExpenseCategories
-                    .AsNoTracking()
-                    .Select(ec => ec.HotelId)
-                    .Distinct()
-                    .ToListAsync();
-                _logger.LogInformation("🔍 [GetExpenseCategories] HotelIds actually used in expense_categories table: {HotelIds}", 
-                    string.Join(", ", hotelIdsInCategories));
-                
-                // ✅ If categories are linked to HotelId=11 but we're searching with HotelId=1,
-                // we need to include HotelId=11 in our search
-                // Check if there's a HotelSettings with HotelId=11
-                var hotelSettingsWithId11 = await dbContext.HotelSettings
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(h => h.HotelId == 11);
-                
-                if (hotelSettingsWithId11 != null)
-                {
-                    _logger.LogInformation("🔍 [GetExpenseCategories] Found HotelSettings with HotelId=11: HotelCode='{HotelCode}'", 
-                        hotelSettingsWithId11.HotelCode);
-                    
-                    // ✅ If HotelId=11 has the same HotelCode, add it to the list
-                    if (hotelSettingsWithId11.HotelCode != null && 
-                        hotelSettingsWithId11.HotelCode.ToLower() == hotelCode.ToLower())
-                    {
-                        if (!allHotelSettingsWithSameCode.Contains(11))
-                        {
-                            allHotelSettingsWithSameCode.Add(11);
-                            _logger.LogInformation("✅ [GetExpenseCategories] Added HotelId=11 to search list (same HotelCode)");
-                        }
-                    }
-                    // ✅ If HotelId=11 is used in categories but has different HotelCode, still include it
-                    // This handles data migration scenarios
-                    else if (hotelIdsInCategories.Contains(11))
-                    {
-                        allHotelSettingsWithSameCode.Add(11);
-                        _logger.LogWarning("⚠️ [GetExpenseCategories] Added HotelId=11 to search list (data exists but different HotelCode: '{DifferentCode}')", 
-                            hotelSettingsWithId11.HotelCode);
-                    }
-                }
-                else if (hotelIdsInCategories.Contains(11))
-                {
-                    // ✅ If HotelId=11 is used in categories but no HotelSettings exists for it,
-                    // we still need to include it in the search
-                    allHotelSettingsWithSameCode.Add(11);
-                    _logger.LogWarning("⚠️ [GetExpenseCategories] Added HotelId=11 to search list (data exists but no HotelSettings record)");
-                }
-                
-                _logger.LogInformation("🔍 [GetExpenseCategories] Final HotelIds to search: {HotelIds}", 
-                    string.Join(", ", allHotelSettingsWithSameCode));
-
-                // Log all expense categories before filtering
-                var allCategories = await dbContext.ExpenseCategories
-                    .AsNoTracking()
-                    .Select(ec => new { ec.ExpenseCategoryId, ec.HotelId, ec.CategoryName, ec.IsActive })
-                    .ToListAsync();
-                
-                _logger.LogInformation("📋 All expense categories in DB: {Count} total. Details: {Categories}", 
-                    allCategories.Count, 
-                    string.Join(", ", allCategories.Select(c => $"Id={c.ExpenseCategoryId}, HotelId={c.HotelId}, Name='{c.CategoryName}', IsActive={c.IsActive}")));
-
-                // ✅ Filter by ALL HotelIds that have the same HotelCode
-                var categories = await dbContext.ExpenseCategories
-                    .AsNoTracking()
-                    .Where(ec => allHotelSettingsWithSameCode.Contains(ec.HotelId) && ec.IsActive == true)
+                    .Where(ec => ec.IsActive)
+                    .OrderBy(ec => ec.Id)
                     .Select(ec => new
                     {
-                        expenseCategoryId = ec.ExpenseCategoryId,
-                        categoryName = ec.CategoryName,
-                        description = ec.Description,
+                        id = ec.Id,
+                        expenseCategoryId = ec.Id, // ✅ For backward compatibility
+                        categoryName = ec.MainCategory,
+                        mainCategory = ec.MainCategory,
+                        details = ec.Details,
+                        categoryCode = ec.CategoryCode,
                         isActive = ec.IsActive
                     })
-                    .OrderBy(ec => ec.categoryName)
-                    .ToListAsync();
+                    .ToListAsync<object>();
 
-                _logger.LogInformation("✅ Successfully retrieved {Count} expense categories for HotelCode: '{HotelCode}' (HotelIds: {HotelIds})", 
-                    categories.Count, hotelCode, string.Join(", ", allHotelSettingsWithSameCode));
-                
-                if (categories.Count == 0)
-                {
-                    var totalCategoriesForHotelIds = allCategories.Count(c => allHotelSettingsWithSameCode.Contains(c.HotelId));
-                    _logger.LogWarning("⚠️ No active expense categories found for HotelCode: '{HotelCode}' (HotelIds: {HotelIds}). Total categories in DB for these hotels: {TotalCount}", 
-                        hotelCode, 
-                        string.Join(", ", allHotelSettingsWithSameCode),
-                        totalCategoriesForHotelIds);
-                }
+                _logger.LogInformation("✅ [GetExpenseCategories] Successfully retrieved {Count} expense categories from Master DB", categories.Count);
 
                 return Ok(categories);
             }
@@ -1208,16 +1301,46 @@ namespace zaaerIntegration.Controllers
                     userId = 0; // Default value if not found
                 }
 
-                // ✅ إذا كان هناك X-Hotel-Code header، نستخدمه لتحديد قاعدة البيانات الصحيحة
+                // ✅ Check if user is supervisor/manager/accountant/admin
+                var masterDb = HttpContext.RequestServices.GetRequiredService<MasterDbContext>();
+                var rolesList = await masterDb.UserRoles
+                    .AsNoTracking()
+                    .Include(ur => ur.Role)
+                    .Where(ur => ur.UserId == userId.Value)
+                    .Select(ur => ur.Role!.Code.ToLower())
+                    .ToListAsync();
+
+                var isSupervisorOrManagerOrAdminOrAccountant = rolesList.Contains("supervisor") || 
+                                                               rolesList.Contains("manager") || 
+                                                               rolesList.Contains("admin") || 
+                                                               rolesList.Contains("accountant");
+
                 ExpenseResponseDto? expense = null;
+                
+                if (isSupervisorOrManagerOrAdminOrAccountant)
+                {
+                    // ✅ For supervisors/managers/admins/accountants: search across all accessible hotels
                 if (!string.IsNullOrWhiteSpace(hotelCode))
                 {
-                    // ✅ للمشرفين: البحث في قاعدة البيانات الصحيحة بناءً على HotelCode
+                        // ✅ If X-Hotel-Code header is provided, use it to target specific hotel
+                        _logger.LogInformation("✅ [ApproveExpense] Supervisor/Manager/Admin/Accountant with X-Hotel-Code header: {HotelCode}", hotelCode);
                     expense = await ApproveExpenseForSupervisorAsync(id, status, userId.Value, rejectionReason, hotelCode);
                 }
                 else
                 {
-                    // ✅ للمستخدمين العاديين: استخدام الطريقة العادية
+                        // ✅ Search across all accessible hotels
+                        _logger.LogInformation("✅ [ApproveExpense] Supervisor/Manager/Admin/Accountant - searching across all accessible hotels");
+                        expense = await ApproveExpenseForSupervisorAcrossAllHotelsAsync(id, status, userId.Value, rejectionReason);
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(hotelCode))
+                {
+                    // ✅ Regular user with X-Hotel-Code header (for supervisors accessing specific hotel)
+                    expense = await ApproveExpenseForSupervisorAsync(id, status, userId.Value, rejectionReason, hotelCode);
+                }
+                else
+                {
+                    // ✅ Regular user - use standard service method
                     expense = await _expenseService.ApproveExpenseAsync(id, status, userId.Value, rejectionReason);
                 }
 
@@ -1243,6 +1366,237 @@ namespace zaaerIntegration.Controllers
             {
                 _logger.LogError(ex, "❌ Error approving/rejecting expense: {Message}", ex.Message);
                 return StatusCode(500, new { error = "Failed to update expense status", details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// الحصول على سجل موافقات المصروف
+        /// Get expense approval history
+        /// ✅ Supports supervisors/managers/accountants/admins accessing history from any hotel
+        /// </summary>
+        /// <param name="id">معرف المصروف</param>
+        /// <returns>قائمة سجلات الموافقات</returns>
+        [HttpGet("{id}/history")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetApprovalHistory(int id)
+        {
+            try
+            {
+                _logger.LogInformation("📋 Fetching approval history for expense: ExpenseId={ExpenseId}", id);
+
+                // ✅ Check if user is supervisor/manager/accountant/admin
+                var userIdClaim = HttpContext.Items["UserId"]?.ToString();
+                if (string.IsNullOrWhiteSpace(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+                {
+                    // Regular user - use standard service method
+                var history = await _expenseService.GetApprovalHistoryAsync(id);
+                _logger.LogInformation("✅ Approval history fetched successfully: ExpenseId={ExpenseId}, Count={Count}", 
+                    id, history.Count());
+                    return Ok(history);
+                }
+
+                // ✅ Get user roles
+                var masterDb = HttpContext.RequestServices.GetRequiredService<MasterDbContext>();
+                var rolesList = await masterDb.UserRoles
+                    .AsNoTracking()
+                    .Include(ur => ur.Role)
+                    .Where(ur => ur.UserId == userId)
+                    .Select(ur => ur.Role!.Code.ToLower())
+                    .ToListAsync();
+
+                var isSupervisorOrManagerOrAdminOrAccountant = rolesList.Contains("supervisor") || 
+                                                               rolesList.Contains("manager") || 
+                                                               rolesList.Contains("admin") || 
+                                                               rolesList.Contains("accountant");
+
+                if (isSupervisorOrManagerOrAdminOrAccountant)
+                {
+                    // ✅ For supervisors/managers/admins/accountants: search across all tenant databases
+                    _logger.LogInformation("✅ [GetApprovalHistory] Supervisor/Manager/Admin/Accountant detected - searching across all hotels");
+                    var history = await GetApprovalHistoryForSupervisorAsync(id, userId);
+                    if (history != null)
+                    {
+                        _logger.LogInformation("✅ Approval history fetched successfully: ExpenseId={ExpenseId}, Count={Count}", 
+                            id, history.Count());
+                return Ok(history);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("⚠️ Approval history not found for expense: ExpenseId={ExpenseId}", id);
+                        return NotFound(new { error = $"Approval history not found for expense {id}" });
+                    }
+                }
+                else
+                {
+                    // Regular user - use standard service method
+                    var history = await _expenseService.GetApprovalHistoryAsync(id);
+                    _logger.LogInformation("✅ Approval history fetched successfully: ExpenseId={ExpenseId}, Count={Count}", 
+                        id, history.Count());
+                    return Ok(history);
+                }
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning("⚠️ Expense not found: ExpenseId={ExpenseId}", id);
+                return NotFound(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error fetching approval history: {Message}", ex.Message);
+                return StatusCode(500, new { error = "Failed to fetch approval history", details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get approval history for supervisor (searching across all tenant databases)
+        /// </summary>
+        private async Task<List<ExpenseApprovalHistoryDto>?> GetApprovalHistoryForSupervisorAsync(int expenseId, int userId)
+        {
+            try
+            {
+                _logger.LogInformation("🔍 [GetApprovalHistoryForSupervisor] Searching for expense history: ExpenseId={ExpenseId}, UserId={UserId}", 
+                    expenseId, userId);
+
+                // ✅ Get all tenants the user has access to
+                var masterDb = HttpContext.RequestServices.GetRequiredService<MasterDbContext>();
+                var userTenants = await masterDb.UserTenants
+                    .AsNoTracking()
+                    .Include(ut => ut.Tenant)
+                    .Where(ut => ut.UserId == userId)
+                    .Select(ut => new { ut.TenantId, ut.Tenant!.Code, ut.Tenant.DatabaseName, ut.Tenant.Name })
+                    .ToListAsync();
+
+                // ✅ Get user roles to check if manager/admin/accountant (should see all tenants)
+                var rolesList = await masterDb.UserRoles
+                    .AsNoTracking()
+                    .Include(ur => ur.Role)
+                    .Where(ur => ur.UserId == userId)
+                    .Select(ur => ur.Role!.Code.ToLower())
+                    .ToListAsync();
+
+                var isManagerOrAdminOrAccountant = rolesList.Contains("manager") || 
+                                                   rolesList.Contains("admin") || 
+                                                   rolesList.Contains("accountant");
+
+                if (isManagerOrAdminOrAccountant)
+                {
+                    _logger.LogInformation("✅ [GetApprovalHistoryForSupervisor] Manager/Admin/Accountant - loading all tenants");
+                    userTenants = await masterDb.Tenants
+                        .AsNoTracking()
+                        .Select(t => new { TenantId = t.Id, Code = t.Code, DatabaseName = t.DatabaseName, Name = t.Name })
+                        .ToListAsync();
+                }
+
+                if (!userTenants.Any())
+                {
+                    _logger.LogWarning("⚠️ [GetApprovalHistoryForSupervisor] No tenants found for user: UserId={UserId}", userId);
+                    return null;
+                }
+
+                // ✅ Get configuration
+                var configuration = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+                var server = configuration["TenantDatabase:Server"]?.Trim();
+                var dbUserId = configuration["TenantDatabase:UserId"]?.Trim();
+                var password = configuration["TenantDatabase:Password"]?.Trim();
+
+                if (string.IsNullOrWhiteSpace(server) || string.IsNullOrWhiteSpace(dbUserId) || string.IsNullOrWhiteSpace(password))
+                {
+                    _logger.LogError("❌ [GetApprovalHistoryForSupervisor] TenantDatabase settings not found");
+                    return null;
+                }
+
+                // ✅ Search across all tenant databases
+                foreach (var userTenant in userTenants)
+                {
+                    try
+                    {
+                        var connectionString = $"Server={server}; Database={userTenant.DatabaseName}; User Id={dbUserId}; Password={password}; Encrypt=True; TrustServerCertificate=True; MultipleActiveResultSets=True;";
+
+                        var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
+                        optionsBuilder.UseSqlServer(connectionString);
+                        using var tenantContext = new ApplicationDbContext(optionsBuilder.Options);
+
+                        // ✅ Check if expense exists in this tenant database
+                        var expense = await tenantContext.Expenses
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(e => e.ExpenseId == expenseId);
+
+                        if (expense != null)
+                        {
+                            // ✅ Found the expense - get its history
+                            _logger.LogInformation("✅ [GetApprovalHistoryForSupervisor] Found expense in tenant: {Code}", userTenant.Code);
+                            
+                            var history = await tenantContext.ExpenseApprovalHistories
+                                .AsNoTracking()
+                                .Where(h => h.ExpenseId == expenseId)
+                                .OrderBy(h => h.ActionAt)
+                                .ToListAsync();
+
+                            // Get unique user IDs to fetch role and tenant info
+                            var userIds = history.Where(h => h.ActionBy.HasValue).Select(h => h.ActionBy!.Value).Distinct().ToList();
+                            var userInfoDict = new Dictionary<int, (string? role, string? tenantName)>();
+                            
+                            if (userIds.Any())
+                            {
+                                var users = await masterDb.MasterUsers
+                                    .AsNoTracking()
+                                    .Include(u => u.UserRoles)
+                                        .ThenInclude(ur => ur.Role)
+                                    .Include(u => u.Tenant)
+                                    .Where(u => userIds.Contains(u.Id))
+                                    .ToListAsync();
+
+                                foreach (var user in users)
+                                {
+                                    var primaryRole = user.UserRoles?.FirstOrDefault()?.Role;
+                                    var roleName = GetRoleDisplayName(primaryRole?.Code);
+                                    var tenantName = user.Tenant?.Name;
+                                    userInfoDict[user.Id] = (roleName, tenantName);
+                                }
+                            }
+
+                            return history.Select(h =>
+                            {
+                                var dto = new ExpenseApprovalHistoryDto
+                                {
+                                    Id = h.Id,
+                                    ExpenseId = h.ExpenseId,
+                                    Action = h.Action,
+                                    ActionBy = h.ActionBy,
+                                    ActionByFullName = h.ActionByFullName,
+                                    ActionAt = h.ActionAt,
+                                    Status = h.Status,
+                                    RejectionReason = h.RejectionReason,
+                                    Comments = h.Comments
+                                };
+
+                                if (h.ActionBy.HasValue && userInfoDict.TryGetValue(h.ActionBy.Value, out var userInfo))
+                                {
+                                    dto.ActionByRole = userInfo.role;
+                                    dto.ActionByTenantName = userInfo.tenantName;
+                                }
+
+                                return dto;
+                            }).ToList();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "⚠️ [GetApprovalHistoryForSupervisor] Error searching tenant {Code}: {Message}", 
+                            userTenant.Code, ex.Message);
+                        // Continue searching other tenants
+                    }
+                }
+
+                _logger.LogWarning("⚠️ [GetApprovalHistoryForSupervisor] Expense not found in any tenant database: ExpenseId={ExpenseId}", expenseId);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ [GetApprovalHistoryForSupervisor] Error: {Message}", ex.Message);
+                return null;
             }
         }
 
@@ -1362,13 +1716,58 @@ namespace zaaerIntegration.Controllers
 
                 await tenantContext.SaveChangesAsync();
 
+                // حفظ سجل الموافقة/الرفض في ExpenseApprovalHistory
+                string? actionByFullName = null;
+                if (approvedBy > 0)
+                {
+                    var masterUser = await masterDb.MasterUsers
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(u => u.Id == approvedBy);
+                    actionByFullName = masterUser?.FullName ?? masterUser?.Username;
+                }
+
+                string action = status switch
+                {
+                    "accepted" => "approved",
+                    "rejected" => "rejected",
+                    "awaiting-manager" => "awaiting-manager",
+                    "awaiting-accountant" => "awaiting-accountant",
+                    "awaiting-admin" => "awaiting-admin",
+                    _ => "updated"
+                };
+
+                string comments = status switch
+                {
+                    "accepted" => "تم الموافقة على المصروف",
+                    "rejected" => $"تم رفض المصروف{(string.IsNullOrWhiteSpace(rejectionReason) ? "" : $": {rejectionReason}")}",
+                    "awaiting-manager" => "في انتظار موافقة مدير العمليات",
+                    "awaiting-accountant" => "في انتظار موافقة المحاسب",
+                    "awaiting-admin" => "في انتظار موافقة المدير العام",
+                    _ => "تم تحديث حالة المصروف"
+                };
+
+                var history = new FinanceLedgerAPI.Models.ExpenseApprovalHistory
+                {
+                    ExpenseId = expense.ExpenseId,
+                    Action = action,
+                    ActionBy = approvedBy > 0 ? approvedBy : null,
+                    ActionByFullName = actionByFullName,
+                    ActionAt = DateTime.UtcNow,
+                    Status = status,
+                    RejectionReason = status == "rejected" ? rejectionReason : null,
+                    Comments = comments
+                };
+                await tenantContext.ExpenseApprovalHistories.AddAsync(history);
+                await tenantContext.SaveChangesAsync();
+                _logger.LogInformation("✅ [ApproveExpenseForSupervisor] Expense approval history saved: ExpenseId={ExpenseId}, Action={Action}, Status={Status}, ActionBy={ActionBy}", 
+                    expense.ExpenseId, action, status, approvedBy);
+
                 _logger.LogInformation("✅ [ApproveExpenseForSupervisor] Expense approval updated: ExpenseId={ExpenseId}, Status={Status}, ApprovedBy={ApprovedBy}, HotelCode={HotelCode}", 
                     expenseId, status, approvedBy, hotelCode);
 
                 // ✅ تحميل المصروف مع العلاقات لعرضه
                 var updatedExpense = await tenantContext.Expenses
                     .AsNoTracking()
-                    .Include(e => e.ExpenseCategory)
                     .Include(e => e.HotelSettings)
                     .Include(e => e.ExpenseRooms)
                         .ThenInclude(er => er.Apartment)
@@ -1380,7 +1779,6 @@ namespace zaaerIntegration.Controllers
                     _logger.LogWarning("⚠️ [ApproveExpenseForSupervisor] Updated expense not found with HotelId filter. Trying without filter: ExpenseId={ExpenseId}", expenseId);
                     updatedExpense = await tenantContext.Expenses
                         .AsNoTracking()
-                        .Include(e => e.ExpenseCategory)
                         .Include(e => e.HotelSettings)
                         .Include(e => e.ExpenseRooms)
                             .ThenInclude(er => er.Apartment)
@@ -1391,6 +1789,37 @@ namespace zaaerIntegration.Controllers
                 {
                     _logger.LogError("❌ [ApproveExpenseForSupervisor] Updated expense not found after save: ExpenseId={ExpenseId}", expenseId);
                     throw new InvalidOperationException($"Failed to retrieve updated expense with id {expenseId}");
+                }
+
+                // ✅ Get category name from Master DB
+                string? categoryName = null;
+                if (updatedExpense.ExpenseCategoryId.HasValue)
+                {
+                    var masterCategory = await masterDb.ExpenseCategories
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(ec => ec.Id == updatedExpense.ExpenseCategoryId.Value);
+                    categoryName = masterCategory?.MainCategory;
+                }
+
+                // ✅ Get approved by user info (full name, role, tenant) from Master DB
+                string? approvedByFullName = actionByFullName; // Already fetched above
+                string? approvedByRole = null;
+                string? approvedByTenantName = null;
+                if (approvedBy > 0)
+                {
+                    var masterUser = await masterDb.MasterUsers
+                        .AsNoTracking()
+                        .Include(u => u.UserRoles)
+                            .ThenInclude(ur => ur.Role)
+                        .Include(u => u.Tenant)
+                        .FirstOrDefaultAsync(u => u.Id == approvedBy);
+                    
+                    if (masterUser != null)
+                    {
+                        var primaryRole = masterUser.UserRoles?.FirstOrDefault()?.Role;
+                        approvedByRole = GetRoleDisplayName(primaryRole?.Code);
+                        approvedByTenantName = masterUser.Tenant?.Name;
+                    }
                 }
 
                 // ✅ تحويل إلى DTO
@@ -1417,7 +1846,7 @@ namespace zaaerIntegration.Controllers
                     DueDate = updatedExpense.DueDate,
                     Comment = updatedExpense.Comment,
                     ExpenseCategoryId = updatedExpense.ExpenseCategoryId,
-                    ExpenseCategoryName = updatedExpense.ExpenseCategory?.CategoryName,
+                    ExpenseCategoryName = categoryName, // ✅ From Master DB
                     TaxRate = updatedExpense.TaxRate,
                     TaxAmount = updatedExpense.TaxAmount,
                     TotalAmount = updatedExpense.TotalAmount,
@@ -1425,6 +1854,9 @@ namespace zaaerIntegration.Controllers
                     UpdatedAt = updatedExpense.UpdatedAt,
                     ApprovalStatus = updatedExpense.ApprovalStatus,
                     ApprovedBy = updatedExpense.ApprovedBy,
+                    ApprovedByFullName = approvedByFullName,
+                    ApprovedByRole = approvedByRole,
+                    ApprovedByTenantName = approvedByTenantName,
                     ApprovedAt = updatedExpense.ApprovedAt,
                     RejectionReason = updatedExpense.RejectionReason,
                     ExpenseRooms = expenseRooms
@@ -1434,6 +1866,263 @@ namespace zaaerIntegration.Controllers
             {
                 _logger.LogError(ex, "❌ [ApproveExpenseForSupervisor] Error approving expense: {Message}", ex.Message);
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Approve/Reject expense for supervisor across all accessible hotels (searches all tenant databases)
+        /// </summary>
+        private async Task<ExpenseResponseDto?> ApproveExpenseForSupervisorAcrossAllHotelsAsync(int expenseId, string status, int approvedBy, string? rejectionReason)
+        {
+            try
+            {
+                _logger.LogInformation("🔐 [ApproveExpenseForSupervisorAcrossAllHotels] Approving expense: ExpenseId={ExpenseId}, Status={Status}, UserId={UserId}", 
+                    expenseId, status, approvedBy);
+
+                // ✅ Get all tenants the user has access to
+                var masterDb = HttpContext.RequestServices.GetRequiredService<MasterDbContext>();
+                var userTenants = await masterDb.UserTenants
+                    .AsNoTracking()
+                    .Include(ut => ut.Tenant)
+                    .Where(ut => ut.UserId == approvedBy)
+                    .Select(ut => new { ut.TenantId, ut.Tenant!.Code, ut.Tenant.DatabaseName, ut.Tenant.Name })
+                    .ToListAsync();
+
+                // ✅ Get user roles to check if manager/admin/accountant (should see all tenants)
+                var rolesList = await masterDb.UserRoles
+                    .AsNoTracking()
+                    .Include(ur => ur.Role)
+                    .Where(ur => ur.UserId == approvedBy)
+                    .Select(ur => ur.Role!.Code.ToLower())
+                    .ToListAsync();
+
+                var isManagerOrAdminOrAccountant = rolesList.Contains("manager") || 
+                                                   rolesList.Contains("admin") || 
+                                                   rolesList.Contains("accountant");
+
+                if (isManagerOrAdminOrAccountant)
+                {
+                    _logger.LogInformation("✅ [ApproveExpenseForSupervisorAcrossAllHotels] Manager/Admin/Accountant - loading all tenants");
+                    userTenants = await masterDb.Tenants
+                        .AsNoTracking()
+                        .Select(t => new { TenantId = t.Id, Code = t.Code, DatabaseName = t.DatabaseName, Name = t.Name })
+                        .ToListAsync();
+                }
+
+                if (!userTenants.Any())
+                {
+                    _logger.LogWarning("⚠️ [ApproveExpenseForSupervisorAcrossAllHotels] No tenants found for user: UserId={UserId}", approvedBy);
+                    return null;
+                }
+
+                // ✅ Get configuration
+                var configuration = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+                var server = configuration["TenantDatabase:Server"]?.Trim();
+                var dbUserId = configuration["TenantDatabase:UserId"]?.Trim();
+                var password = configuration["TenantDatabase:Password"]?.Trim();
+
+                if (string.IsNullOrWhiteSpace(server) || string.IsNullOrWhiteSpace(dbUserId) || string.IsNullOrWhiteSpace(password))
+                {
+                    _logger.LogError("❌ [ApproveExpenseForSupervisorAcrossAllHotels] TenantDatabase settings not found");
+                    return null;
+                }
+
+                // ✅ Search across all tenant databases
+                foreach (var userTenant in userTenants)
+                {
+                    try
+                    {
+                        var connectionString = $"Server={server}; Database={userTenant.DatabaseName}; User Id={dbUserId}; Password={password}; Encrypt=True; TrustServerCertificate=True; MultipleActiveResultSets=True;";
+
+                        var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
+                        optionsBuilder.UseSqlServer(connectionString);
+                        using var tenantContext = new ApplicationDbContext(optionsBuilder.Options);
+
+                        // ✅ Check if expense exists in this tenant database
+                        var expense = await tenantContext.Expenses
+                            .FirstOrDefaultAsync(e => e.ExpenseId == expenseId);
+
+                        if (expense != null)
+                        {
+                            // ✅ Found the expense - approve/reject it
+                            _logger.LogInformation("✅ [ApproveExpenseForSupervisorAcrossAllHotels] Found expense in tenant: {Code}", userTenant.Code);
+
+                            // ✅ Update approval status
+                            expense.ApprovalStatus = status;
+
+                            bool awaitingNextLevel = status == "awaiting-manager" || status == "awaiting-accountant" || status == "awaiting-admin";
+                            if (awaitingNextLevel)
+                            {
+                                expense.ApprovedBy = null;
+                                expense.ApprovedAt = null;
+                            }
+                            else
+                            {
+                                expense.ApprovedBy = approvedBy;
+                                expense.ApprovedAt = DateTime.Now;
+                            }
+                            expense.UpdatedAt = DateTime.Now;
+
+                            // ✅ Update rejection reason if provided
+                            if (status == "rejected" && !string.IsNullOrWhiteSpace(rejectionReason))
+                            {
+                                expense.RejectionReason = rejectionReason;
+                            }
+                            else if (status != "rejected")
+                            {
+                                expense.RejectionReason = null;
+                            }
+
+                            await tenantContext.SaveChangesAsync();
+
+                            // ✅ Save approval history
+                            string? actionByFullName = null;
+                            if (approvedBy > 0)
+                            {
+                                var masterUser = await masterDb.MasterUsers
+                                    .AsNoTracking()
+                                    .FirstOrDefaultAsync(u => u.Id == approvedBy);
+                                actionByFullName = masterUser?.FullName ?? masterUser?.Username;
+                            }
+
+                            string action = status switch
+                            {
+                                "accepted" => "approved",
+                                "rejected" => "rejected",
+                                "awaiting-manager" => "awaiting-manager",
+                                "awaiting-accountant" => "awaiting-accountant",
+                                "awaiting-admin" => "awaiting-admin",
+                                _ => "updated"
+                            };
+
+                            string comments = status switch
+                            {
+                                "accepted" => "تم الموافقة على المصروف",
+                                "rejected" => $"تم رفض المصروف{(string.IsNullOrWhiteSpace(rejectionReason) ? "" : $": {rejectionReason}")}",
+                                "awaiting-manager" => "في انتظار موافقة مدير العمليات",
+                                "awaiting-accountant" => "في انتظار موافقة المحاسب",
+                                "awaiting-admin" => "في انتظار موافقة المدير العام",
+                                _ => "تم تحديث حالة المصروف"
+                            };
+
+                            var history = new FinanceLedgerAPI.Models.ExpenseApprovalHistory
+                            {
+                                ExpenseId = expense.ExpenseId,
+                                Action = action,
+                                ActionBy = approvedBy > 0 ? approvedBy : null,
+                                ActionByFullName = actionByFullName,
+                                ActionAt = DateTime.UtcNow,
+                                Status = status,
+                                RejectionReason = status == "rejected" ? rejectionReason : null,
+                                Comments = comments
+                            };
+                            await tenantContext.ExpenseApprovalHistories.AddAsync(history);
+                            await tenantContext.SaveChangesAsync();
+
+                            // ✅ Load updated expense with relationships
+                            var updatedExpense = await tenantContext.Expenses
+                                .AsNoTracking()
+                                .Include(e => e.HotelSettings)
+                                .Include(e => e.ExpenseRooms)
+                                    .ThenInclude(er => er.Apartment)
+                                .FirstOrDefaultAsync(e => e.ExpenseId == expenseId);
+
+                            if (updatedExpense == null)
+                            {
+                                _logger.LogError("❌ [ApproveExpenseForSupervisorAcrossAllHotels] Updated expense not found after save: ExpenseId={ExpenseId}", expenseId);
+                                return null;
+                            }
+
+                            // ✅ Get category name from Master DB
+                            string? categoryName = null;
+                            if (updatedExpense.ExpenseCategoryId.HasValue)
+                            {
+                                var masterCategory = await masterDb.ExpenseCategories
+                                    .AsNoTracking()
+                                    .FirstOrDefaultAsync(ec => ec.Id == updatedExpense.ExpenseCategoryId.Value);
+                                categoryName = masterCategory?.MainCategory;
+                            }
+
+                            // ✅ Get approved by user info (full name, role, tenant)
+                            string? approvedByFullName = actionByFullName;
+                            string? approvedByRole = null;
+                            string? approvedByTenantName = null;
+                            if (approvedBy > 0)
+                            {
+                                var masterUser = await masterDb.MasterUsers
+                                    .AsNoTracking()
+                                    .Include(u => u.UserRoles)
+                                        .ThenInclude(ur => ur.Role)
+                                    .Include(u => u.Tenant)
+                                    .FirstOrDefaultAsync(u => u.Id == approvedBy);
+                                
+                                if (masterUser != null)
+                                {
+                                    var primaryRole = masterUser.UserRoles?.FirstOrDefault()?.Role;
+                                    approvedByRole = GetRoleDisplayName(primaryRole?.Code);
+                                    approvedByTenantName = masterUser.Tenant?.Name;
+                                }
+                            }
+
+                            // ✅ Convert to DTO
+                            var expenseRooms = updatedExpense.ExpenseRooms.Select(er => new ExpenseRoomResponseDto
+                            {
+                                ExpenseRoomId = er.ExpenseRoomId,
+                                ExpenseId = er.ExpenseId,
+                                ZaaerId = er.ZaaerId,
+                                Purpose = er.Purpose,
+                                Amount = er.Amount,
+                                CreatedAt = er.CreatedAt,
+                                ApartmentId = er.Apartment?.ApartmentId,
+                                ApartmentCode = er.Apartment?.ApartmentCode,
+                                ApartmentName = er.Apartment?.ApartmentName
+                            }).ToList();
+
+                            _logger.LogInformation("✅ [ApproveExpenseForSupervisorAcrossAllHotels] Expense approved successfully: ExpenseId={ExpenseId}, Status={Status}, Tenant={Code}", 
+                                expenseId, status, userTenant.Code);
+
+                            return new ExpenseResponseDto
+                            {
+                                ExpenseId = updatedExpense.ExpenseId,
+                                HotelId = updatedExpense.HotelId,
+                                HotelName = updatedExpense.HotelSettings?.HotelName,
+                                HotelCode = userTenant.Code,
+                                DateTime = updatedExpense.DateTime,
+                                DueDate = updatedExpense.DueDate,
+                                Comment = updatedExpense.Comment,
+                                ExpenseCategoryId = updatedExpense.ExpenseCategoryId,
+                                ExpenseCategoryName = categoryName, // ✅ From Master DB
+                                TaxRate = updatedExpense.TaxRate,
+                                TaxAmount = updatedExpense.TaxAmount,
+                                TotalAmount = updatedExpense.TotalAmount,
+                                CreatedAt = updatedExpense.CreatedAt,
+                                UpdatedAt = updatedExpense.UpdatedAt,
+                                ApprovalStatus = updatedExpense.ApprovalStatus,
+                                ApprovedBy = updatedExpense.ApprovedBy,
+                                ApprovedByFullName = approvedByFullName,
+                                ApprovedByRole = approvedByRole,
+                                ApprovedByTenantName = approvedByTenantName,
+                                ApprovedAt = updatedExpense.ApprovedAt,
+                                RejectionReason = updatedExpense.RejectionReason,
+                                ExpenseRooms = expenseRooms
+                            };
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "⚠️ [ApproveExpenseForSupervisorAcrossAllHotels] Error searching tenant {Code}: {Message}", 
+                            userTenant.Code, ex.Message);
+                        // Continue searching other tenants
+                    }
+                }
+
+                _logger.LogWarning("⚠️ [ApproveExpenseForSupervisorAcrossAllHotels] Expense not found in any tenant database: ExpenseId={ExpenseId}", expenseId);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ [ApproveExpenseForSupervisorAcrossAllHotels] Error: {Message}", ex.Message);
+                return null;
             }
         }
 
@@ -1662,31 +2351,73 @@ namespace zaaerIntegration.Controllers
                         await using var tenantContext = new ApplicationDbContext(optionsBuilder.Options);
 
                         // ✅ الحصول على HotelIds من هذا Tenant
+                        // First try to match by HotelCode == Tenant.Code
                         var hotelSettings = await tenantContext.HotelSettings
                             .AsNoTracking()
                             .Where(h => h.HotelCode != null && h.HotelCode.ToLower() == userTenant.Code.ToLower())
                             .Select(h => h.HotelId)
                             .ToListAsync();
 
+                        // ✅ FALLBACK: If no match found, get ALL HotelIds from this tenant database
+                        // This handles cases where hotel_code was changed or doesn't match Tenant.Code
                         if (!hotelSettings.Any())
                         {
-                            _logger.LogWarning("⚠️ [GetSupervisorExpenses] No HotelSettings found for Tenant Code: {Code}", userTenant.Code);
+                            _logger.LogWarning("⚠️ [GetSupervisorExpenses] No HotelSettings found matching Tenant Code '{Code}'. Getting ALL HotelIds from tenant database as fallback.", userTenant.Code);
+                            
+                            // Get all HotelIds from this tenant database
+                            var allHotelIds = await tenantContext.HotelSettings
+                                .AsNoTracking()
+                                .Select(h => h.HotelId)
+                                .ToListAsync();
+                            
+                            if (allHotelIds.Any())
+                            {
+                                hotelSettings = allHotelIds;
+                                _logger.LogInformation("✅ [GetSupervisorExpenses] Using {Count} HotelIds from tenant database (fallback mode)", hotelSettings.Count);
+                                
+                                // Log all hotel_codes for debugging
+                                var allHotelCodes = await tenantContext.HotelSettings
+                                    .AsNoTracking()
+                                    .Select(h => new { h.HotelId, h.HotelCode })
+                                    .ToListAsync();
+                                _logger.LogInformation("📋 [GetSupervisorExpenses] Available HotelSettings in tenant DB: {HotelSettings}", 
+                                    string.Join(", ", allHotelCodes.Select(h => $"HotelId={h.HotelId}, HotelCode='{h.HotelCode}'")));
+                            }
+                            else
+                            {
+                                _logger.LogError("❌ [GetSupervisorExpenses] No HotelSettings found at all in tenant database: {DatabaseName}", userTenant.DatabaseName);
                             return new List<ExpenseResponseDto>();
                         }
+                        }
+                        else
+                        {
+                            _logger.LogInformation("✅ [GetSupervisorExpenses] Found {Count} HotelSettings matching Tenant Code '{Code}': HotelIds = {HotelIds}", 
+                                hotelSettings.Count, userTenant.Code, string.Join(", ", hotelSettings));
+                        }
+
+                        // ✅ DIAGNOSTIC: Check what hotel_ids are actually in expenses table
+                        var expenseHotelIds = await tenantContext.Expenses
+                            .AsNoTracking()
+                            .Select(e => e.HotelId)
+                            .Distinct()
+                            .ToListAsync();
+                        _logger.LogInformation("🔍 [GetSupervisorExpenses] Tenant '{Code}' - Expenses table contains HotelIds: {ExpenseHotelIds}, Expected HotelIds: {ExpectedHotelIds}", 
+                            userTenant.Code, string.Join(", ", expenseHotelIds), string.Join(", ", hotelSettings));
 
                         // ✅ الحصول على المصروفات من هذا Tenant (optimized query)
+                        // ✅ CRITICAL FIX: Get ALL expenses from tenant database, regardless of hotel_id
+                        // Each tenant database should only contain expenses for that tenant anyway
+                        // Filtering by hotel_id can cause issues if hotel_code was changed or expenses have wrong hotel_id
                         var tenantExpenses = await tenantContext.Expenses
                             .AsNoTracking()
-                            .Include(e => e.ExpenseCategory)
                             .Include(e => e.HotelSettings)
                             .Include(e => e.ExpenseRooms)
                                 .ThenInclude(er => er.Apartment)
-                            .Where(e => hotelSettings.Contains(e.HotelId))
+                            // ✅ Removed hotel_id filter - get ALL expenses from this tenant database
                             .OrderByDescending(e => e.DateTime)
                             .Select(e => new
                             {
                                 Expense = e,
-                                ExpenseCategoryName = e.ExpenseCategory != null ? e.ExpenseCategory.CategoryName : null,
                                 HotelName = e.HotelSettings != null ? e.HotelSettings.HotelName : null,
                                 ExpenseRooms = e.ExpenseRooms.Select(er => new
                                 {
@@ -1706,10 +2437,95 @@ namespace zaaerIntegration.Controllers
                             })
                             .ToListAsync();
 
+                        _logger.LogInformation("📊 [GetSupervisorExpenses] Tenant '{Code}' - Found {Count} expenses (all expenses from database, not filtered by hotel_id)", 
+                            userTenant.Code, tenantExpenses.Count);
+
+                        // ✅ Get all unique category IDs from expenses
+                        var categoryIds = tenantExpenses
+                            .Where(e => e.Expense.ExpenseCategoryId.HasValue)
+                            .Select(e => e.Expense.ExpenseCategoryId!.Value)
+                            .Distinct()
+                            .ToList();
+
+                        // ✅ Load category names from Master DB using a NEW scope for this task
+                        // CRITICAL: Each parallel task needs its own DbContext instance to avoid concurrency issues
+                        Dictionary<int, string> masterCategories;
+                        if (categoryIds.Any())
+                        {
+                            // Create a new scope for this task to get a fresh DbContext instance
+                            using var scope = HttpContext.RequestServices.CreateScope();
+                            var masterDbForTask = scope.ServiceProvider.GetRequiredService<MasterDbContext>();
+                            masterCategories = await masterDbForTask.ExpenseCategories
+                                .AsNoTracking()
+                                .Where(ec => categoryIds.Contains(ec.Id))
+                                .ToDictionaryAsync(ec => ec.Id, ec => ec.MainCategory);
+                        }
+                        else
+                        {
+                            masterCategories = new Dictionary<int, string>();
+                        }
+
+                        // ✅ Get all unique ApprovedBy user IDs from expenses
+                        var approvedByUserIds = tenantExpenses
+                            .Where(e => e.Expense.ApprovedBy.HasValue)
+                            .Select(e => e.Expense.ApprovedBy!.Value)
+                            .Distinct()
+                            .ToList();
+
+                        // ✅ Load all approved by user info (full name, role, tenant) from Master DB using a NEW scope
+                        Dictionary<int, (string fullName, string? role, string? tenantName)> approvedByUsersDict;
+                        if (approvedByUserIds.Any())
+                        {
+                            using var scope = HttpContext.RequestServices.CreateScope();
+                            var masterDbForTask = scope.ServiceProvider.GetRequiredService<MasterDbContext>();
+                            var users = await masterDbForTask.MasterUsers
+                                .AsNoTracking()
+                                .Include(u => u.UserRoles)
+                                    .ThenInclude(ur => ur.Role)
+                                .Include(u => u.Tenant)
+                                .Where(u => approvedByUserIds.Contains(u.Id))
+                                .ToListAsync();
+                            
+                            approvedByUsersDict = users.ToDictionary(
+                                u => u.Id,
+                                u =>
+                                {
+                                    var fullName = u.FullName ?? u.Username;
+                                    var primaryRole = u.UserRoles?.FirstOrDefault()?.Role;
+                                    var roleName = GetRoleDisplayName(primaryRole?.Code);
+                                    var tenantName = u.Tenant?.Name;
+                                    return (fullName, roleName, tenantName);
+                                }
+                            );
+                        }
+                        else
+                        {
+                            approvedByUsersDict = new Dictionary<int, (string, string?, string?)>();
+                        }
+
                         // ✅ تحويل إلى DTOs
                         var tenantExpenseDtos = tenantExpenses.Select(item =>
                         {
                             var expense = item.Expense;
+                            
+                            // ✅ Get category name from Master DB
+                            string? categoryName = null;
+                            if (expense.ExpenseCategoryId.HasValue && masterCategories.TryGetValue(expense.ExpenseCategoryId.Value, out var catName))
+                            {
+                                categoryName = catName;
+                            }
+                            
+                            // ✅ Get approved by user info from dictionary
+                            string? approvedByFullName = null;
+                            string? approvedByRole = null;
+                            string? approvedByTenantName = null;
+                            if (expense.ApprovedBy.HasValue && approvedByUsersDict.TryGetValue(expense.ApprovedBy.Value, out var userInfo))
+                            {
+                                approvedByFullName = userInfo.fullName;
+                                approvedByRole = userInfo.role;
+                                approvedByTenantName = userInfo.tenantName;
+                            }
+                            
                             var expenseRooms = item.ExpenseRooms.Select(er => new ExpenseRoomResponseDto
                             {
                                 ExpenseRoomId = er.ExpenseRoomId,
@@ -1733,7 +2549,7 @@ namespace zaaerIntegration.Controllers
                                 DueDate = expense.DueDate,
                                 Comment = expense.Comment,
                                 ExpenseCategoryId = expense.ExpenseCategoryId,
-                                ExpenseCategoryName = item.ExpenseCategoryName,
+                                ExpenseCategoryName = categoryName, // ✅ From Master DB
                                 TaxRate = expense.TaxRate,
                                 TaxAmount = expense.TaxAmount,
                                 TotalAmount = expense.TotalAmount,
@@ -1741,6 +2557,7 @@ namespace zaaerIntegration.Controllers
                                 UpdatedAt = expense.UpdatedAt,
                                 ApprovalStatus = expense.ApprovalStatus,
                                 ApprovedBy = expense.ApprovedBy,
+                                ApprovedByFullName = approvedByFullName,
                                 ApprovedAt = expense.ApprovedAt,
                                 RejectionReason = expense.RejectionReason,
                                 ExpenseRooms = expenseRooms
@@ -1808,6 +2625,26 @@ namespace zaaerIntegration.Controllers
                 _logger.LogError(ex, "❌ [GetSupervisorPendingExpenses] Error: {Message}", ex.Message);
                 return StatusCode(500, new { error = "Failed to fetch pending expenses", details = ex.Message });
             }
+        }
+
+        /// <summary>
+        /// تحويل Role Code إلى اسم عربي للعرض
+        /// Convert Role Code to Arabic display name
+        /// </summary>
+        private string? GetRoleDisplayName(string? roleCode)
+        {
+            if (string.IsNullOrWhiteSpace(roleCode))
+                return null;
+
+            return roleCode.ToLower() switch
+            {
+                "staff" or "reception staff" => "موظف",
+                "supervisor" => "مشرف فرع",
+                "manager" => "مدير العمليات",
+                "accountant" => "المحاسب",
+                "admin" or "administrator" => "المدير العام",
+                _ => roleCode
+            };
         }
     }
 }

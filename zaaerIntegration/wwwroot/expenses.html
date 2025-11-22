@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏨</text></svg>">
     <title>إدارة المصروفات - Expenses Management</title>
     
     <!-- Google Fonts - Cairo -->
@@ -1796,6 +1801,7 @@
             gap: 10px;
             transition: background 0.2s ease;
             border-bottom: 1px solid #f3f4f6;
+            color: #374151;
         }
 
         .user-dropdown-item:last-child {
@@ -1833,7 +1839,7 @@
 
         .notification-icon {
             font-size: 24px;
-            color: white;
+            color: #DC3545; /* Always red */
             position: relative;
             transition: all 0.3s ease;
         }
@@ -1861,7 +1867,7 @@
         }
 
         .notification-count.read {
-            background: var(--success-green);
+            background: var(--danger-red); /* Always red, even when read */
         }
 
         /* Notifications Dropdown */
@@ -2274,6 +2280,17 @@
             color: #4b5563;
         }
 
+        .action-btn-history {
+            background: #f3f4f6;
+            color: #6b7280;
+            border: 1px solid #e5e7eb;
+        }
+
+        .action-btn-history:hover {
+            background: #e5e7eb;
+            color: #8b5cf6;
+        }
+
         .action-btn svg {
             stroke: #6b7280;
         }
@@ -2644,13 +2661,6 @@
     <div class="main-container">
         <!-- Page Header -->
         <div class="page-header">
-            <button class="logout-btn" onclick="handleLogout()" title="تسجيل الخروج والعودة لصفحة تسجيل الدخول">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-            </button>
             <div class="page-header-content">
                 <h1>
                     <i class="fas fa-file-invoice-dollar"></i>
@@ -2732,23 +2742,23 @@
                             </div>
                             <div class="form-group">
                                 <label>الاسم الكامل</label>
-                                <input type="text" id="profileFullName" class="form-control">
+                                <input type="text" id="profileFullName" class="form-control" readonly>
                             </div>
                         </div>
                         <div class="form-row">
                             <div class="form-group">
                                 <label>البريد الإلكتروني</label>
-                                <input type="email" id="profileEmail" class="form-control">
+                                <input type="email" id="profileEmail" class="form-control" readonly>
                             </div>
                             <div class="form-group">
                                 <label>رقم الجوال</label>
-                                <input type="text" id="profilePhoneNumber" class="form-control" placeholder="966XXXXXXXXX">
+                                <input type="text" id="profilePhoneNumber" class="form-control" placeholder="966XXXXXXXXX" readonly>
                             </div>
                         </div>
                         <div class="form-row">
                             <div class="form-group">
                                 <label>الرقم الوظيفي</label>
-                                <input type="text" id="profileEmployeeNumber" class="form-control">
+                                <input type="text" id="profileEmployeeNumber" class="form-control" readonly>
                             </div>
                             <div class="form-group">
                                 <label>الفندق</label>
@@ -2756,8 +2766,7 @@
                             </div>
                         </div>
                         <div class="form-actions">
-                            <button type="button" class="btn-cancel" onclick="closeProfileModal()">إلغاء</button>
-                            <button type="submit" class="btn-submit">حفظ التغييرات</button>
+                            <button type="button" class="btn-cancel" onclick="closeProfileModal()">إغلاق</button>
                         </div>
                     </form>
                 </div>
@@ -2778,14 +2787,16 @@
                         <div class="form-group">
                             <label>كلمة المرور الحالية <span style="color: red;">*</span></label>
                             <input type="password" id="currentPassword" class="form-control" required>
+                            <span id="currentPasswordError" class="password-error-message" style="display: none; color: #DC3545; font-size: 12px; margin-top: 5px;"></span>
                         </div>
                         <div class="form-group">
                             <label>كلمة المرور الجديدة <span style="color: red;">*</span></label>
-                            <input type="password" id="newPassword" class="form-control" required minlength="6">
+                            <input type="password" id="newPassword" class="form-control" required minlength="3">
                         </div>
                         <div class="form-group">
                             <label>تأكيد كلمة المرور الجديدة <span style="color: red;">*</span></label>
-                            <input type="password" id="confirmPassword" class="form-control" required minlength="6">
+                            <input type="password" id="confirmPassword" class="form-control" required minlength="3">
+                            <span id="confirmPasswordError" class="password-error-message" style="display: none; color: #DC3545; font-size: 12px; margin-top: 5px;"></span>
                         </div>
                         <div class="form-actions">
                             <button type="button" class="btn-cancel" onclick="closeChangePasswordModal()">إلغاء</button>
@@ -3149,6 +3160,26 @@
                 <button class="btn-primary" onclick="closeCategoryDetailsModal()" style="padding: 8px 20px;">
                     <i class="fas fa-check"></i> موافق
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approval History Timeline Modal -->
+    <div class="images-modal" id="approvalHistoryModal">
+        <div class="images-modal-content" style="max-width: 900px;">
+            <div class="images-modal-header">
+                <h3><i class="fas fa-route"></i> مسار الطلب / سجل الموافقات</h3>
+                <button class="images-modal-close" onclick="closeApprovalHistoryModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div style="padding: 20px;">
+                <div id="approvalHistoryContent">
+                    <div style="text-align: center; padding: 40px;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 24px; color: var(--primary-blue);"></i>
+                        <p style="margin-top: 15px; color: var(--dark-gray);">جاري تحميل سجل الموافقات...</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -6294,9 +6325,15 @@ ${approvalLink}
             const comment = commentText ? (commentText.length > 50 ? commentText.substring(0, 50) + '...' : commentText) : '-';
             const commentDisplay = comment;
             
-            // Determine if edit button should be shown
-            // Only show for auto-approved and accepted expenses
-            const canEdit = approvalStatus === 'auto-approved' || approvalStatus === 'accepted';
+            // Determine if edit and delete buttons should be shown
+            // Show for pending, awaiting-*, or rejected expenses
+            // Hide for accepted expenses
+            const canEditOrDelete = approvalStatus === 'pending' || 
+                                    approvalStatus === 'awaiting-manager' || 
+                                    approvalStatus === 'awaiting-accountant' || 
+                                    approvalStatus === 'awaiting-admin' || 
+                                    approvalStatus === 'rejected' ||
+                                    approvalStatus === 'auto-approved';
             
             // Get hotel code for view details
             const hotelCode = expense.hotelCode || expense.HotelCode || currentHotelCode || '';
@@ -6312,7 +6349,15 @@ ${approvalLink}
                             <circle cx="12" cy="12" r="3"></circle>
                         </svg>
                     </button>`;
-            if (canEdit) {
+            // Approval History Timeline button - always shown (icon only)
+            actionButtonsHtml += `
+                    <button class="action-btn action-btn-history" onclick="showApprovalHistory(${expenseId})" title="مسار الطلب / سجل الموافقات">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                        </svg>
+                    </button>`;
+            // Edit and Delete buttons - only show for pending, awaiting, rejected, or auto-approved
+            if (canEditOrDelete) {
                 actionButtonsHtml += `
                     <button class="action-btn action-btn-edit" onclick="editExpense(${expenseId})" title="تعديل">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -6320,8 +6365,6 @@ ${approvalLink}
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                         </svg>
                     </button>`;
-            }
-            // Delete button is always shown
             actionButtonsHtml += `
                     <button class="action-btn action-btn-delete" onclick="deleteExpense(${expenseId})" title="حذف">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -6331,6 +6374,7 @@ ${approvalLink}
                             <line x1="14" y1="11" x2="14" y2="17"></line>
                         </svg>
                     </button>`;
+            }
             
             tr.innerHTML = `
                 <td><strong>#${expenseId}</strong></td>
@@ -6392,11 +6436,9 @@ ${approvalLink}
                     badgeClass = 'status-rejected';
                     icon = '<i class="fas fa-times-circle"></i>';
                     text = 'مرفوض';
-                    // Make badge clickable if there's a rejection reason
-                    if (rejectionReason && rejectionReason !== '-' && rejectionReason.trim() !== '') {
-                        clickable = 'clickable';
-                        onclickAttr = `onclick="showRejectionReason('${rejectionReason.replace(/'/g, "\\'")}')"`;
-                    }
+                    // Do not make badge clickable for rejected status
+                    clickable = '';
+                    onclickAttr = '';
                     break;
                 default:
                     badgeClass = 'status-pending';
@@ -6618,6 +6660,18 @@ ${approvalLink}
             if (modal) {
                 // Reset form
                 $('#changePasswordForm')[0].reset();
+                // Clear error messages
+                const errorElement = document.getElementById('currentPasswordError');
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                    errorElement.textContent = '';
+                }
+                const confirmErrorElement = document.getElementById('confirmPasswordError');
+                if (confirmErrorElement) {
+                    confirmErrorElement.style.display = 'none';
+                    confirmErrorElement.textContent = '';
+                }
+                $('#currentPassword, #newPassword, #confirmPassword').css('border-color', '');
                 modal.style.display = 'flex';
                 $('#userDropdownMenu').removeClass('active');
             }
@@ -6628,67 +6682,66 @@ ${approvalLink}
             $('#changePasswordModal').hide();
         }
 
-        // Handle Profile Form Submit
+        // Profile Form is read-only, no submit handler needed
+
+        // Handle Change Password Form Submit
         $(document).ready(function() {
-            $('#profileForm').on('submit', async function(e) {
-                e.preventDefault();
-                
-                try {
-                    const authToken = localStorage.getItem('authToken');
-                    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-                    const userId = userInfo.userId || userInfo.UserId || parseJwt(authToken)?.userId;
-                    
-                    if (!userId || !authToken) {
-                        showNotification('⚠️ يجب تسجيل الدخول أولاً', 'error');
-                        return;
-                    }
-
-                    const formData = {
-                        fullName: $('#profileFullName').val() || null,
-                        email: $('#profileEmail').val() || null,
-                        phoneNumber: $('#profilePhoneNumber').val() || null,
-                        employeeNumber: $('#profileEmployeeNumber').val() || null
-                    };
-
-                    const response = await fetch(`/api/MasterUser/${userId}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Authorization': `Bearer ${authToken}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(formData)
-                    });
-
-                    if (response.ok) {
-                        const updatedUser = await response.json();
-                        displayUserInfo(updatedUser);
-                        window.currentUserData = updatedUser;
-                        closeProfileModal();
-                        showNotification('✅ تم تحديث الملف الشخصي بنجاح', 'success');
-                    } else {
-                        const error = await response.json().catch(() => ({ error: 'فشل تحديث الملف الشخصي' }));
-                        showNotification(`❌ ${error.error || 'فشل تحديث الملف الشخصي'}`, 'error');
-                    }
-                } catch (error) {
-                    console.error('Error updating profile:', error);
-                    showNotification(`❌ خطأ: ${error.message}`, 'error');
-                }
-            });
-
-            // Handle Change Password Form Submit
             $('#changePasswordForm').on('submit', async function(e) {
                 e.preventDefault();
                 
+                const currentPassword = $('#currentPassword').val();
                 const newPassword = $('#newPassword').val();
                 const confirmPassword = $('#confirmPassword').val();
+
+                // Validate current password is provided
+                if (!currentPassword || currentPassword.trim() === '') {
+                    showNotification('❌ يرجى إدخال كلمة المرور الحالية', 'error');
+                        return;
+                    }
+
+                // Validate new password is provided
+                if (!newPassword || newPassword.trim() === '') {
+                    showNotification('❌ يرجى إدخال كلمة المرور الجديدة', 'error');
+                    return;
+                }
                 
                 if (newPassword !== confirmPassword) {
-                    showNotification('❌ كلمة المرور الجديدة وتأكيدها غير متطابقين', 'error');
+                    // Show error message next to the confirm password field
+                    const confirmErrorElement = document.getElementById('confirmPasswordError');
+                    if (confirmErrorElement) {
+                        confirmErrorElement.textContent = 'كلمة المرور الجديدة وتأكيد كلمة المرور غير متطابقين';
+                        confirmErrorElement.style.display = 'block';
+                        // Add red border to inputs
+                        $('#confirmPassword').css('border-color', '#DC3545');
+                        $('#newPassword').css('border-color', '#DC3545');
+                        // Clear error when user starts typing
+                        $('#confirmPassword, #newPassword').on('input', function() {
+                            if ($('#newPassword').val() === $('#confirmPassword').val()) {
+                                confirmErrorElement.style.display = 'none';
+                                $('#confirmPassword').css('border-color', '');
+                                $('#newPassword').css('border-color', '');
+                            }
+                        });
+                    }
+                    return;
+                }
+                
+                // Clear confirm password error if passwords match
+                const confirmErrorElement = document.getElementById('confirmPasswordError');
+                if (confirmErrorElement) {
+                    confirmErrorElement.style.display = 'none';
+                    $('#confirmPassword').css('border-color', '');
+                    $('#newPassword').css('border-color', '');
+                }
+
+                if (newPassword.length < 3) {
+                    showNotification('❌ كلمة المرور يجب أن تكون 3 أحرف على الأقل', 'error');
                     return;
                 }
 
-                if (newPassword.length < 6) {
-                    showNotification('❌ كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'error');
+                // Check if new password is same as current password
+                if (currentPassword === newPassword) {
+                    showNotification('❌ كلمة المرور الجديدة يجب أن تكون مختلفة عن كلمة المرور الحالية', 'error');
                     return;
                 }
 
@@ -6702,6 +6755,50 @@ ${approvalLink}
                         return;
                     }
 
+                    // First, verify current password by attempting login
+                    const username = userInfo.username || userInfo.Username;
+                    if (!username) {
+                        showNotification('❌ لم يتم العثور على اسم المستخدم', 'error');
+                        return;
+                    }
+
+                    // Verify current password by calling login endpoint
+                    const verifyResponse = await fetch('/api/Auth/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            username: username,
+                            password: currentPassword
+                        })
+                    });
+
+                    if (!verifyResponse.ok) {
+                        // Show error message next to the current password field
+                        const errorElement = document.getElementById('currentPasswordError');
+                        if (errorElement) {
+                            errorElement.textContent = 'كلمة المرور الحالية غير صحيحة';
+                            errorElement.style.display = 'block';
+                            // Add red border to input
+                            $('#currentPassword').css('border-color', '#DC3545');
+                            // Clear error when user starts typing
+                            $('#currentPassword').on('input', function() {
+                                errorElement.style.display = 'none';
+                                $(this).css('border-color', '');
+                            });
+                        }
+                        return;
+                    }
+                    
+                    // Clear error message if password is correct
+                    const errorElement = document.getElementById('currentPasswordError');
+                    if (errorElement) {
+                        errorElement.style.display = 'none';
+                        $('#currentPassword').css('border-color', '');
+                    }
+
+                    // Current password is correct, proceed with password change
                     const formData = {
                         password: newPassword
                     };
@@ -6731,67 +6828,69 @@ ${approvalLink}
         
         // ==================== Notification Functions ====================
         // Update Notification Count
+        // ✅ For employees: Show rejected and all awaiting statuses
         function updateNotificationCount() {
-            // Count all expenses with pending or awaiting status
-            const pendingExpenses = allExpensesData.filter(expense => {
+            // Count all expenses with rejected or any awaiting status (for employee notifications)
+            const notificationExpenses = allExpensesData.filter(expense => {
                 const status = (expense.approvalStatus || expense.ApprovalStatus || expense.approval_status || '').toLowerCase();
-                return status === 'pending' || 
+                return status === 'rejected' || 
+                       status === 'pending' || 
                        status === 'awaiting-manager' || 
                        status === 'awaiting-accountant' || 
                        status === 'awaiting-admin';
             });
             
-            // Check if all expenses are accepted or rejected
-            const allProcessed = allExpensesData.length > 0 && allExpensesData.every(expense => {
-                const status = (expense.approvalStatus || expense.ApprovalStatus || expense.approval_status || '').toLowerCase();
-                return status === 'accepted' || status === 'rejected';
-            });
-            
             // Filter out read notifications
-            const unreadCount = pendingExpenses.filter(expense => {
+            const unreadCount = notificationExpenses.filter(expense => {
                 const expenseId = expense.expenseId || expense.ExpenseId || expense.expense_id;
                 return !readNotifications.includes(expenseId);
             }).length;
             
             const notificationCount = document.getElementById('notificationCount');
+            const notificationIcon = document.querySelector('.notification-icon');
+            
             if (notificationCount) {
-                // If all are processed (accepted/rejected), show 0 with green
-                if (allProcessed && pendingExpenses.length === 0) {
-                    notificationCount.textContent = '0';
-                    notificationCount.style.display = 'flex';
-                    notificationCount.classList.add('read');
-                } else if (unreadCount > 0) {
+                if (unreadCount > 0) {
                     // Show count with red badge
                     notificationCount.textContent = unreadCount;
                     notificationCount.style.display = 'flex';
                     notificationCount.classList.remove('read');
-                } else if (pendingExpenses.length > 0 && unreadCount === 0) {
-                    // All pending expenses are read, show 0 with green
+                } else if (notificationExpenses.length > 0 && unreadCount === 0) {
+                    // All notification expenses are read - show 0 with red
                     notificationCount.textContent = '0';
                     notificationCount.style.display = 'flex';
-                    notificationCount.classList.add('read');
+                    notificationCount.classList.remove('read'); // Keep red
                 } else {
-                    // No pending expenses
+                    // No notification expenses
+                    notificationCount.textContent = '0';
                     notificationCount.style.display = 'none';
                     notificationCount.classList.remove('read');
                 }
             }
+            
+            // Always keep notification icon red
+            if (notificationIcon) {
+                notificationIcon.style.color = '#DC3545'; // Red color
+            }
         }
         
         // Load and Display Notifications
+        // ✅ For employees: Show rejected and all awaiting statuses
         function loadNotifications() {
             const notificationsList = document.getElementById('notificationsList');
             if (!notificationsList) return;
             
-            const pendingExpenses = allExpensesData.filter(expense => {
+            // Include rejected and all awaiting statuses in notifications (for employees)
+            const notificationExpenses = allExpensesData.filter(expense => {
                 const status = (expense.approvalStatus || expense.ApprovalStatus || expense.approval_status || '').toLowerCase();
-                return status === 'pending' || 
+                return status === 'rejected' || 
+                       status === 'pending' || 
                        status === 'awaiting-manager' || 
                        status === 'awaiting-accountant' || 
                        status === 'awaiting-admin';
             });
             
-            if (!pendingExpenses || pendingExpenses.length === 0) {
+            if (!notificationExpenses || notificationExpenses.length === 0) {
                 notificationsList.innerHTML = `
                     <div class="notifications-empty">
                         <i class="fas fa-check-circle"></i>
@@ -6802,7 +6901,7 @@ ${approvalLink}
             }
             
             // Sort by date (newest first)
-            const sortedExpenses = [...pendingExpenses].sort((a, b) => {
+            const sortedExpenses = [...notificationExpenses].sort((a, b) => {
                 const dateA = new Date(a.dateTime || a.DateTime || a.date_time);
                 const dateB = new Date(b.dateTime || b.DateTime || b.date_time);
                 return dateB - dateA;
@@ -6812,16 +6911,37 @@ ${approvalLink}
                 const expenseId = expense.expenseId || expense.ExpenseId || expense.expense_id;
                 const hotelName = expense.hotelName || expense.HotelName || 'غير محدد';
                 const amount = (expense.totalAmount || expense.TotalAmount || expense.total_amount || 0).toFixed(2);
+                const status = (expense.approvalStatus || expense.ApprovalStatus || expense.approval_status || '').toLowerCase();
                 const date = new Date(expense.dateTime || expense.DateTime || expense.date_time);
                 const formattedDate = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
                 const formattedTime = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
                 const isRead = readNotifications.includes(expenseId);
                 
+                // Get status text in Arabic
+                let statusText = '';
+                let statusIcon = 'fa-file-invoice-dollar';
+                if (status === 'rejected') {
+                    statusText = ' - مرفوض';
+                    statusIcon = 'fa-times-circle';
+                } else if (status === 'pending') {
+                    statusText = ' - في انتظار المشرف';
+                    statusIcon = 'fa-clock';
+                } else if (status === 'awaiting-manager') {
+                    statusText = ' - في انتظار المدير';
+                    statusIcon = 'fa-user-tie';
+                } else if (status === 'awaiting-accountant') {
+                    statusText = ' - في انتظار المحاسب';
+                    statusIcon = 'fa-calculator';
+                } else if (status === 'awaiting-admin') {
+                    statusText = ' - في انتظار المدير العام';
+                    statusIcon = 'fa-user-shield';
+                }
+                
                 return `
                     <div class="notification-item ${isRead ? 'read' : ''}" onclick="markNotificationAsRead(${expenseId})">
                         <div class="notification-item-title">
-                            <i class="fas fa-file-invoice-dollar"></i>
-                            طلب مصروف #${expenseId}
+                            <i class="fas ${statusIcon}"></i>
+                            طلب مصروف #${expenseId}${statusText}
                         </div>
                         <div class="notification-item-content">
                             طلب من <strong>${hotelName}</strong> يحتوي على مبلغ <strong>${amount} <img src="logo/sar-symbol.svg" style="width: 14px; height: 14px; vertical-align: middle;" alt="SAR" /></strong>
@@ -6873,9 +6993,11 @@ ${approvalLink}
         
         // Mark All Notifications as Read
         function markAllNotificationsAsRead() {
-            const pendingExpenses = allExpensesData.filter(expense => {
+            // ✅ For employees: Mark rejected and all awaiting statuses as read
+            const notificationExpenses = allExpensesData.filter(expense => {
                 const status = (expense.approvalStatus || expense.ApprovalStatus || expense.approval_status || '').toLowerCase();
-                return status === 'pending' || 
+                return status === 'rejected' || 
+                       status === 'pending' || 
                        status === 'awaiting-manager' || 
                        status === 'awaiting-accountant' || 
                        status === 'awaiting-admin';
@@ -7252,6 +7374,7 @@ ${approvalLink}
             const rejectionReason = expense.rejectionReason || expense.RejectionReason || null;
             const statusBadge = getApprovalStatusBadge(status, rejectionReason, expenseId);
             const approvedBy = expense.approvedBy || expense.ApprovedBy;
+            const approvedByFullName = expense.approvedByFullName || expense.ApprovedByFullName || approvedBy || '-';
             const approvedAt = expense.approvedAt || expense.ApprovedAt;
             const formattedApprovedAt = approvedAt ? (() => {
                 const d = new Date(approvedAt);
@@ -7341,7 +7464,7 @@ ${approvalLink}
                     <div class="expense-details-grid">
                         <div class="expense-detail-item">
                             <span class="expense-detail-label">تمت الموافقة/الرفض بواسطة</span>
-                            <span class="expense-detail-value">${approvedBy || '-'}</span>
+                            <span class="expense-detail-value">${formatUserDisplayName(approvedByFullName, expense.approvedByRole || expense.ApprovedByRole, expense.approvedByTenantName || expense.ApprovedByTenantName)}</span>
                         </div>
                         <div class="expense-detail-item">
                             <span class="expense-detail-label">تاريخ الموافقة/الرفض</span>
@@ -7447,6 +7570,303 @@ ${approvalLink}
         // Close Category Details Modal
         function closeCategoryDetailsModal() {
             $('#categoryDetailsModal').removeClass('active');
+        }
+
+        // ==================== Approval History Timeline ====================
+        async function showApprovalHistory(expenseId) {
+            const modal = document.getElementById('approvalHistoryModal');
+            const content = document.getElementById('approvalHistoryContent');
+            
+            // Show modal
+            modal.classList.add('active');
+            
+            // Show loading
+            content.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 24px; color: var(--primary-blue);"></i>
+                    <p style="margin-top: 15px; color: var(--dark-gray);">جاري تحميل سجل الموافقات...</p>
+                </div>
+            `;
+            
+            try {
+                const headers = getApiHeaders();
+                const response = await fetch(`${API_BASE_URL}/api/Expense/${expenseId}/history`, {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch approval history');
+                }
+                
+                const history = await response.json();
+                
+                if (!history || history.length === 0) {
+                    content.innerHTML = `
+                        <div style="text-align: center; padding: 40px;">
+                            <i class="fas fa-info-circle" style="font-size: 48px; color: var(--light-gray); margin-bottom: 15px;"></i>
+                            <p style="color: var(--dark-gray); font-size: 16px;">لا يوجد سجل موافقات لهذا المصروف</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Render timeline
+                content.innerHTML = renderApprovalTimeline(history);
+            } catch (error) {
+                console.error('Error loading approval history:', error);
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: var(--danger-red); margin-bottom: 15px;"></i>
+                        <p style="color: var(--danger-red); font-size: 16px;">حدث خطأ أثناء تحميل سجل الموافقات</p>
+                        <p style="color: var(--dark-gray); font-size: 14px; margin-top: 10px;">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderApprovalTimeline(history) {
+            // Sort by date (oldest first)
+            const sortedHistory = [...history].sort((a, b) => {
+                return new Date(a.actionAt) - new Date(b.actionAt);
+            });
+            
+            let html = '<div class="approval-timeline">';
+            
+            sortedHistory.forEach((item, index) => {
+                const isLast = index === sortedHistory.length - 1;
+                const actionInfo = getActionInfo(item.action, item.status);
+                const date = new Date(item.actionAt);
+                const formattedDate = formatDateTime(date);
+                
+                html += `
+                    <div class="timeline-item ${isLast ? 'timeline-item-active' : ''}">
+                        <div class="timeline-marker" style="background: ${actionInfo.color};">
+                            <i class="${actionInfo.icon}"></i>
+                        </div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <h4 style="color: ${actionInfo.color}; margin: 0; font-size: 16px;">${actionInfo.title}</h4>
+                                <span class="timeline-date">${formattedDate}</span>
+                            </div>
+                            <div class="timeline-body">
+                                <p style="margin: 5px 0; color: var(--dark-gray);">
+                                    <strong>بواسطة:</strong> ${formatUserDisplayName(item.actionByFullName, item.actionByRole, item.actionByTenantName)}
+                                </p>
+                                ${item.comments ? `<p style="margin: 5px 0; color: var(--dark-gray);">${item.comments}</p>` : ''}
+                                ${item.rejectionReason ? `
+                                    <div style="margin-top: 10px; padding: 10px; background: #fee; border-right: 3px solid var(--danger-red); border-radius: 4px;">
+                                        <strong style="color: var(--danger-red);">سبب الرفض:</strong>
+                                        <p style="margin: 5px 0; color: var(--dark-gray);">${item.rejectionReason}</p>
+                                    </div>
+                                ` : ''}
+                                <div style="margin-top: 8px;">
+                                    <span class="status-badge" style="background: ${actionInfo.badgeColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px;">
+                                        ${actionInfo.statusText}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        ${!isLast ? '<div class="timeline-line"></div>' : ''}
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            
+            // Add CSS styles
+            html += `
+                <style>
+                    .approval-timeline {
+                        position: relative;
+                        padding: 20px 0;
+                    }
+                    .timeline-item {
+                        position: relative;
+                        padding-right: 50px;
+                        margin-bottom: 30px;
+                    }
+                    .timeline-marker {
+                        position: absolute;
+                        right: 0;
+                        top: 0;
+                        width: 40px;
+                        height: 40px;
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        color: white;
+                        font-size: 18px;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                        z-index: 2;
+                    }
+                    .timeline-content {
+                        background: white;
+                        border: 1px solid var(--light-gray);
+                        border-radius: 8px;
+                        padding: 15px;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                    }
+                    .timeline-header {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 10px;
+                        padding-bottom: 10px;
+                        border-bottom: 1px solid var(--light-gray);
+                    }
+                    .timeline-date {
+                        color: var(--dark-gray);
+                        font-size: 12px;
+                    }
+                    .timeline-body {
+                        font-size: 14px;
+                    }
+                    .timeline-line {
+                        position: absolute;
+                        right: 19px;
+                        top: 40px;
+                        width: 2px;
+                        height: calc(100% + 10px);
+                        background: var(--light-gray);
+                        z-index: 1;
+                    }
+                    .timeline-item-active .timeline-marker {
+                        box-shadow: 0 0 0 4px rgba(0,122,204,0.2);
+                    }
+                </style>
+            `;
+            
+            return html;
+        }
+
+        function getActionInfo(action, status) {
+            const actionLower = (action || '').toLowerCase();
+            const statusLower = (status || '').toLowerCase();
+            
+            switch(actionLower) {
+                case 'created':
+                    return {
+                        title: 'إنشاء الطلب',
+                        icon: 'fas fa-plus-circle',
+                        color: '#007ACC',
+                        badgeColor: '#007ACC',
+                        statusText: 'تم الإنشاء'
+                    };
+                case 'approved':
+                    return {
+                        title: 'تمت الموافقة',
+                        icon: 'fas fa-check-circle',
+                        color: '#28A745',
+                        badgeColor: '#28A745',
+                        statusText: 'مقبول'
+                    };
+                case 'rejected':
+                    return {
+                        title: 'تم الرفض',
+                        icon: 'fas fa-times-circle',
+                        color: '#DC3545',
+                        badgeColor: '#DC3545',
+                        statusText: 'مرفوض'
+                    };
+                case 'awaiting-manager':
+                    return {
+                        title: 'في انتظار مدير العمليات',
+                        icon: 'fas fa-user-tie',
+                        color: '#8b5cf6',
+                        badgeColor: '#8b5cf6',
+                        statusText: 'في الانتظار'
+                    };
+                case 'awaiting-accountant':
+                    return {
+                        title: 'في انتظار المحاسب',
+                        icon: 'fas fa-calculator',
+                        color: '#FF9800',
+                        badgeColor: '#FF9800',
+                        statusText: 'في الانتظار'
+                    };
+                case 'awaiting-admin':
+                    return {
+                        title: 'في انتظار المدير العام',
+                        icon: 'fas fa-user-shield',
+                        color: '#9C27B0',
+                        badgeColor: '#9C27B0',
+                        statusText: 'في الانتظار'
+                    };
+                default:
+                    return {
+                        title: action || 'إجراء',
+                        icon: 'fas fa-circle',
+                        color: '#6c757d',
+                        badgeColor: '#6c757d',
+                        statusText: status || 'غير محدد'
+                    };
+            }
+        }
+
+        function formatDateTime(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${day}/${month}/${year} ${hours}:${minutes}`;
+        }
+
+        // Format user display name with role and tenant in parentheses
+        function formatUserDisplayName(fullName, role, tenantName) {
+            if (!fullName || fullName === 'غير محدد') {
+                return 'غير محدد';
+            }
+            
+            let displayName = fullName;
+            const parts = [];
+            
+            // Add role if available
+            if (role) {
+                // For "موظف" (Staff), add tenant name
+                if (role === 'موظف' && tenantName) {
+                    parts.push(`${role} ${tenantName}`);
+                } else if (role === 'مشرف فرع') {
+                    // For supervisor: add first word of tenant name (without numbers)
+                    if (tenantName) {
+                        // Extract first word from tenant name (remove numbers and extra spaces)
+                        const firstWord = tenantName.split(/\s+/)[0].replace(/\d+/g, '').trim();
+                        if (firstWord) {
+                            parts.push(`${role} ${firstWord}`);
+                        } else {
+                            parts.push(role);
+                        }
+                    } else {
+                        parts.push(role);
+                    }
+                } else if (role === 'مدير العمليات' || role === 'المدير العام' || role === 'المحاسب') {
+                    // For manager, admin, and accountant: only show role without tenant name
+                    parts.push(role);
+                } else {
+                    // For other roles, add role and tenant if available
+                    if (tenantName) {
+                        parts.push(role);
+                        parts.push(tenantName);
+                    } else {
+                        parts.push(role);
+                    }
+                }
+            } else if (tenantName) {
+                // If no role but tenant name exists, just add tenant name
+                parts.push(tenantName);
+            }
+            
+            if (parts.length > 0) {
+                displayName += ` (${parts.join(' - ')})`;
+            }
+            
+            return displayName;
+        }
+
+        function closeApprovalHistoryModal() {
+            document.getElementById('approvalHistoryModal').classList.remove('active');
         }
 
         // Close modal when clicking outside

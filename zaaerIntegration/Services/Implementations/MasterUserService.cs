@@ -233,88 +233,102 @@ namespace zaaerIntegration.Services.Implementations
 
             // إضافة UserTenants بناءً على الأدوار
             // القواعد:
-            // - Supervisor: جميع الفنادق ما عدا الفندق الأساسي
-            // - Manager, Accountant, Admin, Staff: الفندق الأساسي فقط
+            // - Supervisor: إذا تم تحديد فنادق إضافية، نضيف فقط الفنادق المحددة + الفندق الأساسي. إذا لم يتم تحديد، نضيف جميع الفنادق
+            // - Manager, Accountant, Admin: إذا تم تحديد فنادق إضافية، نضيف الفنادق المحددة + الفندق الأساسي. إذا لم يتم تحديد، نضيف الفندق الأساسي فقط
+            // - Staff: الفندق الأساسي فقط
             var hasSupervisorRole = userRoles.Any(r => r.Code.Equals("Supervisor", StringComparison.OrdinalIgnoreCase));
             var hasManagerRole = userRoles.Any(r => r.Code.Equals("Manager", StringComparison.OrdinalIgnoreCase));
             var hasAccountantRole = userRoles.Any(r => r.Code.Equals("Accountant", StringComparison.OrdinalIgnoreCase));
             var hasAdminRole = userRoles.Any(r => r.Code.Equals("Admin", StringComparison.OrdinalIgnoreCase));
             var hasStaffRole = userRoles.Any(r => r.Code.Equals("Staff", StringComparison.OrdinalIgnoreCase));
 
+            // جمع جميع الفنادق المطلوبة في HashSet لتجنب التكرار
+            var tenantsToAdd = new HashSet<int>();
+            
+            // دائماً إضافة الفندق الأساسي
+            tenantsToAdd.Add(tenantId);
+
             if (hasSupervisorRole)
             {
-                // Supervisor: إضافة جميع الفنادق ما عدا الفندق الأساسي
-                var allTenants = await _masterDbContext.Tenants
-                    .Where(t => t.Id != tenantId)
-                    .ToListAsync();
-
-                foreach (var supervisorTenant in allTenants)
+                // Supervisor: إذا تم تحديد فنادق إضافية، نضيف فقط الفنادق المحددة + الفندق الأساسي
+                // إذا لم يتم تحديد، نضيف جميع الفنادق
+                if (additionalTenantIds != null && additionalTenantIds.Any())
                 {
-                    var existingUserTenant = await _masterDbContext.UserTenants
-                        .FirstOrDefaultAsync(ut => ut.UserId == user.Id && ut.TenantId == supervisorTenant.Id);
-                    
-                    if (existingUserTenant == null)
+                    // إضافة الفنادق المحددة يدوياً
+                    foreach (var additionalTenantId in additionalTenantIds)
                     {
-                        var userTenant = new UserTenant
+                        if (additionalTenantId != tenantId)
                         {
-                            UserId = user.Id,
-                            TenantId = supervisorTenant.Id,
-                            CreatedAt = DateTime.UtcNow
-                        };
-                        _masterDbContext.UserTenants.Add(userTenant);
+                            tenantsToAdd.Add(additionalTenantId);
+                        }
                     }
+                    
+                    _logger.LogInformation("✅ Added selected tenants for Supervisor user: UserId={UserId}, TenantCount={Count}", 
+                        user.Id, tenantsToAdd.Count);
                 }
-                
-                _logger.LogInformation("✅ Added all tenants (except primary) for Supervisor user: UserId={UserId}, TenantCount={Count}", 
-                    user.Id, allTenants.Count);
+                else
+                {
+                    // إضافة جميع الفنادق
+                    var allTenants = await _masterDbContext.Tenants
+                        .Select(t => t.Id)
+                        .ToListAsync();
+                    
+                    foreach (var tenantIdToAdd in allTenants)
+                    {
+                        tenantsToAdd.Add(tenantIdToAdd);
+                    }
+                    
+                    _logger.LogInformation("✅ Added all tenants for Supervisor user: UserId={UserId}, TenantCount={Count}", 
+                        user.Id, tenantsToAdd.Count);
+                }
             }
-            else if (hasManagerRole || hasAccountantRole || hasAdminRole || hasStaffRole)
+            else if (hasManagerRole || hasAccountantRole || hasAdminRole)
             {
-                // Manager, Accountant, Admin, Staff: إضافة الفندق الأساسي فقط
+                // Manager, Accountant, Admin: إضافة الفنادق المحددة يدوياً + الفندق الأساسي
+                if (additionalTenantIds != null && additionalTenantIds.Any())
+                {
+                    foreach (var additionalTenantId in additionalTenantIds)
+                    {
+                        if (additionalTenantId != tenantId)
+                        {
+                            tenantsToAdd.Add(additionalTenantId);
+                        }
+                    }
+                    
+                    var roleName = hasManagerRole ? "Manager" : hasAccountantRole ? "Accountant" : "Admin";
+                    _logger.LogInformation("✅ Added selected tenants for {Role} user: UserId={UserId}, TenantCount={Count}", 
+                        roleName, user.Id, tenantsToAdd.Count);
+                }
+                else
+                {
+                    // فقط الفندق الأساسي (تم إضافته بالفعل)
+                    var roleName = hasManagerRole ? "Manager" : hasAccountantRole ? "Accountant" : "Admin";
+                    _logger.LogInformation("✅ Added primary tenant only for {Role} user: UserId={UserId}, TenantId={TenantId}", 
+                        roleName, user.Id, tenantId);
+                }
+            }
+            else if (hasStaffRole)
+            {
+                // Staff: الفندق الأساسي فقط (تم إضافته بالفعل)
+                _logger.LogInformation("✅ Added primary tenant only for Staff user: UserId={UserId}, TenantId={TenantId}", 
+                    user.Id, tenantId);
+            }
+
+            // إضافة جميع الفنادق المجمعة إلى UserTenants
+            foreach (var tenantIdToAdd in tenantsToAdd)
+            {
                 var existingUserTenant = await _masterDbContext.UserTenants
-                    .FirstOrDefaultAsync(ut => ut.UserId == user.Id && ut.TenantId == tenantId);
+                    .FirstOrDefaultAsync(ut => ut.UserId == user.Id && ut.TenantId == tenantIdToAdd);
                 
                 if (existingUserTenant == null)
                 {
                     var userTenant = new UserTenant
                     {
                         UserId = user.Id,
-                        TenantId = tenantId,
+                        TenantId = tenantIdToAdd,
                         CreatedAt = DateTime.UtcNow
                     };
                     _masterDbContext.UserTenants.Add(userTenant);
-                    
-                    var roleName = hasManagerRole ? "Manager" : hasAccountantRole ? "Accountant" : hasAdminRole ? "Admin" : "Staff";
-                    _logger.LogInformation("✅ Added primary tenant for {Role} user: UserId={UserId}, TenantId={TenantId}", 
-                        roleName, user.Id, tenantId);
-                }
-            }
-
-            // إضافة الفنادق الإضافية المحددة يدوياً (إذا كانت موجودة)
-            // هذه ستضاف بالإضافة إلى الفنادق المضافة بناءً على الأدوار
-            if (additionalTenantIds != null && additionalTenantIds.Any())
-            {
-                foreach (var additionalTenantId in additionalTenantIds)
-                {
-                    // التحقق من وجود Tenant والتأكد من أنه ليس الفندق الأساسي
-                    var additionalTenant = await _masterDbContext.Tenants.FindAsync(additionalTenantId);
-                    if (additionalTenant != null && additionalTenantId != tenantId)
-                    {
-                        // التحقق من عدم وجود سجل مكرر
-                        var existingUserTenant = await _masterDbContext.UserTenants
-                            .FirstOrDefaultAsync(ut => ut.UserId == user.Id && ut.TenantId == additionalTenantId);
-                        
-                        if (existingUserTenant == null)
-                        {
-                            var userTenant = new UserTenant
-                            {
-                                UserId = user.Id,
-                                TenantId = additionalTenantId,
-                                CreatedAt = DateTime.UtcNow
-                            };
-                            _masterDbContext.UserTenants.Add(userTenant);
-                        }
-                    }
                 }
             }
 
@@ -442,70 +456,88 @@ namespace zaaerIntegration.Services.Implementations
 
                 var currentTenantId = tenantId ?? user.TenantId;
 
+                // جمع جميع الفنادق المطلوبة في HashSet لتجنب التكرار
+                var tenantsToAdd = new HashSet<int>();
+                
+                // دائماً إضافة الفندق الأساسي
+                tenantsToAdd.Add(currentTenantId);
+
                 if (hasSupervisorRole)
                 {
-                    // Supervisor: إضافة جميع الفنادق ما عدا الفندق الأساسي
-                    var allTenants = await _masterDbContext.Tenants
-                        .Where(t => t.Id != currentTenantId)
-                        .ToListAsync();
-
-                    foreach (var supervisorTenant in allTenants)
+                    // Supervisor: إذا تم تحديد فنادق إضافية، نضيف فقط الفنادق المحددة + الفندق الأساسي
+                    // إذا لم يتم تحديد، نضيف جميع الفنادق
+                    if (additionalTenantIds != null && additionalTenantIds.Any())
                     {
-                        var userTenant = new UserTenant
+                        // إضافة الفنادق المحددة يدوياً
+                        foreach (var additionalTenantId in additionalTenantIds)
                         {
-                            UserId = user.Id,
-                            TenantId = supervisorTenant.Id,
-                            CreatedAt = DateTime.UtcNow
-                        };
-                        _masterDbContext.UserTenants.Add(userTenant);
+                            if (additionalTenantId != currentTenantId)
+                            {
+                                tenantsToAdd.Add(additionalTenantId);
+                            }
+                        }
+                        
+                        _logger.LogInformation("✅ Updated UserTenants for Supervisor user (selected tenants): UserId={UserId}, TenantCount={Count}", 
+                            user.Id, tenantsToAdd.Count);
                     }
-                    
-                    _logger.LogInformation("✅ Updated UserTenants for Supervisor user: UserId={UserId}, TenantCount={Count}", 
-                        user.Id, allTenants.Count);
+                    else
+                    {
+                        // إضافة جميع الفنادق
+                        var allTenants = await _masterDbContext.Tenants
+                            .Select(t => t.Id)
+                            .ToListAsync();
+                        
+                        foreach (var tenantIdToAdd in allTenants)
+                        {
+                            tenantsToAdd.Add(tenantIdToAdd);
+                        }
+                        
+                        _logger.LogInformation("✅ Updated UserTenants for Supervisor user (all tenants): UserId={UserId}, TenantCount={Count}", 
+                            user.Id, tenantsToAdd.Count);
+                    }
                 }
-                else if (hasManagerRole || hasAccountantRole || hasAdminRole || hasStaffRole)
+                else if (hasManagerRole || hasAccountantRole || hasAdminRole)
                 {
-                    // Manager, Accountant, Admin, Staff: إضافة الفندق الأساسي فقط
+                    // Manager, Accountant, Admin: إضافة الفنادق المحددة يدوياً + الفندق الأساسي
+                    if (additionalTenantIds != null && additionalTenantIds.Any())
+                    {
+                        foreach (var additionalTenantId in additionalTenantIds)
+                        {
+                            if (additionalTenantId != currentTenantId)
+                            {
+                                tenantsToAdd.Add(additionalTenantId);
+                            }
+                        }
+                        
+                        var roleName = hasManagerRole ? "Manager" : hasAccountantRole ? "Accountant" : "Admin";
+                        _logger.LogInformation("✅ Updated UserTenants for {Role} user (selected tenants): UserId={UserId}, TenantCount={Count}", 
+                            roleName, user.Id, tenantsToAdd.Count);
+                    }
+                    else
+                    {
+                        // فقط الفندق الأساسي (تم إضافته بالفعل)
+                        var roleName = hasManagerRole ? "Manager" : hasAccountantRole ? "Accountant" : "Admin";
+                        _logger.LogInformation("✅ Updated UserTenants for {Role} user (primary only): UserId={UserId}, TenantId={TenantId}", 
+                            roleName, user.Id, currentTenantId);
+                    }
+                }
+                else if (hasStaffRole)
+                {
+                    // Staff: الفندق الأساسي فقط (تم إضافته بالفعل)
+                    _logger.LogInformation("✅ Updated UserTenants for Staff user (primary only): UserId={UserId}, TenantId={TenantId}", 
+                        user.Id, currentTenantId);
+                }
+
+                // إضافة جميع الفنادق المجمعة إلى UserTenants
+                foreach (var tenantIdToAdd in tenantsToAdd)
+                {
                     var userTenant = new UserTenant
                     {
                         UserId = user.Id,
-                        TenantId = currentTenantId,
+                        TenantId = tenantIdToAdd,
                         CreatedAt = DateTime.UtcNow
                     };
                     _masterDbContext.UserTenants.Add(userTenant);
-                    
-                    var roleName = hasManagerRole ? "Manager" : hasAccountantRole ? "Accountant" : hasAdminRole ? "Admin" : "Staff";
-                    _logger.LogInformation("✅ Updated UserTenants for {Role} user: UserId={UserId}, TenantId={TenantId}", 
-                        roleName, user.Id, currentTenantId);
-                }
-
-                // إضافة الفنادق الإضافية المحددة يدوياً (إذا كانت موجودة)
-                if (additionalTenantIds != null && additionalTenantIds.Any())
-                {
-                    foreach (var additionalTenantId in additionalTenantIds)
-                    {
-                        if (additionalTenantId != currentTenantId)
-                        {
-                            var additionalTenant = await _masterDbContext.Tenants.FindAsync(additionalTenantId);
-                            if (additionalTenant != null)
-                            {
-                                // التحقق من عدم وجود سجل مكرر
-                                var existingUserTenant = await _masterDbContext.UserTenants
-                                    .FirstOrDefaultAsync(ut => ut.UserId == user.Id && ut.TenantId == additionalTenantId);
-                                
-                                if (existingUserTenant == null)
-                                {
-                                    var userTenant = new UserTenant
-                                    {
-                                        UserId = user.Id,
-                                        TenantId = additionalTenantId,
-                                        CreatedAt = DateTime.UtcNow
-                                    };
-                                    _masterDbContext.UserTenants.Add(userTenant);
-                                }
-                            }
-                        }
-                    }
                 }
             }
             else

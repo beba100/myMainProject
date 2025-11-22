@@ -43,6 +43,9 @@ namespace FinanceLedgerAPI.Models
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
+        [Column("created_by")]
+        public int? CreatedBy { get; set; }
+
         [Column("updated_at")]
         public DateTime? UpdatedAt { get; set; }
 
